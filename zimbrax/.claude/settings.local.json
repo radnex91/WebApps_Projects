@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l \"C:/xampp/htdocs/zimbrax/includes/config.php\")",
+      "Bash(php -l \"C:/xampp/htdocs/zimbrax/login.php\")",
+      "Bash(php -l \"C:/xampp/htdocs/zimbrax/logout.php\")",
+      "Bash(php -l \"C:/xampp/htdocs/zimbrax/api/emails.php\")",
+      "Bash(php -l \"C:/xampp/htdocs/zimbrax/api/calendar.php\")",
+      "Bash(\"C:/xampp/php/php.exe\" -l \"C:/xampp/htdocs/zimbrax/includes/config.php\")",
+      "Bash(\"C:/xampp/php/php.exe\" -l \"C:/xampp/htdocs/zimbrax/login.php\")",
+      "Bash(\"C:/xampp/php/php.exe\" -l \"C:/xampp/htdocs/zimbrax/logout.php\")",
+      "Bash(\"C:/xampp/php/php.exe\" -l \"C:/xampp/htdocs/zimbrax/api/emails.php\")",
+      "Bash(\"C:/xampp/php/php.exe\" -l \"C:/xampp/htdocs/zimbrax/api/calendar.php\")",
+      "Bash(C:/xampp/php/php.exe:*)",
+      "Bash(curl:*)",
+      "Read(//c/xampp/apache/logs/**)",
+      "Read(//c/xampp/logs/**)"
+    ]
+  }
+}

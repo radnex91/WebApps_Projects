@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manuel d'utilisation - MediCore ERP</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+            font-size: 12pt;
+        }
+        .page {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20mm;
+            page-break-after: always;
+        }
+        .cover {
+            text-align: center;
+            padding: 60mm 0;
+            background: linear-gradient(135deg, #1E3A5F 0%, #3b82f6 100%);
+            color: white;
+            margin: -20mm -20mm 0 -20mm;
+            padding: 60mm 20mm;
+        }
+        .cover h1 { font-size: 36pt; margin-bottom: 10pt; font-weight: 700; }
+        .cover h2 { font-size: 20pt; font-weight: 300; margin-bottom: 30pt; opacity: 0.9; }
+        .cover .version { font-size: 11pt; opacity: 0.7; }
+        .cover .logo { font-size: 60pt; margin-bottom: 20pt; }
+        h1 {
+            color: #1E3A5F;
+            font-size: 24pt;
+            margin: 30pt 0 15pt 0;
+            padding-bottom: 8pt;
+            border-bottom: 3px solid #3b82f6;
+            page-break-before: always;
+        }
+        h2 {
+            color: #3b82f6;
+            font-size: 16pt;
+            margin: 20pt 0 10pt 0;
+        }
+        h3 {
+            color: #555;
+            font-size: 13pt;
+            margin: 15pt 0 8pt 0;
+        }
+        p {
+            margin-bottom: 10pt;
+            text-align: justify;
+        }
+        ul, ol {
+            margin: 10pt 0 10pt 30pt;
+        }
+        li {
+            margin-bottom: 5pt;
+        }
+        .module-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15pt;
+            margin: 15pt 0;
+            background: #f9f9f9;
+        }
+        .module-card h2 {
+            margin-top: 0;
+            color: #1E3A5F;
+        }
+        .icon {
+            font-size: 20pt;
+            margin-right: 8pt;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15pt 0;
+            font-size: 10pt;
+        }
+        th {
+            background: #1E3A5F;
+            color: white;
+            padding: 8pt;
+            text-align: left;
+        }
+        td {
+            padding: 6pt 8pt;
+            border-bottom: 1px solid #ddd;
+        }
+        tr:nth-child(even) { background: #f5f5f5; }
+        .badge {
+            display: inline-block;
+            padding: 2pt 8pt;
+            border-radius: 10pt;
+            font-size: 9pt;
+            font-weight: 600;
+        }
+        .badge-blue { background: #dbeafe; color: #1E3A5F; }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 10pt 15pt;
+            margin: 10pt 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 10pt 15pt;
+            margin: 10pt 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .tip-box {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 10pt 15pt;
+            margin: 10pt 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .footer {
+            text-align: center;
+            font-size: 9pt;
+            color: #777;
+            margin-top: 30pt;
+            padding-top: 10pt;
+            border-top: 1px solid #ddd;
+        }
+        .toc { margin: 20pt 0; }
+        .toc-item {
+            padding: 5pt 0;
+            border-bottom: 1px dotted #ddd;
+        }
+        .screenshot {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5pt;
+            margin: 10pt 0;
+            text-align: center;
+            background: #f9f9f9;
+            font-size: 9pt;
+            color: #777;
+        }
+        @media print {
+            body { font-size: 11pt; }
+            .page { margin: 0; padding: 15mm; }
+            .cover { margin: -15mm -15mm 0 -15mm; padding: 50mm 15mm; }
+            h1 { page-break-before: always; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- PAGE DE GARDE -->
+<div class="page">
+    <div class="cover">
+        <div class="logo"></div>
+        <h1>MediCore ERP</h1>
+        <h2>Manuel de présentation des modules</h2>
+        <p class="version">Système de gestion hospitalière<br>Version 1.0 | 2026</p>
+    </div>
+</div>
+
+<!-- TABLE DES MATIÈRES -->
+<div class="page">
+    <h1>Table des matières</h1>
+    <div class="toc">
+        <div class="toc-item">1. Introduction à MediCore ERP</div>
+        <div class="toc-item">2. Tableau de bord (Dashboard)</div>
+        <div class="toc-item">3. Analytiques et statistiques</div>
+        <div class="toc-item">4. Gestion des patients</div>
+        <div class="toc-item">5. Rendez-vous</div>
+        <div class="toc-item">6. Urgences et hospitalisation</div>
+        <div class="toc-item">7. Dossiers médicaux</div>
+        <div class="toc-item">8. Personnel médical</div>
+        <div class="toc-item">9. Gestion des lits</div>
+        <div class="toc-item">10. Pharmacie et ordonnances</div>
+        <div class="toc-item">11. Caisse et ventes</div>
+        <div class="toc-item">12. Laboratoire</div>
+        <div class="toc-item">13. Facturation</div>
+        <div class="toc-item">14. Ressources humaines</div>
+        <div class="toc-item">15. Stocks et matériel</div>
+        <div class="toc-item">16. Rapports</div>
+        <div class="toc-item">17. Utilisateurs</div>
+        <div class="toc-item">18. Paramètres</div>
+        <div class="toc-item">19. Rôles et permissions</div>
+        <div class="toc-item">20. Annexe - Rôles et accès</div>
+    </div>
+</div>
+
+<!-- INTRODUCTION -->
+<div class="page">
+    <h1>1. Introduction à MediCore ERP</h1>
+    <p>MediCore ERP est un système complet de gestion hospitalière conçu pour moderniser la gestion des établissements de santé. Développé en PHP/MySQL, il offre une solution tout-en-un pour gérer les patients, le personnel médical, les ressources matérielles et les aspects financiers.</p>
+
+    <h2>Caractéristiques principales</h2>
+    <ul>
+        <li><strong>Gestion complète des patients :</strong> Dossiers médicaux, historique, hospitalisations</li>
+        <li><strong>Planning et rendez-vous :</strong> Gestion des RDV médicaux avec calendrier</li>
+        <li><strong>Urgences :</strong> Admission, suivi et sortie des patients en urgence</li>
+        <li><strong>Pharmacie :</strong> Gestion des médicaments, ordonnances et stock</li>
+        <li><strong>Laboratoire :</strong> Prescription et suivi des analyses médicales</li>
+        <li><strong>Facturation :</strong> Gestion des factures patients et assurance</li>
+        <li><strong>Ressources humaines :</strong> Gestion du personnel médical et administratif</li>
+        <li><strong>Stocks :</strong> Suivi des équipements et consommables</li>
+        <li><strong>Rapports et analytiques :</strong> Tableaux de bord et statistiques</li>
+    </ul>
+
+    <h2>Accès au système</h2>
+    <div class="info-box">
+        <p><strong>URL :</strong> http://localhost/medicore</p>
+        <p><strong>Compte par défaut :</strong> admin@medicore.fr / admin123</p>
+        <p><strong>Rôles disponibles :</strong> Administrateur, Médecin, Infirmier(ère), Pharmacien, Comptable</p>
+    </div>
+
+    <h2>Navigateur recommandé</h2>
+    <p>Le système est compatible avec les navigateurs modernes : Chrome, Firefox, Edge, Safari. Une connexion locale via XAMPP (Apache + MySQL) est requise.</p>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page">
+    <h1>2. Tableau de bord (Dashboard)</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Vue d'ensemble</h2>
+        <p>Le tableau de bord est la page d'accueil après connexion. Il présente en un coup d'œil l'état de l'hôpital en temps réel.</p>
+
+        <h3>Indicateurs clés (KPIs)</h3>
+        <table>
+            <tr><th>Indicateur</th><th>Description</th></tr>
+            <tr><td>Patients hospitalisés</td><td>Nombre de patients actuellement en hospitalisation</td></tr>
+            <tr><td>Cas critiques</td><td>Patients en urgence priorité critique</td></tr>
+            <tr><td>Lits disponibles</td><td>Nombre de lits libres / total</td></tr>
+            <tr><td>Rendez-vous du jour</td><td>Nombre de RDV planifiés aujourd'hui</td></tr>
+            <tr><td>Urgences actives</td><td>Hospitalisations en cours</td></tr>
+            <tr><td>Médicaments en alerte</td><td>Stock critique ou bas</td></tr>
+            <tr><td>Ordonnances en attente</td><td>Ordonnances actives non encaissées</td></tr>
+            <tr><td>Analyses disponibles</td><td>Résultats d'analyses prêts</td></tr>
+            <tr><td>Chiffre d'affaires du jour</td><td>Ventes caisse payées aujourd'hui</td></tr>
+            <tr><td>CA du mois</td><td>Total des ventes du mois en cours</td></tr>
+        </table>
+
+        <h3>Sections du dashboard</h3>
+        <ul>
+            <li><strong>Planning du jour :</strong> Liste des rendez-vous avec médecin et patient</li>
+            <li><strong>Hospitalisations actives :</strong> Patients en cours avec priorité et lit</li>
+            <li><strong>Admissions (7 jours) :</strong> Graphique des admissions récentes</li>
+            <li><strong>Occupation par département :</strong> Taux d'occupation des lits par service</li>
+            <li><strong>Journal d'activité :</strong> Dernières actions des utilisateurs</li>
+            <li><strong>Info rôle :</strong> Votre rôle et nombre de modules accessibles</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="page">
+    <h1>3. Analytiques et statistiques</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Analytiques</h2>
+        <p>Module dédié à l'analyse des performances hospitalières avec des indicateurs détaillés et graphiques.</p>
+
+        <h3>Indicateurs suivis</h3>
+        <ul>
+            <li>Total des patients enregistrés</li>
+            <li>Hospitalisations actives et du mois</li>
+            <li>Taux d'occupation des lits</li>
+            <li>Rendez-vous du mois (total, complétés, annulés)</li>
+            <li>Chiffre d'affaires (facturation et caisse)</li>
+            <li>Durée moyenne de séjour (DMS)</li>
+            <li>Médicaments en rupture ou stock bas</li>
+            <li>Analyses en attente de résultats</li>
+        </ul>
+
+        <h3>Fonctionnalités</h3>
+        <ul>
+            <li>Export CSV des indicateurs</li>
+            <li>Graphiques d'évolution mensuelle</li>
+            <li>Analyse par département</li>
+            <li>Suivi des performances des médecins</li>
+        </ul>
+
+        <div class="tip-box">
+            <p><strong>Astuce :</strong> Utilisez le bouton "Exporter CSV" pour récupérer toutes les données en format tableur.</p>
+        </div>
+    </div>
+</div>
+
+<!-- PATIENTS -->
+<div class="page">
+    <h1>4. Gestion des patients</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Patients</h2>
+        <p>Module central pour la gestion complète du dossier patient, de l'inscription au suivi médical.</p>
+
+        <h3>Création d'un patient</h3>
+        <p>Pour créer un nouveau patient, cliquez sur "Nouveau patient" et remplissez :</p>
+        <ul>
+            <li><strong>Informations obligatoires :</strong> Nom, Prénom, Date de naissance, Sexe</li>
+            <li><strong>Contact :</strong> Adresse, Téléphone, Email</li>
+            <li><strong>Assurance :</strong> CPAM, Mutuelle, Non assuré, Étranger</li>
+            <li><strong>Médical :</strong> Groupe sanguin, Allergies, Antécédents</li>
+            <li><strong>Urgence :</strong> Contact d'urgence (nom et téléphone)</li>
+        </ul>
+        <p>Un numéro de dossier unique est généré automatiquement (format : P-AAAA-NNNNN).</p>
+
+        <h3>Actions disponibles</h3>
+        <table>
+            <tr><th>Action</th><th>Description</th><th>Rôle requis</th></tr>
+            <tr><td>Créer</td><td>Ajouter un nouveau patient</td><td>Médecin, Infirmier, Admin</td></tr>
+            <tr><td>Modifier</td><td>Éditer les informations</td><td>Médecin, Infirmier, Admin</td></tr>
+            <tr><td>Supprimer</td><td>Supprimer un dossier</td><td>Admin uniquement</td></tr>
+            <tr><td>Exporter CSV</td><td>Export de la liste des patients</td><td>Tous (si permission)</td></tr>
+        </table>
+
+        <h3>Recherche et filtres</h3>
+        <p>Utilisez la barre de recherche pour trouver un patient par nom, prénom, numéro de dossier ou téléphone. Filtrez par statut (actif, archivé).</p>
+    </div>
+</div>
+
+<!-- RENDEZ-VOUS -->
+<div class="page">
+    <h1>5. Rendez-vous</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Rendez-vous</h2>
+        <p>Gestion complète du planning des rendez-vous médicaux avec vue journalière et hebdomadaire.</p>
+
+        <h3>Créer un rendez-vous</h3>
+        <ul>
+            <li>Sélection du patient (recherche par nom)</li>
+            <li>Choix du médecin (liste du personnel médical)</li>
+            <li>Date et heure du RDV</li>
+            <li>Durée (par défaut 30 min)</li>
+            <li>Type : Consultation, Suivi, Urgence, Chirurgie, Bilan</li>
+            <li>Motif de consultation</li>
+            <li>Salle d'examen (optionnel)</li>
+        </ul>
+
+        <h3>Statuts de RDV</h3>
+        <table>
+            <tr><th>Statut</th><th>Badge</th><th>Description</th></tr>
+            <tr><td>Planifié</td><td><span class="badge badge-blue">Planifié</span></td><td>RDV créé, en attente</td></tr>
+            <tr><td>Confirmé</td><td><span class="badge badge-green">Confirmé</span></td><td>Patient confirmé</td></tr>
+            <tr><td>Complété</td><td><span class="badge badge-blue">Complété</span></td><td>Consultation terminée</td></tr>
+            <tr><td>Annulé</td><td><span class="badge badge-red">Annulé</span></td><td>RDV annulé</td></tr>
+            <tr><td>Absent</td><td><span class="badge badge-yellow">Absent</span></td><td>Patient non venu</td></tr>
+        </table>
+
+        <h3>Vues disponibles</h3>
+        <ul>
+            <li><strong>Vue journalière :</strong> Planning détaillé de la journée</li>
+            <li><strong>Vue hebdomadaire :</strong> planning de la semaine</li>
+            <li><strong>Filtres :</strong> Par médecin, par statut</li>
+        </ul>
+    </div>
+</div>
+
+<!-- URGENCES -->
+<div class="page">
+    <h1>6. Urgences et hospitalisation</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Urgences</h2>
+        <p>Gestion des admissions aux urgences, hospitalisations et suivi des patients.</p>
+
+        <h3>Admission aux urgences</h3>
+        <p>Pour admettre un patient :</p>
+        <ol>
+            <li>Sélectionner le patient (existant ou nouveau)</li>
+            <li>Choisir le médecin responsable</li>
+            <li>Attribuer un lit disponible</li>
+            <li>Définir la priorité : Critique, Urgent, Normal</li>
+            <li>Saisir le motif d'admission</li>
+        </ol>
+
+        <h3>Priorités</h3>
+        <table>
+            <tr><th>Priorité</th><th>Couleur</th><th>Description</th></tr>
+            <tr><td>Critique</td><td><span class="badge badge-red">Critique</span></td><td>Vie en danger, prise en charge immédiate</td></tr>
+            <tr><td>Urgent</td><td><span class="badge badge-yellow">Urgent</span></td><td>Moins de 30 min d'attente</td></tr>
+            <tr><td>Normal</td><td><span class="badge badge-green">Normal</span></td><td>Moins de 2h d'attente</td></tr>
+        </table>
+
+        <h3>Gestion des hospitalisations</h3>
+        <ul>
+            <li><strong>Suivi :</strong> Modifier le statut, ajouter des notes</li>
+            <li><strong>Sortie :</strong> Valider la sortie du patient (le lit passe en "nettoyage")</li>
+            <li><strong>Transfert :</strong> Transférer vers un autre service</li>
+        </ul>
+
+        <div class="warning-box">
+            <p><strong>Important :</strong> Lors d'une sortie, le lit passe automatiquement au statut "nettoyage" et ne peut être réattribué qu'après nettoyage.</p>
+        </div>
+    </div>
+</div>
+
+<!-- DOSSIERS MEDICAUX -->
+<div class="page">
+    <h1>7. Dossiers médicaux</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Dossiers médicaux</h2>
+        <p>Accès sécurisé et complet à l'historique médical d'un patient.</p>
+
+        <h3>Contenu du dossier</h3>
+        <ul>
+            <li><strong>Informations patient :</strong> Identité, contact, assurance, antécédents</li>
+            <li><strong>Hospitalisations :</strong> Historique complet avec lits et médecins</li>
+            <li><strong>Ordonnances :</strong> Toutes les ordonnances prescrites avec détails</li>
+            <li><strong>Analyses :</strong> Examens prescrits et résultats</li>
+            <li><strong>Factures :</strong> Historique de facturation</li>
+        </ul>
+
+        <h3>Recherche de patient</h3>
+        <p>Utilisez la barre de recherche pour trouver un patient par nom, prénom, numéro de dossier ou téléphone. Cliquez sur "Voir le dossier" pour accéder à la fiche complète.</p>
+
+        <h3>Statuts dans le dossier</h3>
+        <ul>
+            <li>Hospitalisations : En cours (jaune), Sorti (vert), Transféré (bleu)</li>
+            <li>Ordonnances : Active (vert), Terminée (bleu), Annulée (rouge)</li>
+            <li>Analyses : Prescrit (bleu), En cours (jaune), Disponible (vert), Archivé (gris)</li>
+            <li>Factures : En attente (jaune), Réglée (vert), Impayée (rouge)</li>
+        </ul>
+    </div>
+</div>
+
+<!-- PERSONNEL MEDICAL -->
+<div class="page">
+    <h1>8. Personnel médical</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Personnel médical</h2>
+        <p>Gestion de tout le personnel : médecins, infirmiers, pharmaciens, comptables.</p>
+
+        <h3>Ajouter un membre du personnel</h3>
+        <ul>
+            <li><strong>Identité :</strong> Nom, Prénom, Email (unique)</li>
+            <li><strong>Rôle :</strong> Admin, Médecin, Infirmier, Pharmacien, Comptable</li>
+            <li><strong>Spécialité :</strong> Cardiologie, Pédiatrie, etc. (médecins)</li>
+            <li><strong>Contact :</strong> Téléphone, Extension</li>
+            <li><strong>Planning :</strong> Horaires de travail</li>
+            <li><strong>Statut :</strong> Actif, Inactif, En congé</li>
+        </ul>
+        <p>Le mot de passe par défaut est : <code>medicore2026</code></p>
+
+        <h3>Actions disponibles</h3>
+        <table>
+            <tr><th>Action</th><th>Description</th></tr>
+            <tr><td>Créer</td><td>Ajouter un membre du personnel</td></tr>
+            <tr><td>Modifier</td><td>Éditer les informations</td></tr>
+            <tr><td>Activer/Désactiver</td><td>Changer le statut de connexion</td></tr>
+            <tr><td>Réinitialiser mot de passe</td><td>Remettre le mot de passe par défaut</td></tr>
+        </table>
+
+        <h3>Statuts du personnel</h3>
+        <ul>
+            <li><span class="badge badge-green">Actif</span> : Peut se connecter et travailler</li>
+            <li><span class="badge badge-yellow">En congé</span> : Temporairement absent</li>
+            <li><span class="badge badge-red">Inactif</span> : Compte désactivé</li>
+        </ul>
+    </div>
+</div>
+
+<!-- GESTION DES LITS -->
+<div class="page">
+    <h1>9. Gestion des lits</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Gestion des lits</h2>
+        <p>Gestion complète des lits hospitaliers par département avec suivi en temps réel.</p>
+
+        <h3>Départements</h3>
+        <p>Créez et gérez les départements (services) :</p>
+        <ul>
+            <li>Nom du département (ex: Cardiologie, Urgences)</li>
+            <li>Code unique (ex: CAR, URG)</li>
+            <li>Capacité en lits</li>
+            <li>Étage</li>
+            <li>Couleur d'identification</li>
+        </ul>
+
+        <h3>Types de lits</h3>
+        <table>
+            <tr><th>Type</th><th>Description</th></tr>
+            <tr><td>Standard</td><td>Lit d'hospitalisation classique</td></tr>
+            <tr><td>Soins intensifs</td><td>Surveillance continue</td></tr>
+            <tr><td>Réanimation</td><td>Soins critiques</td></tr>
+            <tr><td>Isolement</td><td>Maladies contagieuses</td></tr>
+        </table>
+
+        <h3>Statuts des lits</h3>
+        <ul>
+            <li><span class="badge badge-green">Libre</span> : Disponible</li>
+            <li><span class="badge badge-red">Occupé</span> : Patient hospitalisé</li>
+            <li><span class="badge badge-yellow">Nettoyage</span> : Après sortie, en cours de nettoyage</li>
+            <li><span class="badge badge-blue">Hors service</span> : En maintenance</li>
+        </ul>
+
+        <h3>Occupation en temps réel</h3>
+        <p>Le tableau de bord affiche le taux d'occupation global et par département. Les lits sont mis à jour automatiquement lors des admissions et sorties.</p>
+    </div>
+</div>
+
+<!-- PHARMACIE -->
+<div class="page">
+    <h1>10. Pharmacie et ordonnances</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Pharmacie</h2>
+        <p>Gestion du stock de médicaments, création d'ordonnances et dispensation.</p>
+
+        <h3>Gestion des médicaments</h3>
+        <ul>
+            <li><strong>Ajout :</strong> Nom, Catégorie, Dosage, Unité</li>
+            <li><strong>Stock :</strong> Quantité actuelle, Stock minimum</li>
+            <li><strong>Fournisseur :</strong> Nom du fournisseur</li>
+            <li><strong>Prix :</strong> Prix unitaire de vente</li>
+        </ul>
+
+        <h3>Statuts de stock</h3>
+        <table>
+            <tr><th>Statut</th><th>Badge</th><th>Condition</th></tr>
+            <tr><td>Normal</td><td><span class="badge badge-green">Normal</span></td><td>Stock > minimum</td></tr>
+            <tr><td>Bas</td><td><span class="badge badge-yellow">Bas</span></td><td>Stock ≤ minimum</td></tr>
+            <tr><td>Critique</td><td><span class="badge badge-red">Critique</span></td><td>Stock ≤ 50% du minimum</td></tr>
+        </table>
+
+        <h3>Ordonnances</h3>
+        <p>Création d'une ordonnance :</p>
+        <ol>
+            <li>Sélection du patient</li>
+            <li>Choix du médecin prescripteur</li>
+            <li>Ajout des médicaments (plusieurs possibles)</li>
+            <li>Pour chaque médicament : Dosage, Fréquence, Durée</li>
+            <li>Enregistrement et/ou encaissement direct</li>
+        </ol>
+
+        <h3>Encaissement</h3>
+        <p>Les ordonnances actives peuvent être encaissées directement via le module caisse. Le stock est automatiquement décrémenté lors de la vente.</p>
+    </div>
+</div>
+
+<!-- CAISSE -->
+<div class="page">
+    <h1>11. Caisse et ventes</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Caisse & Tickets</h2>
+        <p>Gestion des ventes de médicaments et actes médicaux avec génération de tickets.</p>
+
+        <h3>Créer une vente</h3>
+        <ul>
+            <li>Sélection des médicaments (recherche par nom)</li>
+            <li>Quantité pour chaque article</li>
+            <li>Remise éventuelle (pourcentage)</li>
+            <li>Liaison avec un patient (optionnel)</li>
+            <li>Liaison avec une ordonnance (optionnel)</li>
+        </ul>
+
+        <h3>Modes de paiement</h3>
+        <table>
+            <tr><th>Mode</th><th>Description</th></tr>
+            <tr><td>Espèces</td><td>Paiement cash, calcul de monnaie</td></tr>
+            <tr><td>Carte bancaire</td><td>Paiement par CB</td></tr>
+            <tr><td>Chèque</td><td>Paiement par chèque</td></tr>
+            <tr><td>Virement</td><td>Virement bancaire</td></tr>
+            <tr><td>Assurance</td><td>Prise en charge par l'assurance</td></tr>
+            <tr><td>Gratuit</td><td>Soins gracieux</td></tr>
+        </table>
+
+        <h3>Numérotation</h3>
+        <p>Les tickets sont numérotés automatiquement (format : TK-AAAA-NNNNN). Chaque vente génère un ticket imprimable.</p>
+
+        <h3>Statuts des ventes</h3>
+        <ul>
+            <li><span class="badge badge-green">Payé</span> : Vente complétée</li>
+            <li><span class="badge badge-yellow">En attente</span> : Paiement partiel</li>
+            <li><span class="badge badge-red">Annulé</span> : Vente annulée</li>
+        </ul>
+
+        <div class="tip-box">
+            <p><strong>Astuce :</strong> En mode espèces, la monnaie à rendre est calculée automatiquement.</p>
+        </div>
+    </div>
+</div>
+
+<!-- LABORATOIRE -->
+<div class="page">
+    <h1>12. Laboratoire</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Laboratoire</h2>
+        <p>Prescription et suivi des analyses médicales avec gestion des résultats.</p>
+
+        <h3>Prescription d'une analyse</h3>
+        <ul>
+            <li>Sélection du patient</li>
+            <li>Type d'examen (biologie, radiologie, etc.)</li>
+            <li>Médecin prescripteur</li>
+            <li>Numéro d'analyse généré automatiquement (L-AAAA-NNNN)</li>
+        </ul>
+
+        <h3>Suivi des analyses</h3>
+        <table>
+            <tr><th>Statut</th><th>Badge</th><th>Description</th></tr>
+            <tr><td>Prescrit</td><td><span class="badge badge-blue">Prescrit</span></td><td>Analyse demandée</td></tr>
+            <tr><td>En cours</td><td><span class="badge badge-yellow">En cours</span></td><td>Analyse en cours d'exécution</td></tr>
+            <tr><td>Disponible</td><td><span class="badge badge-green">Disponible</span></td><td>Résultats prêts</td></tr>
+            <tr><td>Archivé</td><td><span class="badge badge-blue">Archivé</span></td><td>Analyse classée</td></tr>
+        </table>
+
+        <h3>Saisie des résultats</h3>
+        <p>Le personnel de laboratoire peut mettre à jour le statut et saisir les résultats directement dans le système. Une fois "Disponible", le médecin est notifié.</p>
+
+        <h3>Export et impression</h3>
+        <ul>
+            <li>Export CSV de la liste des analyses</li>
+            <li>Impression des résultats d'analyse</li>
+            <li>Historique par patient</li>
+        </ul>
+    </div>
+</div>
+
+<!-- FACTURATION -->
+<div class="page">
+    <h1>13. Facturation</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Facturation</h2>
+        <p>Gestion des factures patients avec prise en charge par l'assurance.</p>
+
+        <h3>Création d'une facture</h3>
+        <ul>
+            <li>Sélection du patient</li>
+            <li>Montant total de la facture</li>
+            <li>Montant pris en charge par l'assurance</li>
+            <li>Montant restant dû par le patient (calculé automatiquement)</li>
+            <li>Type d'assurance : CPAM, Mutuelle, Étranger, etc.</li>
+            <li>Notes et commentaires</li>
+        </ul>
+        <p>Numérotation automatique (format : FAC-AAAA-NNNNN).</p>
+
+        <h3>Statuts de facturation</h3>
+        <table>
+            <tr><th>Statut</th><th>Badge</th><th>Description</th></tr>
+            <tr><td>En attente</td><td><span class="badge badge-yellow">En attente</span></td><td>Non payée</td></tr>
+            <tr><td>Réglée</td><td><span class="badge badge-green">Réglée</span></td><td>Payée intégralement</td></tr>
+            <tr><td>Partielle</td><td><span class="badge badge-yellow">Partielle</span></td><td>Paiement partiel</td></tr>
+            <tr><td>Impayée</td><td><span class="badge badge-red">Impayée</span></td><td>Restée impayée</td></tr>
+            <tr><td>Annulée</td><td><span class="badge badge-blue">Annulée</span></td><td>Facture annulée</td></tr>
+        </table>
+
+        <h3>Tableau des factures</h3>
+        <ul>
+            <li>Recherche par numéro, patient, assurance</li>
+            <li>Filtre par statut</li>
+            <li>Mise à jour rapide du statut</li>
+        </ul>
+    </div>
+</div>
+
+<!-- RESSOURCES HUMAINES -->
+<div class="page">
+    <h1>14. Ressources humaines</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Ressources humaines</h2>
+        <p>Tableau de bord RH avec statistiques du personnel et répartition par rôle.</p>
+
+        <h3>Statistiques RH</h3>
+        <table>
+            <tr><th>Indicateur</th><th>Description</th></tr>
+            <tr><td>Total employés</td><td>Nombre total de personnel</td></tr>
+            <tr><td>En service</td><td>Personnel actif</td></tr>
+            <tr><td>En congé</td><td>Personnel en congé</td></tr>
+            <tr><td>Inactifs</td><td>Personnel désactivé</td></tr>
+        </table>
+
+        <h3>Répartition par rôle</h3>
+        <p>Graphique circulaire montrant la répartition du personnel par rôle (Admin, Médecin, Infirmier, Pharmacien, Comptable).</p>
+
+        <h3>Activité des médecins</h3>
+        <ul>
+            <li>Nombre de RDV aujourd'hui</li>
+            <li>Nombre de RDV ce mois</li>
+            <li>Patients actifs (hospitalisations en cours)</li>
+            <li>Top 5 des médecins les plus actifs</li>
+        </ul>
+
+        <h3>Plannings</h3>
+        <p>Répartition du personnel par planning de travail (matin, après-midi, nuit, 24h).</p>
+
+        <div class="info-box">
+            <p><strong>Note :</strong> Ce module est en lecture seule. Pour modifier le personnel, utilisez le module "Personnel médical" ou "Utilisateurs".</p>
+        </div>
+    </div>
+</div>
+
+<!-- STOCKS -->
+<div class="page">
+    <h1>15. Stocks et matériel</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Stocks & Matériel</h2>
+        <p>Gestion des stocks d'équipements médicaux et consommables hospitaliers.</p>
+
+        <h3>Catégories de stock</h3>
+        <table>
+            <tr><th>Catégorie</th><th>Exemples</th></tr>
+            <tr><td>Consommable</td><td>Gants, masques, seringues</td></tr>
+            <tr><td>Équipement</td><td>Stéthoscopes, tensiomètres</td></tr>
+            <tr><td>Protection</td><td>Équipements de protection individuelle</td></tr>
+            <tr><td>Autre</td><td>Divers matériel hospitalier</td></tr>
+        </table>
+
+        <h3>Gestion des articles</h3>
+        <ul>
+            <li><strong>Ajout :</strong> Nom, Catégorie, Quantité, Unité</li>
+            <li><strong>Valeur :</strong> Prix unitaire d'achat</li>
+            <li><strong>Fournisseur :</strong> Nom du fournisseur</li>
+            <li><strong>Seuil d'alerte :</strong> Quantité minimale souhaitée</li>
+        </ul>
+
+        <h3>Entrées de stock</h3>
+        <p>Enregistrez les nouvelles entrées (livraisons) avec :</p>
+        <ul>
+            <li>Article concerné</li>
+            <li>Quantité ajoutée</li>
+            <li>Fournisseur</li>
+            <li>Numéro de facture fournisseur</li>
+            <li>Notes</li>
+        </ul>
+
+        <h3>Statuts de stock</h3>
+        <ul>
+            <li><span class="badge badge-green">Normal</span> : Stock suffisant</li>
+            <li><span class="badge badge-yellow">Bas</span> : Proche du seuil d'alerte</li>
+            <li><span class="badge badge-red">Critique</span> : En dessous du seuil d'alerte</li>
+        </ul>
+
+        <div class="warning-box">
+            <p><strong>Attention :</strong> Les articles en stock critique apparaissent dans les alertes du tableau de bord.</p>
+        </div>
+    </div>
+</div>
+
+<!-- RAPPORTS -->
+<div class="page">
+    <h1>16. Rapports</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Rapports</h2>
+        <p>Génération de rapports détaillés par période et par type d'activité.</p>
+
+        <h3>Types de rapports</h3>
+        <table>
+            <tr><th>Type</th><th>Contenu</th></tr>
+            <tr><td>Mensuel</td><td>Activité globale du mois (admissions, RDV, occupation)</td></tr>
+            <tr><td>Financier</td><td>CA, facturation, caisse, répartition des paiements</td></tr>
+            <tr><td>RH</td><td>Statistiques du personnel, activité par médecin</td></tr>
+            <tr><td>Pharmacie</td><td>Ventes, top médicaments, état des stocks</td></tr>
+            <tr><td>Urgences</td><td>Admissions urgences, temps de passage, sorties</td></tr>
+            <tr><td>Caisse</td><td>Ventes, modes de paiement, tickets</td></tr>
+            <tr><td>Patients</td><td>Démographie, origines, assurances</td></tr>
+        </table>
+
+        <h3>Filtres de rapport</h3>
+        <ul>
+            <li><strong>Période :</strong> Date de début et de fin</li>
+            <li><strong>Type :</strong> Choix du type de rapport</li>
+            <li><strong>Export :</strong> CSV ou Impression</li>
+        </ul>
+
+        <h3>Impression</h3>
+        <p>Le bouton "Imprimer" génère une version imprimable du rapport avec en-tête personnalisé (nom de l'établissement, logo).</p>
+
+        <div class="tip-box">
+            <p><strong>Astuce :</strong> Utilisez l'export CSV pour analyser les données dans Excel ou créer vos propres graphiques.</p>
+        </div>
+    </div>
+</div>
+
+<!-- UTILISATEURS -->
+<div class="page">
+    <h1>17. Utilisateurs</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Utilisateurs</h2>
+        <p>Gestion des comptes utilisateurs (réservé aux administrateurs).</p>
+
+        <h3>Création d'utilisateur</h3>
+        <ul>
+            <li><strong>Identité :</strong> Nom, Prénom, Email (identifiant de connexion)</li>
+            <li><strong>Mot de passe :</strong> Minimum 8 caractères</li>
+            <li><strong>Rôle :</strong> Sélection parmi les rôles configurés</li>
+            <li><strong>Spécialité :</strong> Pour les médecins</li>
+            <li><strong>Contact :</strong> Téléphone, Extension</li>
+            <li><strong>Planning :</strong> Horaires de travail</li>
+            <li><strong>Statut :</strong> Actif ou Inactif</li>
+        </ul>
+
+        <h3>Actions administratives</h3>
+        <table>
+            <tr><th>Action</th><th>Description</th></tr>
+            <tr><td>Créer</td><td>Nouveau compte utilisateur</td></tr>
+            <tr><td>Modifier</td><td>Éditer les informations</td></tr>
+            <tr><td>Changer statut</td><td>Activer/Désactiver le compte</td></tr>
+            <tr><td>Réinit. mot de passe</td><td>Remettre à "medicore2026"</td></tr>
+            <tr><td>Supprimer</td><td>Supprimer définitivement le compte</td></tr>
+            <tr><td>Exporter CSV</td><td>Liste des utilisateurs</td></tr>
+        </table>
+
+        <div class="warning-box">
+            <p><strong>Sécurité :</strong> Seuls les administrateurs peuvent créer, modifier ou supprimer des utilisateurs. Les mots de passe sont chiffrés avec bcrypt.</p>
+        </div>
+    </div>
+</div>
+
+<!-- PARAMETRES -->
+<div class="page">
+    <h1>18. Paramètres</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Paramètres</h2>
+        <p>Configuration globale de l'application (réservé aux administrateurs).</p>
+
+        <h3>Paramètres généraux</h3>
+        <ul>
+            <li><strong>Nom de l'application :</strong> MediCore ERP (modifiable)</li>
+            <li><strong>Établissement :</strong> Nom de l'hôpital</li>
+            <li><strong>Adresse, Téléphone, Email :</strong> Coordonnées de l'établissement</li>
+        </ul>
+
+        <h3>Paramètres régionaux</h3>
+        <table>
+            <tr><th>Paramètre</th><th>Options</th></tr>
+            <tr><td>Devise</td><td>Code (XAF), Symbole (FCFA), Position, Décimales</td></tr>
+            <tr><td>Format de date</td><td>d/m/Y, m/d/Y, Y-m-d, etc.</td></tr>
+            <tr><td>Séparateurs</td><td>Décimales et milliers</td></tr>
+        </table>
+
+        <h3>Apparence</h3>
+        <ul>
+            <li><strong>Polices :</strong> Police du corps et des titres (Google Fonts)</li>
+            <li><strong>Taille de police :</strong> 12px à 18px</li>
+            <li><strong>Thème :</strong> Couleurs primaire et accent</li>
+            <li><strong>Presets :</strong> Ocean, Forest, Sunset, etc.</li>
+        </ul>
+
+        <h3>Logo et en-tête</h3>
+        <ul>
+            <li>Téléchargement du logo (PNG, JPG, SVG)</li>
+            <li>Aperçu du logo</li>
+            <li>En-tête des rapports (texte personnalisé)</li>
+        </ul>
+
+        <div class="tip-box">
+            <p><strong>Astuce :</strong> Utilisez le bouton "Réinitialiser" pour remettre tous les paramètres par défaut.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ROLES ET PERMISSIONS -->
+<div class="page">
+    <h1>19. Rôles et permissions</h1>
+    <div class="module-card">
+        <h2><span class="icon"></span> Rôles & Permissions</h2>
+        <p>Configuration granulaire des accès par rôle (réservé aux administrateurs).</p>
+
+        <h3>Gestion des rôles</h3>
+        <ul>
+            <li><strong>Créer un rôle :</strong> Nom, Libellé, Couleur, Description</li>
+            <li><strong>Modifier :</strong> Éditer un rôle existant</li>
+            <li><strong>Activer/Désactiver :</strong> Rendre un rôle disponible ou non</li>
+            <li><strong>Supprimer :</strong> Supprimer un rôle (si aucun utilisateur associé)</li>
+        </ul>
+
+        <h3>Permissions par page</h3>
+        <p>Attribuez ou révoquez l'accès à chaque module :</p>
+        <table>
+            <tr><th>Module</th><th>Section</th></tr>
+            <tr><td>Dashboard, Analytics</td><td>Tableau de bord</td></tr>
+            <tr><td>Patients, RDV, Urgences, Dossiers</td><td>Clinique</td></tr>
+            <tr><td>Personnel, Lits</td><td>Ressources</td></tr>
+            <tr><td>Pharmacie, Caisse, Laboratoire</td><td>Services médicaux</td></tr>
+            <tr><td>Facturation, RH, Stocks, Rapports</td><td>Administration</td></tr>
+            <tr><td>Utilisateurs, Paramètres, Rôles</td><td>Système</td></tr>
+        </table>
+
+        <h3>Permissions d'action</h3>
+        <ul>
+            <li>Créer, Modifier, Supprimer (Patients, RDV, etc.)</li>
+            <li>Changer de statut (Hospitalisations, Lits, Analyses)</li>
+            <li>Encaisser (Ordonnances, Caisse)</li>
+            <li>Entrées stock, Mise à jour quantité</li>
+        </ul>
+
+        <div class="info-box">
+            <p><strong>Note :</strong> L'administrateur a toujours tous les accès, indépendamment des permissions configurées.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ANNEXE - ROLES -->
+<div class="page">
+    <h1>20. Annexe - Rôles et accès</h1>
+
+    <h2>Rôles par défaut</h2>
+    <table>
+        <tr><th>Rôle</th><th>Couleur</th><th>Description</th></tr>
+        <tr><td>Administrateur</td><td><span class="badge badge-red">Admin</span></td><td>Accès total à tous les modules</td></tr>
+        <tr><td>Médecin</td><td><span class="badge badge-blue">Médecin</span></td><td>Accès clinique complet</td></tr>
+        <tr><td>Infirmier(ère)</td><td><span class="badge badge-green">Infirmier</span></td><td>Soins et suivi patients</td></tr>
+        <tr><td>Pharmacien</td><td><span class="badge badge-blue">Pharmacien</span></td><td>Pharmacie et stocks</td></tr>
+        <tr><td>Comptable</td><td><span class="badge badge-yellow">Comptable</span></td><td>Facturation et rapports</td></tr>
+    </table>
+
+    <h2>Matrice d'accès (pages)</h2>
+    <table>
+        <tr><th>Module</th><th>Admin</th><th>Médecin</th><th>Infirmier</th><th>Pharmacien</th><th>Comptable</th></tr>
+        <tr><td>Dashboard</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Analytics</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Patients</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>RDV</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Urgences</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Dossiers</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Personnel</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Lits</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Pharmacie</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Caisse</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Laboratoire</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Facturation</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>RH</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Stocks</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Rapports</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Utilisateurs</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Paramètres</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Rôles</td><td></td><td></td><td></td><td></td><td></td></tr>
+    </table>
+    <p><small> = Accès complet |  = Lecture seule |  = Aucun accès (configurable)</small>
+
+    <h2>Sécurité et bonnes pratiques</h2>
+    <ul>
+        <li>Changez les mots de passe par défaut à la première connexion</li>
+        <li>Utilisez des rôles personnalisés pour limiter les accès</li>
+        <li>Auditez régulièrement les journaux d'activité</li>
+        <li>Sauvegardez la base de données régulièrement</li>
+        <li>Ne partagez jamais vos identifiants de connexion</li>
+    </ul>
+
+    <div class="footer">
+        <p>MediCore ERP - Manuel de présentation des modules<br>
+        Version 1.0 | Généré le 30 avril 2026<br>
+        © 2026 MediCore ERP - Tous droits réservés</p>
+    </div>
+</div>
+
+</body>
+</html>

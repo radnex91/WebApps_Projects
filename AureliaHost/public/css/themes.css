@@ -1,0 +1,131 @@
+/* ===== AureliaHost — 3 Thèmes (data-theme) ===== */
+
+/* ==========================================================
+   THÈME DARK (défaut) — Dark Mode Pro
+   ========================================================== */
+:root,
+[data-theme="dark"] {
+    --bg-deep: #080b10;
+    --bg-body: #0d1117;
+    --bg-card: #131720;
+    --bg-sidebar: #0a0d13;
+    --bg-hover: rgba(255,255,255,0.04);
+    --bg-input: #0f131c;
+
+    --border-color: #1e2430;
+    --border-light: #262c38;
+
+    --text-primary: #e2e4e9;
+    --text-secondary: #8b8f98;
+    --text-muted: #5f646e;
+
+    --accent: #4f8cf7;
+    --accent-light: #6ba0fb;
+    --accent-dim: rgba(79,140,247,0.12);
+    --accent-glow: rgba(79,140,247,0.25);
+
+    --success: #34d399;
+    --success-dim: rgba(52,211,153,0.12);
+    --danger: #f87171;
+    --danger-dim: rgba(248,113,113,0.12);
+    --warning: #fbbf24;
+    --warning-dim: rgba(251,191,36,0.15);
+    --info: #67e8f9;
+    --info-dim: rgba(103,232,249,0.12);
+
+    --bs-body-color: #e2e4e9;
+    --sidebar-badge-bg: rgba(79,140,247,0.15);
+    --kpi-card-text: #fff;
+    --table-header-bg: rgba(0,0,0,0.15);
+    --card-header-bg: rgba(255,255,255,0.02);
+    --dropdown-bg: #181b24;
+    --modal-backdrop: rgba(0,0,0,0.7);
+    --topbar-blur: blur(12px);
+    --logo-glow: 0 0 15px rgba(79,140,247,0.15);
+}
+
+/* ==========================================================
+   THÈME CORPORATE — Bleu Marine / Or Luxe
+   ========================================================== */
+[data-theme="corporate"] {
+    --bg-deep: #0a101f;
+    --bg-body: #0f1929;
+    --bg-card: #162033;
+    --bg-sidebar: #080d18;
+    --bg-hover: rgba(200,164,78,0.06);
+    --bg-input: #111b2b;
+
+    --border-color: #1e2d45;
+    --border-light: #253450;
+
+    --text-primary: #e8e9ed;
+    --text-secondary: #9ba3b2;
+    --text-muted: #6b7385;
+
+    --accent: #c8a44e;
+    --accent-light: #d9b85f;
+    --accent-dim: rgba(200,164,78,0.12);
+    --accent-glow: rgba(200,164,78,0.3);
+
+    --success: #34d399;
+    --success-dim: rgba(52,211,153,0.12);
+    --danger: #f87171;
+    --danger-dim: rgba(248,113,113,0.12);
+    --warning: #fbbf24;
+    --warning-dim: rgba(251,191,36,0.15);
+    --info: #67e8f9;
+    --info-dim: rgba(103,232,249,0.12);
+
+    --bs-body-color: #e8e9ed;
+    --sidebar-badge-bg: rgba(200,164,78,0.15);
+    --kpi-card-text: #fff;
+    --table-header-bg: rgba(200,164,78,0.05);
+    --card-header-bg: rgba(200,164,78,0.03);
+    --dropdown-bg: #1a2740;
+    --modal-backdrop: rgba(0,0,0,0.75);
+    --topbar-blur: blur(12px);
+    --logo-glow: 0 0 15px rgba(200,164,78,0.2);
+}
+
+/* ==========================================================
+   THÈME MINIMAL — Vert Sauge / Neutre Chaud
+   ========================================================== */
+[data-theme="minimal"] {
+    --bg-deep: #0f1211;
+    --bg-body: #151917;
+    --bg-card: #1c211f;
+    --bg-sidebar: #0c0f0e;
+    --bg-hover: rgba(124,144,134,0.06);
+    --bg-input: #121715;
+
+    --border-color: #252b28;
+    --border-light: #2d3431;
+
+    --text-primary: #e2e4e2;
+    --text-secondary: #949b97;
+    --text-muted: #6b726e;
+
+    --accent: #8ab89a;
+    --accent-light: #a3c9af;
+    --accent-dim: rgba(138,184,154,0.12);
+    --accent-glow: rgba(138,184,154,0.2);
+
+    --success: #6ba87a;
+    --success-dim: rgba(107,168,122,0.12);
+    --danger: #e8948a;
+    --danger-dim: rgba(232,148,138,0.12);
+    --warning: #e5c47a;
+    --warning-dim: rgba(229,196,122,0.15);
+    --info: #8bb9d4;
+    --info-dim: rgba(139,185,212,0.12);
+
+    --bs-body-color: #e2e4e2;
+    --sidebar-badge-bg: rgba(138,184,154,0.12);
+    --kpi-card-text: #fff;
+    --table-header-bg: rgba(138,184,154,0.04);
+    --card-header-bg: rgba(138,184,154,0.025);
+    --dropdown-bg: #1e2521;
+    --modal-backdrop: rgba(0,0,0,0.7);
+    --topbar-blur: blur(12px);
+    --logo-glow: 0 0 15px rgba(138,184,154,0.15);
+}

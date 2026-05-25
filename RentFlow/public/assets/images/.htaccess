@@ -1,0 +1,9 @@
+# Block script execution in uploads directory
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phar|pl|py|cgi|asp|aspx|sh|bash|jsp)$">
+    Require all denied
+</FilesMatch>
+
+# Allow image files only
+<FilesMatch "\.(jpg|jpeg|png|gif|svg|webp|ico)$">
+    Require all granted
+</FilesMatch>

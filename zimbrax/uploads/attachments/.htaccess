@@ -1,0 +1,7 @@
+# Block execution of PHP files
+<FilesMatch "\.php$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+Options -Indexes

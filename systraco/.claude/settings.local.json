@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm i *)",
+      "Bash(npm list *)",
+      "Bash(npm bin *)",
+      "Bash(npm info *)",
+      "Bash(opencode *)",
+      "Bash(powershell *)"
+    ]
+  }
+}

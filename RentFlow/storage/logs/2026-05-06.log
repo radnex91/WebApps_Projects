@@ -1,0 +1,14 @@
+[2026-05-06 09:11:56] [INFO] User logged out {"user":"Abdoul Azizi Sali Bello"}
+[2026-05-06 09:12:16] [WARNING] Failed login attempt {"email":"admin@rentflow.com"}
+[2026-05-06 09:12:30] [INFO] User logged in {"email":"admin@rentflow.com","user_id":1}
+[2026-05-06 09:18:23] [INFO] Payment created {"id":"3","amount":50000}
+[2026-05-06 10:15:16] [INFO] User logged out {"user":"Administrateur"}
+[2026-05-06 10:15:29] [INFO] User logged in {"email":"admin@rentflow.com","user_id":1}
+[2026-05-06 10:30:34] [INFO] Permissions updated for role {"role_id":"1","permissions":["7","9","8","6","11","13","12","10","1","3","5","4","2","15","17","16","18","14","20","19","22","24","23","25","21"]}
+[2026-05-06 10:42:20] [INFO] User logged out {"user":"Administrateur"}
+[2026-05-06 10:42:38] [INFO] User logged in {"email":"admin@rentflow.com","user_id":1}
+[2026-05-06 10:42:58] [INFO] User updated {"id":"1","name":"Administrateur","email":"admin@rentflow.com"}
+[2026-05-06 10:42:58] [INFO] Role updated for user {"user_id":"1","role_id":"1"}
+[2026-05-06 10:43:05] [INFO] User logged out {"user":"Administrateur"}
+[2026-05-06 10:43:23] [INFO] User logged in {"email":"admin@rentflow.com","user_id":1}
+[2026-05-06 11:27:30] [INFO] User logged in {"email":"admin@rentflow.com","user_id":1}

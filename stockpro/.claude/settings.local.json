@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/xampp/mysql/bin/**)",
+      "Bash(./mysql.exe -u root stockpro)",
+      "Bash(/c/xampp/mysql/bin/mysql.exe:*)",
+      "Bash(ls -la /c/xampp/htdocs/stockpro/pages/*.php)",
+      "Bash(awk '{print $NF}')",
+      "Read(//c/xampp/**)",
+      "Read(//c/xampp/logs\" 2>/dev/**)",
+      "Bash(mysql:*)",
+      "Bash(C:/xampp/mysql/bin/mysql.exe:*)",
+      "Bash(\"C:/xampp/php/php.exe\" -l \"C:/xampp/htdocs/stockpro/includes/header.php\")",
+      "Bash(\"C:/xampp/php/php.exe\" -l \"C:/xampp/htdocs/stockpro/pages/parametres.php\")",
+      "Bash(C:/xampp/mysql/bin/mysql.exe *)",
+      "Bash(curl *)",
+      "Skill(theme-factory)",
+      "Bash(php *)"
+    ]
+  }
+}

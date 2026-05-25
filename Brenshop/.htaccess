@@ -1,0 +1,14 @@
+AddDefaultCharset UTF-8
+
+Options -Indexes
+DirectoryIndex index.php
+
+<FilesMatch "\.(sql|log|md|json)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /Brenshop/
+</IfModule>

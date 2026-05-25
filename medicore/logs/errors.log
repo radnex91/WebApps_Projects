@@ -1,0 +1,98 @@
+[2026-05-15 13:47:46] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:153 | Exception: ParseError
+Trace:
+#0 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 13:49:16] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:153 | Exception: ParseError
+Trace:
+#0 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 13:50:46] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:153 | Exception: ParseError
+Trace:
+#0 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 13:52:16] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:153 | Exception: ParseError
+Trace:
+#0 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 13:53:46] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:153 | Exception: ParseError
+Trace:
+#0 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 13:55:16] [WARNING] Constant APP_ENV already defined | Fichier: C:\xampp\htdocs\medicore\includes\config.php:21
+--------------------------------------------------------------------------------
+[2026-05-15 13:55:16] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:153 | Exception: ParseError
+Trace:
+#0 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 13:56:03] [WARNING] Constant APP_ENV already defined | Fichier: C:\xampp\htdocs\medicore\includes\config.php:21
+--------------------------------------------------------------------------------
+[2026-05-15 13:56:03] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:153 | Exception: ParseError
+Trace:
+#0 C:\xampp\htdocs\medicore\pages\dashboard.php(4): require_once()
+#1 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 13:56:06] [WARNING] Constant APP_ENV already defined | Fichier: C:\xampp\htdocs\medicore\includes\config.php:21
+--------------------------------------------------------------------------------
+[2026-05-15 13:56:06] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:153 | Exception: ParseError
+Trace:
+#0 C:\xampp\htdocs\medicore\index.php(3): require_once()
+#1 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 13:56:07] [WARNING] Constant APP_ENV already defined | Fichier: C:\xampp\htdocs\medicore\includes\config.php:21
+--------------------------------------------------------------------------------
+[2026-05-15 13:56:07] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:153 | Exception: ParseError
+Trace:
+#0 C:\xampp\htdocs\medicore\index.php(3): require_once()
+#1 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 14:24:03] [FATAL] Exception non gérée | Fichier: C:\xampp\htdocs\medicore\includes\security.php:217 | Exception: ParseError
+Trace:
+#0 C:\xampp\htdocs\medicore\index.php(3): require_once()
+#1 {main}
+--------------------------------------------------------------------------------
+[2026-05-15 14:29:26] [WARNING] Undefined array key "REQUEST_METHOD" | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:113
+--------------------------------------------------------------------------------
+[2026-05-15 14:29:26] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\includes\error_handler.php:140) | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:29
+--------------------------------------------------------------------------------
+[2026-05-15 14:29:47] [WARNING] Undefined array key "REQUEST_METHOD" | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:113
+--------------------------------------------------------------------------------
+[2026-05-15 14:29:47] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\includes\error_handler.php:140) | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:29
+--------------------------------------------------------------------------------
+[2026-05-15 15:09:17] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_simple.php:2) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:16
+--------------------------------------------------------------------------------
+[2026-05-15 15:09:17] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_simple.php:2) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:17
+--------------------------------------------------------------------------------
+[2026-05-15 15:09:17] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_simple.php:2) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:18
+--------------------------------------------------------------------------------
+[2026-05-15 15:09:17] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_simple.php:2) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:19
+--------------------------------------------------------------------------------
+[2026-05-15 15:09:17] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_simple.php:2) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:20
+--------------------------------------------------------------------------------
+[2026-05-15 15:09:17] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_simple.php:2) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:21
+--------------------------------------------------------------------------------
+[2026-05-15 15:09:17] [WARNING] session_start(): Session cannot be started after headers have already been sent | Fichier: C:\xampp\htdocs\medicore\includes\security.php:24
+--------------------------------------------------------------------------------
+[2026-05-15 15:09:17] [WARNING] session_set_cookie_params(): Session cookie parameters cannot be changed after headers have already been sent | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:11
+--------------------------------------------------------------------------------
+[2026-05-15 15:09:17] [WARNING] session_start(): Session cannot be started after headers have already been sent | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:18
+--------------------------------------------------------------------------------
+[2026-05-15 15:11:55] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_basic.php:15) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:16
+--------------------------------------------------------------------------------
+[2026-05-15 15:11:55] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_basic.php:15) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:17
+--------------------------------------------------------------------------------
+[2026-05-15 15:11:55] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_basic.php:15) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:18
+--------------------------------------------------------------------------------
+[2026-05-15 15:11:55] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_basic.php:15) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:19
+--------------------------------------------------------------------------------
+[2026-05-15 15:11:55] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_basic.php:15) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:20
+--------------------------------------------------------------------------------
+[2026-05-15 15:11:55] [WARNING] Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\medicore\logs\test_basic.php:15) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:21
+--------------------------------------------------------------------------------
+[2026-05-15 15:11:55] [WARNING] session_start(): Session cannot be started after headers have already been sent | Fichier: C:\xampp\htdocs\medicore\includes\security.php:24
+--------------------------------------------------------------------------------
+[2026-05-15 15:11:55] [WARNING] session_set_cookie_params(): Session cookie parameters cannot be changed after headers have already been sent | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:11
+--------------------------------------------------------------------------------
+[2026-05-15 15:11:55] [WARNING] session_start(): Session cannot be started after headers have already been sent | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:18
+--------------------------------------------------------------------------------
+[2026-05-15 15:19:04] [SECURITY] Token CSRF invalide | Fichier: C:\xampp\htdocs\medicore\includes\security.php:41
+--------------------------------------------------------------------------------

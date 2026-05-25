@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="fr" data-mode="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vue d&#039;ensemble — MediCore ERP</title>
+<meta name="csrf-token" content="ad418689f27d8953073b24b28c2d9bedb71617d21513ef6a79bd5ea61aa28f2f">
+<script>var APP_URL = 'http://localhost/medicore';</script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&amp;family=Lora:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="http://localhost/medicore/assets/css/main.css">
+<script>var THEME_PRESETS = {"ocean":{"name":"Oc\u00e9an","primary":"1E3A5F","accent":"3b82f6","bg":"0a0e1a","surface":"111827"},"bleu_marine":{"name":"Bleu Marine","primary":"0a1e3d","accent":"2d7dd2","bg":"060d1a","surface":"0d1b2a"},"foret":{"name":"For\u00eat","primary":"1a2e1a","accent":"10b981","bg":"0a120a","surface":"111f11"},"crepuscule":{"name":"Cr\u00e9puscule","primary":"3d1a3a","accent":"ec4899","bg":"120a14","surface":"1f1127"},"nuit":{"name":"Nuit","primary":"1a1a2e","accent":"8b5cf6","bg":"0a0a18","surface":"111127"},"bordeaux":{"name":"Bordeaux","primary":"2e1a1a","accent":"ef4444","bg":"140a0a","surface":"1f1111"},"sarcelle":{"name":"Sarcelle","primary":"1a2e2e","accent":"06b6d4","bg":"0a1414","surface":"111f1f"},"ambre":{"name":"Ambre","primary":"2e2a1a","accent":"f59e0b","bg":"14120a","surface":"1f1d11"},"magnetique":{"name":"Magn\u00e9tique","primary":"1a1a2e","accent":"f97316","bg":"0e0a18","surface":"16111f"}};var THEME_CURRENT_PRESET = 'foret';</script>
+<style>
+  :root {
+    --font-body:    'Nunito', sans-serif;
+    --font-heading: 'Lora', serif;
+    --font-size-base: 15px;
+    --primary: #1a2e1a;
+    --accent: #10b981;
+    --accent2: #4cf5bd;
+    --bg: #0a120a;
+    --surface: #111f11;
+  }
+  html { font-size: 15px; }
+  body { font-family: var(--font-body); }
+  h1,h2,h3,.brand,.auth-title,.stat-value { font-family: var(--font-heading); }
+
+  .sidebar { background: linear-gradient(180deg, #1a2e1a 0%, #011501 100%); }
+  .btn-blue, .btn-primary { background: #10b981; }
+  .btn-blue:hover, .btn-primary:hover { background: #009b63; }
+  .badge-blue { background: rgba(16,185,129,0.12); color: #10b981; }
+  .pill-tab.active { background: #10b981; border-color: #10b981; color: #fff; }
+</style>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div id="app">
+  <!--  SIDEBAR  -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🏥</div>
+      <div class="brand">MediCore ERP <small>v2.4</small></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section"><div class="nav-section-label">Tableau de bord</div><a href="http://localhost/medicore/dashboard.php" class="nav-item active"><span class="icon">📊</span> Vue d&#039;ensemble</a><a href="http://localhost/medicore/analytics.php" class="nav-item"><span class="icon">📈</span> Analytiques</a><a href="http://localhost/medicore/patients.php" class="nav-item"><span class="icon">👥</span> Patients</a><a href="http://localhost/medicore/appointments.php" class="nav-item"><span class="icon">📅</span> Rendez-vous</a><a href="http://localhost/medicore/urgences.php" class="nav-item"><span class="icon">🚨</span> Urgences</a><a href="http://localhost/medicore/dossiers.php" class="nav-item"><span class="icon">📋</span> Dossiers médicaux</a></div><div class="nav-section"><div class="nav-section-label">Ressources</div><a href="http://localhost/medicore/medecins.php" class="nav-item"><span class="icon">👨‍⚕️</span> Personnel médical</a><a href="http://localhost/medicore/lits.php" class="nav-item"><span class="icon">🛏️</span> Gestion des lits</a><a href="http://localhost/medicore/pharmacie.php" class="nav-item"><span class="icon">💊</span> Pharmacie<span class="nav-badge">1</span></a><a href="http://localhost/medicore/caisse.php" class="nav-item"><span class="icon">🧾</span> Caisse &amp; Tickets</a><a href="http://localhost/medicore/laboratoire.php" class="nav-item"><span class="icon">🧪</span> Laboratoire<span class="nav-badge">3</span></a></div><div class="nav-section"><div class="nav-section-label">Administration</div><a href="http://localhost/medicore/facturation.php" class="nav-item"><span class="icon">💰</span> Facturation</a><a href="http://localhost/medicore/rh.php" class="nav-item"><span class="icon">👤</span> Ressources humaines</a><a href="http://localhost/medicore/stocks.php" class="nav-item"><span class="icon">📦</span> Stocks &amp; Matériel</a><a href="http://localhost/medicore/rapports.php" class="nav-item"><span class="icon">📄</span> Rapports</a></div><div class="nav-section"><div class="nav-section-label">Système</div><a href="http://localhost/medicore/utilisateurs.php" class="nav-item"><span class="icon">🔑</span> Utilisateurs</a><a href="http://localhost/medicore/parametres.php" class="nav-item"><span class="icon">⚙️</span> Paramètres</a><a href="http://localhost/medicore/roles.php" class="nav-item"><span class="icon">🛡️</span> Roles &amp; Permissions</a></div><div class="nav-section"><div class="nav-section-label">Clinique</div><a href="http://localhost/medicore/observations.php" class="nav-item"><span class="icon">🌡️</span> Signes vitaux</a><a href="http://localhost/medicore/mar.php" class="nav-item"><span class="icon">💉</span> Admin. médicaments</a><a href="http://localhost/medicore/notes.php" class="nav-item"><span class="icon">📝</span> Notes cliniques</a><a href="http://localhost/medicore/chirurgie.php" class="nav-item"><span class="icon">🔪</span> Bloc opératoire</a><a href="http://localhost/medicore/imagerie.php" class="nav-item"><span class="icon">🩻</span> Imagerie médicale</a><a href="http://localhost/medicore/maternite.php" class="nav-item"><span class="icon">🤰</span> Maternité</a><a href="http://localhost/medicore/deces.php" class="nav-item"><span class="icon">🕊️</span> Décès / Thanatologie</a><a href="http://localhost/medicore/assurances.php" class="nav-item"><span class="icon">📑</span> Assurances</a><a href="http://localhost/medicore/portail.php" class="nav-item"><span class="icon">🌐</span> Portail patient</a><a href="http://localhost/medicore/notifications.php" class="nav-item"><span class="icon">🔔</span> Notifications</a><a href="http://localhost/medicore/consentements.php" class="nav-item"><span class="icon">📜</span> Consentements</a><a href="http://localhost/medicore/audit.php" class="nav-item"><span class="icon">🔍</span> Audit d&#039;accès</a></div>    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card" id="user-theme-trigger" onclick="document.getElementById('theme-popover').classList.toggle('open')" style="cursor:pointer">
+        <div class="user-avatar">AD</div>
+        <div class="user-info">
+          <div class="user-name">Système Admin</div>
+          <div class="user-role" style="color:#ef4444">Administrateur</div>
+        </div>
+      </div>
+
+      <!-- Theme picker popover -->
+      <div class="theme-popover" id="theme-popover">
+        <div class="theme-popover-title">Mon thème</div>
+        <div class="theme-preset-grid">
+                    <div class="theme-preset-card" data-preset="ocean" onclick="selectPreset('ocean')">
+            <div class="theme-preset-preview">
+              <div class="theme-preset-sidebar" style="background:linear-gradient(180deg,#1E3A5F,#052146)"></div>
+              <div class="theme-preset-body" style="background:#0a0e1a">
+                <div class="theme-preset-dot" style="background:#111827"></div>
+                <div class="theme-preset-dot" style="background:#3b82f6;width:20px"></div>
+              </div>
+            </div>
+            <div class="theme-preset-name">Océan</div>
+                      </div>
+                    <div class="theme-preset-card" data-preset="bleu_marine" onclick="selectPreset('bleu_marine')">
+            <div class="theme-preset-preview">
+              <div class="theme-preset-sidebar" style="background:linear-gradient(180deg,#0a1e3d,#000524)"></div>
+              <div class="theme-preset-body" style="background:#060d1a">
+                <div class="theme-preset-dot" style="background:#0d1b2a"></div>
+                <div class="theme-preset-dot" style="background:#2d7dd2;width:20px"></div>
+              </div>
+            </div>
+            <div class="theme-preset-name">Bleu Marine</div>
+                      </div>
+                    <div class="theme-preset-card active" data-preset="foret" onclick="selectPreset('foret')">
+            <div class="theme-preset-preview">
+              <div class="theme-preset-sidebar" style="background:linear-gradient(180deg,#1a2e1a,#011501)"></div>
+              <div class="theme-preset-body" style="background:#0a120a">
+                <div class="theme-preset-dot" style="background:#111f11"></div>
+                <div class="theme-preset-dot" style="background:#10b981;width:20px"></div>
+              </div>
+            </div>
+            <div class="theme-preset-name">Forêt</div>
+            <div class="theme-preset-check">&#10003;</div>          </div>
+                    <div class="theme-preset-card" data-preset="crepuscule" onclick="selectPreset('crepuscule')">
+            <div class="theme-preset-preview">
+              <div class="theme-preset-sidebar" style="background:linear-gradient(180deg,#3d1a3a,#240121)"></div>
+              <div class="theme-preset-body" style="background:#120a14">
+                <div class="theme-preset-dot" style="background:#1f1127"></div>
+                <div class="theme-preset-dot" style="background:#ec4899;width:20px"></div>
+              </div>
+            </div>
+            <div class="theme-preset-name">Crépuscule</div>
+                      </div>
+                    <div class="theme-preset-card" data-preset="nuit" onclick="selectPreset('nuit')">
+            <div class="theme-preset-preview">
+              <div class="theme-preset-sidebar" style="background:linear-gradient(180deg,#1a1a2e,#010115)"></div>
+              <div class="theme-preset-body" style="background:#0a0a18">
+                <div class="theme-preset-dot" style="background:#111127"></div>
+                <div class="theme-preset-dot" style="background:#8b5cf6;width:20px"></div>
+              </div>
+            </div>
+            <div class="theme-preset-name">Nuit</div>
+                      </div>
+                    <div class="theme-preset-card" data-preset="bordeaux" onclick="selectPreset('bordeaux')">
+            <div class="theme-preset-preview">
+              <div class="theme-preset-sidebar" style="background:linear-gradient(180deg,#2e1a1a,#150101)"></div>
+              <div class="theme-preset-body" style="background:#140a0a">
+                <div class="theme-preset-dot" style="background:#1f1111"></div>
+                <div class="theme-preset-dot" style="background:#ef4444;width:20px"></div>
+              </div>
+            </div>
+            <div class="theme-preset-name">Bordeaux</div>
+                      </div>
+                    <div class="theme-preset-card" data-preset="sarcelle" onclick="selectPreset('sarcelle')">
+            <div class="theme-preset-preview">
+              <div class="theme-preset-sidebar" style="background:linear-gradient(180deg,#1a2e2e,#011515)"></div>
+              <div class="theme-preset-body" style="background:#0a1414">
+                <div class="theme-preset-dot" style="background:#111f1f"></div>
+                <div class="theme-preset-dot" style="background:#06b6d4;width:20px"></div>
+              </div>
+            </div>
+            <div class="theme-preset-name">Sarcelle</div>
+                      </div>
+                    <div class="theme-preset-card" data-preset="ambre" onclick="selectPreset('ambre')">
+            <div class="theme-preset-preview">
+              <div class="theme-preset-sidebar" style="background:linear-gradient(180deg,#2e2a1a,#151101)"></div>
+              <div class="theme-preset-body" style="background:#14120a">
+                <div class="theme-preset-dot" style="background:#1f1d11"></div>
+                <div class="theme-preset-dot" style="background:#f59e0b;width:20px"></div>
+              </div>
+            </div>
+            <div class="theme-preset-name">Ambre</div>
+                      </div>
+                    <div class="theme-preset-card" data-preset="magnetique" onclick="selectPreset('magnetique')">
+            <div class="theme-preset-preview">
+              <div class="theme-preset-sidebar" style="background:linear-gradient(180deg,#1a1a2e,#010115)"></div>
+              <div class="theme-preset-body" style="background:#0e0a18">
+                <div class="theme-preset-dot" style="background:#16111f"></div>
+                <div class="theme-preset-dot" style="background:#f97316;width:20px"></div>
+              </div>
+            </div>
+            <div class="theme-preset-name">Magnétique</div>
+                      </div>
+                  </div>
+
+        <div class="theme-custom-toggle" onclick="toggleCustomSection()">
+          <span>Personnaliser les couleurs</span>
+          <span class="chevron down" id="custom-chevron">&#9660;</span>
+        </div>
+        <div id="theme-custom-section" class="theme-custom-section collapsed">
+          <div class="theme-popover-section">
+            <div class="theme-popover-label">Barre latérale</div>
+            <div class="theme-color-row">
+                            <button type="button" class="theme-swatch" style="background:#1E3A5F" title="Marine" onclick="setThemeColor('primary','1E3A5F')"></button>
+                            <button type="button" class="theme-swatch selected" style="background:#1a2e1a" title="Vert" onclick="setThemeColor('primary','1a2e1a')"></button>
+                            <button type="button" class="theme-swatch" style="background:#3d1a3a" title="Pourpre" onclick="setThemeColor('primary','3d1a3a')"></button>
+                            <button type="button" class="theme-swatch" style="background:#1a1a2e" title="Nuit" onclick="setThemeColor('primary','1a1a2e')"></button>
+                            <button type="button" class="theme-swatch" style="background:#2e1a1a" title="Bordeaux" onclick="setThemeColor('primary','2e1a1a')"></button>
+                            <button type="button" class="theme-swatch" style="background:#1a2e2e" title="Sarcelle" onclick="setThemeColor('primary','1a2e2e')"></button>
+                            <button type="button" class="theme-swatch" style="background:#2e2a1a" title="Ambre" onclick="setThemeColor('primary','2e2a1a')"></button>
+                            <label class="theme-swatch-custom" title="Personnalisé">
+                <input type="color" value="#1a2e1a" onchange="setThemeColor('primary',this.value.replace('#',''))">
+                <span style="background:#1a2e1a"></span>
+              </label>
+            </div>
+          </div>
+          <div class="theme-popover-section">
+            <div class="theme-popover-label">Boutons et liens</div>
+            <div class="theme-color-row">
+                            <button type="button" class="theme-swatch" style="background:#3b82f6" title="Bleu" onclick="setThemeColor('accent','3b82f6')"></button>
+                            <button type="button" class="theme-swatch selected" style="background:#10b981" title="Émeraude" onclick="setThemeColor('accent','10b981')"></button>
+                            <button type="button" class="theme-swatch" style="background:#8b5cf6" title="Violet" onclick="setThemeColor('accent','8b5cf6')"></button>
+                            <button type="button" class="theme-swatch" style="background:#f59e0b" title="Ambre" onclick="setThemeColor('accent','f59e0b')"></button>
+                            <button type="button" class="theme-swatch" style="background:#ef4444" title="Rouge" onclick="setThemeColor('accent','ef4444')"></button>
+                            <button type="button" class="theme-swatch" style="background:#06b6d4" title="Cyan" onclick="setThemeColor('accent','06b6d4')"></button>
+                            <button type="button" class="theme-swatch" style="background:#ec4899" title="Rose" onclick="setThemeColor('accent','ec4899')"></button>
+                            <button type="button" class="theme-swatch" style="background:#f97316" title="Orange" onclick="setThemeColor('accent','f97316')"></button>
+                            <label class="theme-swatch-custom" title="Personnalisé">
+                <input type="color" value="#10b981" onchange="setThemeColor('accent',this.value.replace('#',''))">
+                <span style="background:#10b981"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="theme-popover-actions">
+          <button type="button" class="btn btn-sm btn-ghost" onclick="resetTheme()">Réinitialiser</button>
+          <button type="button" class="btn btn-sm btn-blue" onclick="saveTheme()">Sauvegarder</button>
+        </div>
+      </div>
+
+      <a href="http://localhost/medicore/login?action=logout"
+         class="logout-full-btn"
+         onclick="return confirm('Voulez-vous vous déconnecter ?')">
+        <span></span> Déconnexion
+      </a>
+    </div>
+  </aside>
+
+  <!--  MAIN  -->
+  <div class="main">
+    <div class="header">
+      <span class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"></span>
+      <div class="header-title">Vue d&#039;ensemble</div>
+      <div class="header-search">
+        <span>🔍</span>
+        <input type="text" placeholder="Rechercher patient, médecin..." id="global-search">
+      </div>
+      <div class="header-actions">
+                <div class="icon-btn notif-btn" onclick="toggleNotifs(event)" title="Notifications">
+          🔔
+          <span class="notif-count" id="notif-count" data-count="5">5</span>
+          <span class="notif-dot"></span>          <div class="notification-panel" id="notif-panel">
+            <div class="notif-header">Alertes en direct <span class="live-dot" id="live-dot"></span></div>
+            <div id="notif-list">
+                                          <a href="http://localhost/medicore/pharmacie.php?tab=stock&filtre_stock=critique" class="notif-item notif-link">
+                <div class="notif-icon" style="background:rgba(239,68,68,.1)">💊</div>
+                <div><div class="notif-title" style="color:var(--red)">1 médicament(s) critique(s)</div><div class="notif-time">Stock presque épuisé</div></div>
+              </a>
+                                          <a href="http://localhost/medicore/pharmacie.php?tab=ordonnances" class="notif-item notif-link">
+                <div class="notif-icon" style="background:rgba(245,158,11,.12)">📋</div>
+                <div><div class="notif-title" style="color:var(--yellow)">1 ordonnance(s) en attente</div><div class="notif-time">À traiter</div></div>
+              </a>
+                                          <a href="http://localhost/medicore/laboratoire.php?filtre=disponible" class="notif-item notif-link">
+                <div class="notif-icon" style="background:rgba(16,185,129,.12)">🧪</div>
+                <div><div class="notif-title" style="color:var(--green)">3 résultat(s) disponible(s)</div><div class="notif-time">Analyses prêtes</div></div>
+              </a>
+                                        </div>
+            <div class="notif-separator"></div>
+            <div class="notif-header">Activité récente</div>
+            <div id="notif-activity">
+                            <div class="notif-item">
+                <div class="notif-icon" style="background:rgba(59,130,246,.15)">📋</div>
+                <div><div class="notif-title">Paramètres mis à jour — police: Nunito, monnaie: XAF</div><div class="notif-time">18:28 · Système Admin</div></div>
+              </div>
+                            <div class="notif-item">
+                <div class="notif-icon" style="background:rgba(59,130,246,.15)">📋</div>
+                <div><div class="notif-title">Paramètres mis à jour — police: Nunito, monnaie: XAF</div><div class="notif-time">18:28 · Système Admin</div></div>
+              </div>
+                            <div class="notif-item">
+                <div class="notif-icon" style="background:rgba(59,130,246,.15)">📋</div>
+                <div><div class="notif-title">Paramètres mis à jour — police: Nunito, monnaie: XAF</div><div class="notif-time">07:30 · Système Admin</div></div>
+              </div>
+                            <div class="notif-item">
+                <div class="notif-icon" style="background:rgba(59,130,246,.15)">📋</div>
+                <div><div class="notif-title">Paramètres mis à jour — police: Inter, monnaie: XAF</div><div class="notif-time">07:29 · Système Admin</div></div>
+              </div>
+                            <div class="notif-item">
+                <div class="notif-icon" style="background:rgba(16,185,129,.15)">✅</div>
+                <div><div class="notif-title">Facture FAC-2026-00006 créée</div><div class="notif-time">07:27 · Système Admin</div></div>
+              </div>
+                          </div>
+          </div>
+        </div>
+        <div class="user-avatar-sm">AD</div>
+      </div>
+    </div>
+    <div class="content">
+<!-- Badge rôle + accès rapides -->
+<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  <div style="width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
+  <span style="font-size:13px;color:var(--text2)">
+    Connecté en tant que <strong style="color:var(--text)">Système Admin</strong>
+    <span style="margin-left:6px;font-size:11px;background:#ef444422;color:#ef4444;padding:2px 8px;border-radius:12px;font-weight:600">Administrateur</span>
+  </span>
+  <span style="margin-left:auto;font-size:12px;color:var(--text3)">30 modules  15/05/2026 15:19</span>
+</div>
+
+<!-- STATS PRINCIPALES -->
+<div class="page-header-row" style="margin-bottom:20px">
+  <div><h2>Tableau de bord</h2><p>Vue en temps réel  Friday 15 May 2026</p></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="appointments.php" class="btn btn-ghost btn-sm"> 📅 Agenda</a>
+            <a href="urgences.php" class="btn btn-ghost btn-sm"> 🚨 Urgences</a>
+            <a href="analytics.php" class="btn btn-ghost btn-sm"> 📈 Analytiques</a>
+      </div>
+</div>
+
+<div class="stats-grid mb-24">
+  <div class="stat-card blue">
+    <div class="stat-icon blue">🏥</div>
+    <div class="stat-value" id="stat-patients-actifs">3</div>
+    <div class="stat-label">Hospitalisés actifs</div>
+  </div>
+  <div class="stat-card yellow">
+    <div class="stat-icon yellow">🛏️</div>
+    <div class="stat-value" id="stat-occupation">71%</div>
+    <div class="stat-label">Occupation lits</div>
+    <div class="stat-delta" id="stat-lits-info">7 libre(s) / 24</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon green">✅</div>
+    <div class="stat-value" id="stat-rdv-today">0</div>
+    <div class="stat-label">RDV aujourd'hui</div>
+    <div class="stat-delta" id="stat-rdv-attente">0 en attente</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-icon purple">💰</div>
+    <div class="stat-value" id="stat-ca-jour">0FCFA</div>
+    <div class="stat-label">CA caisse aujourd'hui</div>
+    <div class="stat-delta" id="stat-ca-mois">Mois : 0FCFA</div>
+  </div>
+</div>
+
+<!-- KPIs cliniques (nouveaux modules) -->
+<div class="stats-grid mb-24">
+  <div class="stat-card blue">
+    <div class="stat-icon">🌡️</div>
+    <div class="stat-value">0</div>
+    <div class="stat-label">Observations aujourd'hui</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon">💉</div>
+    <div class="stat-value">0/0</div>
+    <div class="stat-label">Médicaments administrés</div>
+    <div class="stat-delta">0 en attente</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon">🔔</div>
+    <div class="stat-value">0</div>
+    <div class="stat-label">Notifications non lues</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-icon">🔪</div>
+    <div class="stat-value">0</div>
+    <div class="stat-label">Chirurgies actives</div>
+    <div class="stat-delta">0 imageries en attente</div>
+  </div>
+</div>
+
+<!-- LIGNE 1 : Planning + Hospitalisations -->
+<div class="grid-2 mb-24">
+
+  <!-- Planning du jour -->
+  <div class="card">
+    <div class="card-header">
+      <h3> Planning du jour</h3>
+            <a href="appointments.php" class="btn btn-sm btn-ghost">Tout voir </a>
+          </div>
+        <div style="padding:32px;text-align:center;color:var(--text3)">
+      <div style="font-size:28px;margin-bottom:8px"></div>
+      <div style="font-size:13px">Aucun rendez-vous aujourd'hui</div>
+            <a href="appointments.php" class="btn btn-blue btn-sm" style="margin-top:12px">+ Créer un RDV</a>
+          </div>
+      </div>
+
+  <!-- Hospitalisations actives -->
+  <div class="card">
+    <div class="card-header">
+      <h3> Patients hospitalisés</h3>
+            <a href="urgences.php" class="btn btn-sm btn-ghost">Tout voir </a>
+          </div>
+            <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--yellow);flex-shrink:0;margin-top:2px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">Pierre Lambert <span style="font-size:11px;font-weight:400;color:var(--text2)">44 ans</span></div>
+        <div style="font-size:11px;color:var(--text2)">Urgences  Lit 8B  33j</div>
+      </div>
+      <span class="badge badge-yellow" style="font-size:10px;flex-shrink:0">Urgent</span>
+    </div>
+        <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--yellow);flex-shrink:0;margin-top:2px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">Jean Dubois <span style="font-size:11px;font-weight:400;color:var(--text2)">70 ans</span></div>
+        <div style="font-size:11px;color:var(--text2)">Pédiatrie  Lit 3A  36j</div>
+      </div>
+      <span class="badge badge-yellow" style="font-size:10px;flex-shrink:0">Urgent</span>
+    </div>
+        <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:2px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">Emma Girard <span style="font-size:11px;font-weight:400;color:var(--text2)">7 ans</span></div>
+        <div style="font-size:11px;color:var(--text2)">Chirurgie  Lit U4  32j</div>
+      </div>
+      <span class="badge badge-blue" style="font-size:10px;flex-shrink:0">Normal</span>
+    </div>
+              </div>
+
+</div>
+
+<!-- LIGNE 2 : Graphique admissions + Occupation depts + Journal -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px">
+
+  <!-- Admissions 7 jours -->
+  <div class="card">
+    <div class="card-header"><h3> Admissions  7 jours</h3></div>
+    <div style="padding:20px">
+      <div style="display:flex;align-items:flex-end;gap:6px;height:80px;margin-bottom:8px">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <span style="font-size:10px;color:var(--text2);font-weight:600">0</span>
+          <div style="width:100%;border-radius:3px 3px 0 0;min-height:4px;height:4%;background:rgba(59,130,246,.3)" title="2026-05-09"></div>
+          <span style="font-size:9px;color:var(--text3)">09/05</span>
+        </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <span style="font-size:10px;color:var(--text2);font-weight:600">0</span>
+          <div style="width:100%;border-radius:3px 3px 0 0;min-height:4px;height:4%;background:rgba(59,130,246,.3)" title="2026-05-10"></div>
+          <span style="font-size:9px;color:var(--text3)">10/05</span>
+        </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <span style="font-size:10px;color:var(--text2);font-weight:600">0</span>
+          <div style="width:100%;border-radius:3px 3px 0 0;min-height:4px;height:4%;background:rgba(59,130,246,.3)" title="2026-05-11"></div>
+          <span style="font-size:9px;color:var(--text3)">11/05</span>
+        </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <span style="font-size:10px;color:var(--text2);font-weight:600">0</span>
+          <div style="width:100%;border-radius:3px 3px 0 0;min-height:4px;height:4%;background:rgba(59,130,246,.3)" title="2026-05-12"></div>
+          <span style="font-size:9px;color:var(--text3)">12/05</span>
+        </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <span style="font-size:10px;color:var(--text2);font-weight:600">0</span>
+          <div style="width:100%;border-radius:3px 3px 0 0;min-height:4px;height:4%;background:rgba(59,130,246,.3)" title="2026-05-13"></div>
+          <span style="font-size:9px;color:var(--text3)">13/05</span>
+        </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <span style="font-size:10px;color:var(--text2);font-weight:600">0</span>
+          <div style="width:100%;border-radius:3px 3px 0 0;min-height:4px;height:4%;background:rgba(59,130,246,.3)" title="2026-05-14"></div>
+          <span style="font-size:9px;color:var(--text3)">14/05</span>
+        </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <span style="font-size:10px;color:var(--text2);font-weight:600">0</span>
+          <div style="width:100%;border-radius:3px 3px 0 0;min-height:4px;height:4%;background:var(--accent)" title="2026-05-15"></div>
+          <span style="font-size:9px;color:var(--text3)">15/05</span>
+        </div>
+              </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px">
+        <span>Total: <strong style="color:var(--text)">0</strong></span>
+        <span>Ce mois: <strong style="color:var(--text)">0</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Occupation par dpartement -->
+  <div class="card">
+    <div class="card-header"><h3> Occupation depts</h3></div>
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px">
+            <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Chirurgie</span>
+          <span style="font-size:11px;color:var(--text2)">5/8</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:63%;background:var(--green)"></div></div>
+      </div>
+            <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Neurologie</span>
+          <span style="font-size:11px;color:var(--text2)">3/4</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:75%;background:var(--yellow)"></div></div>
+      </div>
+            <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cardiologie</span>
+          <span style="font-size:11px;color:var(--text2)">3/6</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:50%;background:var(--green)"></div></div>
+      </div>
+            <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Urgences</span>
+          <span style="font-size:11px;color:var(--text2)">3/4</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:75%;background:var(--yellow)"></div></div>
+      </div>
+            <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Maternité</span>
+          <span style="font-size:11px;color:var(--text2)">1/2</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:50%;background:var(--green)"></div></div>
+      </div>
+                </div>
+  </div>
+
+  <!-- Journal d'activit -->
+  <div class="card">
+    <div class="card-header"><h3> Activité récente</h3></div>
+    <div>
+        <div style="display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:22px;height:22px;border-radius:6px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Paramètres mis à jour — police: Nunito, monnaie: XAF</div>
+        <div style="font-size:10px;color:var(--text3)">Système Admin  08/05/2026 18:28</div>
+      </div>
+    </div>
+        <div style="display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:22px;height:22px;border-radius:6px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Paramètres mis à jour — police: Nunito, monnaie: XAF</div>
+        <div style="font-size:10px;color:var(--text3)">Système Admin  08/05/2026 18:28</div>
+      </div>
+    </div>
+        <div style="display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:22px;height:22px;border-radius:6px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Paramètres mis à jour — police: Nunito, monnaie: XAF</div>
+        <div style="font-size:10px;color:var(--text3)">Système Admin  03/05/2026 07:30</div>
+      </div>
+    </div>
+        <div style="display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:22px;height:22px;border-radius:6px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Paramètres mis à jour — police: Inter, monnaie: XAF</div>
+        <div style="font-size:10px;color:var(--text3)">Système Admin  03/05/2026 07:29</div>
+      </div>
+    </div>
+        <div style="display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:22px;height:22px;border-radius:6px;background:rgba(16,185,129,.1);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Facture FAC-2026-00006 créée</div>
+        <div style="font-size:10px;color:var(--text3)">Système Admin  03/05/2026 07:27</div>
+      </div>
+    </div>
+        <div style="display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:22px;height:22px;border-radius:6px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Paramètres mis à jour — police: Inter, monnaie: XAF</div>
+        <div style="font-size:10px;color:var(--text3)">Système Admin  16/04/2026 10:37</div>
+      </div>
+    </div>
+        <div style="display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:22px;height:22px;border-radius:6px;background:rgba(16,185,129,.1);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ticket créé  19FCFA</div>
+        <div style="font-size:10px;color:var(--text3)">Système Admin  16/04/2026 10:22</div>
+      </div>
+    </div>
+            </div>
+  </div>
+
+</div>
+
+<!-- LIGNE 3 : Actions rapides selon rôle -->
+<div class="card">
+  <div class="card-header"><h3> Actions rapides</h3></div>
+  <div style="padding:16px 20px;display:flex;gap:10px;flex-wrap:wrap">
+
+        <a href="patients.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span></span><span>Nouveau patient</span>
+    </a>
+    
+        <a href="appointments.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span></span><span>Nouveau RDV</span>
+    </a>
+    
+        <a href="pharmacie.php?tab=ordonnances" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span></span><span>Ordonnance</span>
+    </a>
+    
+        <a href="caisse.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span></span><span>Caisse</span>
+    </a>
+    
+        <a href="laboratoire.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span></span><span>Prescrire analyse</span>
+    </a>
+    
+        <a href="facturation.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span></span><span>Nouvelle facture</span>
+    </a>
+    
+        <a href="rapports.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span></span><span>Rapports</span>
+    </a>
+    
+        <a href="observations.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span>🌡️</span><span>Signes vitaux</span>
+    </a>
+    
+        <a href="mar.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span>💉</span><span>Admin. médicaments</span>
+    </a>
+    
+        <a href="notes.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span>📝</span><span>Notes cliniques</span>
+    </a>
+    
+        <a href="chirurgie.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span>🔪</span><span>Bloc opératoire</span>
+    </a>
+    
+        <a href="maternite.php" class="btn btn-ghost" style="display:flex;align-items:center;gap:6px">
+      <span>🤰</span><span>Maternité</span>
+    </a>
+    
+
+  </div>
+</div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+<script src="http://localhost/medicore/assets/js/app.js"></script>
+</body>
+</html>
