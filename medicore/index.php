@@ -1,0 +1,382 @@
+<?php
+require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/auth.php';
+
+if (isLoggedIn()) {
+    header('Location: ' . APP_URL . '/dashboard.php');
+    exit;
+}
+
+$error   = htmlspecialchars($_GET['error'] ?? '');
+$timeout = isset($_GET['timeout']);
+$logout  = $_SESSION['flash_logout'] ?? false;
+unset($_SESSION['flash_logout']);
+
+$_s = get_settings();
+$_fontSize = max(12, min(20, (int)($_s['font_size'] ?? 14)));
+?>
+<!DOCTYPE html>
+<html lang="fr" data-mode="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connexion — MediCore ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: <?= $_fontSize ?>px; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #060d1a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── PANEL GAUCHE : Branding Bleu Marine ── */
+  .panel-brand {
+    width: 45%;
+    background: linear-gradient(160deg, #060d1a 0%, #0a1e3d 35%, #0d2447 55%, #060d1a 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel-brand::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 100% 50% at 50% 0%, rgba(45,125,210,.1) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 30% 80%, rgba(200,164,78,.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .panel-brand::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle 1px at 15% 20%, rgba(45,125,210,.12) 0%, transparent 100%),
+      radial-gradient(circle 1px at 40% 55%, rgba(200,164,78,.08) 0%, transparent 100%),
+      radial-gradient(circle 1px at 65% 25%, rgba(45,125,210,.1) 0%, transparent 100%),
+      radial-gradient(circle 1px at 80% 75%, rgba(45,125,210,.07) 0%, transparent 100%),
+      radial-gradient(circle 1px at 50% 15%, rgba(200,164,78,.08) 0%, transparent 100%),
+      radial-gradient(circle 1px at 25% 85%, rgba(45,125,210,.09) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  /* ── Ligne décorative subtile ── */
+  .panel-brand .accent-line {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 3px; z-index: 2;
+    background: linear-gradient(90deg, transparent, rgba(45,125,210,.4), rgba(200,164,78,.3), rgba(45,125,210,.4), transparent);
+  }
+
+  /* ── Caducée médical SVG ── */
+  .medical-symbol {
+    position: relative; z-index: 1; margin-bottom: 32px;
+  }
+  .medical-symbol svg { width: 80px; height: 80px; display: block; }
+
+  .brand-title {
+    position: relative; z-index: 1;
+    font-size: 2rem; font-weight: 700;
+    background: linear-gradient(135deg, #60a5fa, #c8a44e);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px; margin-bottom: 8px;
+    text-align: center;
+  }
+  .brand-sub {
+    position: relative; z-index: 1;
+    color: #5b6e8a; font-size: .85rem; font-weight: 400;
+    text-align: center; max-width: 260px; line-height: 1.6;
+  }
+
+  /* ── ECG Animation ── */
+  .ecg-container {
+    position: relative; z-index: 1;
+    width: 240px; height: 60px;
+    margin-top: 50px;
+  }
+  .ecg-line {
+    stroke-dasharray: 800;
+    stroke-dashoffset: 800;
+    animation: drawEcg 3s ease-in-out infinite;
+  }
+  @keyframes drawEcg {
+    0% { stroke-dashoffset: 800; }
+    30% { stroke-dashoffset: 0; }
+    60% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: -800; }
+  }
+  @keyframes ecgDistress {
+    0%, 100% { stroke: #ef4444; }
+    50% { stroke: #dc2626; }
+  }
+  .has-error .ecg-line,
+  .has-timeout .ecg-line {
+    stroke: #ef4444;
+    animation: drawEcg 1.5s ease-in-out infinite, ecgDistress .8s ease-in-out infinite;
+  }
+
+  /* ── PANEL DROIT : Formulaire ── */
+  .panel-form {
+    width: 55%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background: #060d1a;
+  }
+  .form-container {
+    width: 100%; max-width: 400px;
+    animation: fadeUp .5s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .form-header { margin-bottom: 36px; }
+  .form-header .app-name {
+    font-size: .7rem; font-weight: 600; letter-spacing: .12em;
+    color: #c8a44e; text-transform: uppercase; margin-bottom: 12px;
+  }
+  .form-header h1 {
+    font-size: 1.65rem; font-weight: 700; color: #f1f5f9;
+    margin-bottom: 6px;
+  }
+  .form-header p {
+    color: #5b6e8a; font-size: .88rem;
+  }
+
+  /* ── Champs ── */
+  .field-group { margin-bottom: 20px; }
+  .field-group label {
+    display: block; font-size: .75rem; font-weight: 500;
+    color: #7889a0; margin-bottom: 6px;
+  }
+  .field-group .input-wrap { position: relative; }
+  .field-group .input-wrap .input-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 1.1rem; opacity: .35; pointer-events: none;
+  }
+  .field-group input {
+    width: 100%; padding: 12px 14px 12px 42px;
+    background: #0d1b2a; border: 1px solid #1a2d44;
+    border-radius: 10px; color: #e2e8f0;
+    font-family: inherit; font-size: .9rem;
+    outline: none; transition: all .25s;
+  }
+  .field-group input:focus {
+    border-color: #2d7dd2;
+    box-shadow: 0 0 0 3px rgba(45,125,210,.12);
+    background: #0a1628;
+  }
+  .field-group input::placeholder { color: #334466; }
+  .field-group .field-pwd { position: relative; }
+  .field-group .field-pwd input { padding-right: 44px; }
+  .pwd-toggle {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    font-size: 1.1rem; padding: 6px; color: #5b6e8a;
+    opacity: .5; transition: opacity .2s; line-height: 1;
+  }
+  .pwd-toggle:hover { opacity: 1; }
+
+  /* ── Bouton ── */
+  .btn-login {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, #1d4ed8, #2d7dd2);
+    border: none; border-radius: 10px;
+    color: #fff; font-family: inherit; font-size: .9rem;
+    font-weight: 600; cursor: pointer;
+    transition: all .25s; margin-top: 4px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    letter-spacing: .02em;
+  }
+  .btn-login:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 28px rgba(45,125,210,.35);
+  }
+  .btn-login:active { transform: translateY(0); }
+
+  /* ── Alertes ── */
+  .alert {
+    padding: 10px 14px; border-radius: 8px;
+    font-size: .82rem; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .alert-error {
+    background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2);
+    color: #fca5a5;
+  }
+  .alert-success {
+    background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.2);
+    color: #6ee7b7;
+  }
+  .alert-timeout {
+    background: rgba(200,164,78,.08); border: 1px solid rgba(200,164,78,.2);
+    color: #fcd34d;
+  }
+
+  /* ── Comptes demo ── */
+  .demo-creds {
+    margin-top: 24px; padding: 16px;
+    background: #0a1628; border: 1px solid #1a2d44;
+    border-radius: 10px;
+  }
+  .demo-creds .demo-title {
+    font-size: .72rem; font-weight: 600; color: #5b6e8a;
+    margin-bottom: 10px; text-transform: uppercase; letter-spacing: .06em;
+  }
+  .demo-grid { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .demo-grid .email {
+    cursor: pointer; color: #60a5fa; font-size: .78rem;
+    transition: color .15s;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .demo-grid .email:hover { color: #93c5fd; }
+  .demo-grid .role {
+    color: #5b6e8a; font-size: .78rem; text-align: right;
+  }
+  .demo-hint {
+    margin-top: 8px; font-size: .72rem; color: #3d5070;
+  }
+  .demo-hint strong { color: #c8a44e; font-weight: 500; }
+
+  /* ── Responsive ── */
+  @media (max-width: 820px) {
+    body { flex-direction: column; overflow-y: auto; }
+    .panel-brand {
+      width: 100%; padding: 50px 30px 40px;
+      min-height: auto;
+    }
+    .panel-brand .ecg-container { display: none; }
+    .panel-form {
+      width: 100%; padding: 30px 20px 50px;
+    }
+    .form-container { max-width: 100%; }
+    .medical-symbol svg { width: 56px; height: 56px; }
+    .brand-title { font-size: 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    .panel-brand { padding: 36px 20px 28px; }
+    .panel-form { padding: 24px 16px 40px; }
+    .form-header h1 { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body class="<?= $error ? 'has-error' : ($timeout ? 'has-timeout' : '') ?>">
+
+<div class="panel-brand">
+  <div class="accent-line"></div>
+
+  <div class="medical-symbol">
+    <svg viewBox="0 0 80 80" fill="none">
+      <circle cx="40" cy="40" r="38" stroke="rgba(45,125,210,.15)" stroke-width="1.5" fill="none"/>
+      <circle cx="40" cy="40" r="28" stroke="rgba(200,164,78,.12)" stroke-width="1" fill="none"/>
+      <line x1="40" y1="18" x2="40" y2="62" stroke="#2d7dd2" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="40" y1="28" x2="52" y2="22" stroke="#c8a44e" stroke-width="2" stroke-linecap="round"/>
+      <line x1="40" y1="32" x2="52" y2="38" stroke="#c8a44e" stroke-width="2" stroke-linecap="round"/>
+      <line x1="40" y1="28" x2="28" y2="22" stroke="#c8a44e" stroke-width="2" stroke-linecap="round"/>
+      <line x1="40" y1="32" x2="28" y2="38" stroke="#c8a44e" stroke-width="2" stroke-linecap="round"/>
+      <path d="M48 18 C56 20,58 30,50 34 C42 38,38 30,44 26" stroke="#60a5fa" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".5"/>
+      <path d="M32 62 C24 60,22 50,30 46 C38 42,42 50,36 54" stroke="#60a5fa" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".5"/>
+      <rect x="36" y="34" width="8" height="4" rx="1" fill="#2d7dd2"/>
+      <rect x="38" y="30" width="4" height="12" rx="1" fill="#2d7dd2"/>
+    </svg>
+  </div>
+
+  <div class="brand-title">MediCore ERP</div>
+  <div class="brand-sub">Système de gestion hospitalière<br>sécurisé et intégré</div>
+
+  <div class="ecg-container">
+    <svg viewBox="0 0 240 60" width="240" height="60">
+      <path class="ecg-line" d="M0 45 L60 45 L70 30 L80 50 L90 10 L100 50 L110 40 L120 45 L180 45 L190 30 L200 50 L210 10 L220 50 L230 40 L240 45"
+        stroke="#2d7dd2" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+</div>
+
+<div class="panel-form">
+  <div class="form-container">
+    <div class="form-header">
+      <div class="app-name">MediCore ERP</div>
+      <h1>Connexion</h1>
+      <p>Accédez à votre espace hospitalier sécurisé</p>
+    </div>
+
+    <?php if ($error): ?>
+      <div class="alert alert-error"> <?= $error ?></div>
+    <?php endif; ?>
+    <?php if ($timeout): ?>
+      <div class="alert alert-timeout"> Votre session a expiré</div>
+    <?php endif; ?>
+    <?php if ($logout): ?>
+      <div class="alert alert-success"> Déconnexion réussie</div>
+    <?php endif; ?>
+
+    <form method="POST" action="<?= APP_URL ?>/auth">
+      <input type="hidden" name="action" value="login">
+      <?= csrf_field() ?>
+      <div class="field-group">
+        <label>Email professionnel</label>
+        <div class="input-wrap">
+          <span class="input-icon">✉</span>
+          <input type="email" name="email" placeholder="admin@medicore.fr" value="admin@medicore.fr" required autocomplete="username">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Mot de passe</label>
+        <div class="field-pwd">
+          <div class="input-wrap">
+            <span class="input-icon">🔒</span>
+            <input type="password" name="password" id="pwd" placeholder="••••••••" value="password" required autocomplete="current-password">
+          </div>
+          <button type="button" class="pwd-toggle" onclick="togglePwd()" title="Afficher/Masquer">
+            <span id="pwd-icon">👁</span>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn-login">
+        Se connecter →
+      </button>
+    </form>
+
+    <div class="demo-creds">
+      <div class="demo-title"> Comptes de démonstration</div>
+      <div class="demo-grid">
+        <?php foreach ([
+          ['admin@medicore.fr',     'Administrateur'],
+          ['dr.martin@medicore.fr', 'Médecin'],
+          ['pharmacie@medicore.fr', 'Pharmacien'],
+          ['compta@medicore.fr',    'Comptable'],
+          ['infirmier@medicore.fr', 'Infirmier'],
+        ] as [$email, $role]): ?>
+        <span class="email" onclick="remplir('<?= $email ?>')"><?= $email ?></span>
+        <span class="role"><?= $role ?></span>
+        <?php endforeach; ?>
+      </div>
+      <div class="demo-hint">Mot de passe : <strong>password</strong> — Cliquez sur un email</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function remplir(email) {
+  document.querySelector('input[name="email"]').value = email;
+  document.querySelector('input[name="password"]').value = 'admin123';
+}
+function togglePwd() {
+  var inp = document.getElementById('pwd');
+  var icon = document.getElementById('pwd-icon');
+  if (inp.type === 'password') { inp.type = 'text'; icon.textContent = '🙈'; }
+  else { inp.type = 'password'; icon.textContent = '👁'; }
+}
+</script>
+</body>
+</html>
+<?php if (ob_get_level() > 0) ob_end_flush(); ?>

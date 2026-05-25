@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\\\\\")",
+      "Bash('$c')",
+      "Bash('.\\\\$col.')",
+      "Bash(xxd /c/xampp/htdocs/Brenshop/includes/bootstrap.php)",
+      "Bash(./mysql.exe -u root pos_system -e \"SHOW COLUMNS FROM sales LIKE 'change%';\")",
+      "WebFetch(domain:webkul.design)",
+      "WebSearch",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"CREATE DATABASE IF NOT EXISTS pos_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root pos_system -e \"SOURCE C:/xampp/htdocs/Brenshop/database.sql\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"DROP DATABASE IF EXISTS pos_system; CREATE DATABASE pos_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"SOURCE C:/xampp/htdocs/Brenshop/database.sql\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root pos_system -e \"SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA='pos_system' ORDER BY TABLE_NAME;\")",
+      "Bash(python *)",
+      "PowerShell(Get-Process *)",
+      "Bash(key)",
+      "Bash(php -r ' *)",
+      "Bash(/c/xampp/php/php *)",
+      "Bash(curl -s -o /c/xampp/htdocs/Brenshop/assets/fonts/fonts.css \"https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&family=DM+Mono:wght@400;500&display=swap\")",
+      "Bash(curl -s -o /c/xampp/htdocs/Brenshop/assets/fonts/fonts.css -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&family=DM+Mono:wght@400;500&display=swap\")",
+      "Bash(/c/xampp/htdocs/Brenshop/views/pos.php)",
+      "Bash(curl -s -o /c/xampp/htdocs/Brenshop/assets/fonts/manrope.css -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap\")",
+      "WebFetch(domain:www.justinmind.com)",
+      "WebFetch(domain:cloud.justinmind.com)",
+      "Bash(php *)",
+      "Bash(Select-Object -First 30)",
+      "PowerShell(php -l \"C:\\\\xampp\\\\htdocs\\\\Brenshop\\\\views\\\\pos.php\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\Brenshop\\\\views\\\\pos.php\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\Brenshop\\\\controllers\\\\caisse_ajax.php\" 2>&1; & \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\Brenshop\\\\controllers\\\\sale_controller.php\" 2>&1; & \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\Brenshop\\\\includes\\\\helpers.php\" 2>&1; & \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\Brenshop\\\\models\\\\models.php\" 2>&1; & \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\Brenshop\\\\controllers\\\\auth.php\" 2>&1)",
+      "Bash(C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe *)",
+      "PowerShell(New-Item *)"
+    ]
+  }
+}

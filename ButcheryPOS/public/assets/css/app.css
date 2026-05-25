@@ -1,0 +1,202 @@
+/* ButcheryPOS - Main Application Stylesheet */
+
+:root {
+    --bp-primary: #9b2c2c;
+    --bp-primary-dark: #742a2a;
+    --bp-primary-light: #fc8181;
+    --bp-secondary: #2c1712;
+    --bp-surface: #fffaf4;
+    --bp-sidebar-width: 250px;
+    --bp-topbar-height: 56px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bp-surface);
+    margin: 0;
+    color: #333;
+}
+
+/* ---- Login Page ---- */
+.login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--bp-secondary) 0%, var(--bp-primary) 100%);
+}
+.login-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+.login-card .logo {
+    text-align: center;
+    margin-bottom: 24px;
+}
+.login-card .logo h1 {
+    color: var(--bp-primary);
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+}
+.login-card .logo p {
+    color: #888;
+    font-size: 14px;
+    margin: 4px 0 0;
+}
+
+/* ---- App Shell ---- */
+.app-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--bp-sidebar-width);
+    background: var(--bp-secondary);
+    color: #fff;
+    overflow-y: auto;
+    z-index: 100;
+    transition: transform 0.3s;
+}
+.app-sidebar .sidebar-brand {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.app-sidebar .sidebar-brand h4 {
+    color: var(--bp-primary-light);
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+}
+.app-sidebar .sidebar-brand small {
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+}
+
+.sidebar-nav { padding: 8px 0; }
+.sidebar-nav .nav-section {
+    padding: 8px 20px 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+.sidebar-nav .nav-item {
+    display: block;
+    padding: 10px 20px;
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+.sidebar-nav .nav-item:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.05);
+}
+.sidebar-nav .nav-item.active {
+    color: #fff;
+    background: rgba(155,44,44,0.3);
+    border-left-color: var(--bp-primary-light);
+}
+.sidebar-nav .nav-item i { width: 22px; margin-right: 8px; text-align: center; }
+.sidebar-nav .nav-item .badge {
+    float: right;
+    font-size: 11px;
+    padding: 2px 6px;
+}
+
+.app-main {
+    margin-left: var(--bp-sidebar-width);
+    min-height: 100vh;
+}
+
+.app-topbar {
+    position: sticky;
+    top: 0;
+    height: var(--bp-topbar-height);
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 50;
+}
+.app-topbar .topbar-left { display: flex; align-items: center; gap: 12px; }
+.app-topbar .topbar-right { display: flex; align-items: center; gap: 16px; }
+
+.app-content {
+    padding: 24px;
+}
+
+/* ---- Cards & Stats ---- */
+.stat-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-left: 4px solid var(--bp-primary);
+}
+.stat-card .stat-value { font-size: 28px; font-weight: 700; color: var(--bp-primary); }
+.stat-card .stat-label { font-size: 13px; color: #888; margin-top: 4px; }
+
+/* ---- Tables ---- */
+.data-table {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+.data-table table { margin: 0; }
+.data-table th {
+    background: #f7f7f7;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #666;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+/* ---- Forms ---- */
+.form-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.form-label { font-weight: 600; font-size: 13px; color: #555; }
+
+/* ---- Flash Messages ---- */
+.alert-flash {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 300px;
+    animation: slideIn 0.3s ease;
+}
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* ---- Expiry badges ---- */
+.badge-expired { background: #dc2626; color: #fff; }
+.badge-critical { background: #f59e0b; color: #fff; }
+.badge-warning { background: #fbbf24; color: #333; }
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+    .app-sidebar { transform: translateX(-100%); }
+    .app-sidebar.show { transform: translateX(0); }
+    .app-main { margin-left: 0; }
+}

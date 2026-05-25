@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 60" width="280" height="60">
+  <defs>
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D9488"/>
+      <stop offset="100%" style="stop-color:#14B8A6"/>
+    </linearGradient>
+  </defs>
+  <!-- Pharmacy cross icon -->
+  <rect x="4" y="4" width="52" height="52" rx="12" fill="url(#logoGrad)"/>
+  <rect x="19" y="14" width="22" height="32" rx="3" fill="white"/>
+  <rect x="14" y="19" width="32" height="22" rx="3" fill="white"/>
+  <!-- Brand name -->
+  <text x="66" y="28" font-family="'Segoe UI',system-ui,-apple-system,sans-serif" font-size="24" font-weight="700" fill="#0F172A">Pharma</text>
+  <text x="159" y="28" font-family="'Segoe UI',system-ui,-apple-system,sans-serif" font-size="24" font-weight="700" fill="#0D9488">Care</text>
+  <!-- Tagline -->
+  <text x="66" y="46" font-family="'Segoe UI',system-ui,-apple-system,sans-serif" font-size="10" font-weight="400" fill="#94A3B8" letter-spacing="2.5">GESTION PHARMACEUTIQUE</text>
+</svg>

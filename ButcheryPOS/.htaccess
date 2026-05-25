@@ -1,0 +1,39 @@
+# ButcheryPOS - Apache Configuration
+# Block direct access to sensitive directories
+
+RewriteEngine On
+
+# Block access to config/
+RewriteRule ^config/ - [F,L]
+
+# Block access to src/
+RewriteRule ^src/ - [F,L]
+
+# Block access to storage/
+RewriteRule ^storage/ - [F,L]
+
+# Block access to database/
+RewriteRule ^database/ - [F,L]
+
+# Block access to bridge/ (Python script should not be served)
+RewriteRule ^bridge/ - [F,L]
+
+# Block access to templates/
+RewriteRule ^templates/ - [F,L]
+
+# Route everything through public/index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ public/index.php?url=$1 [QSA,L]
+
+# Block access to hidden files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mysql.exe -u root -e 'USE atlas_prime_logistics; *)",
+      "Bash(./mysql.exe -u root -e \"USE atlas_prime_logistics; DESCRIBE voyages;\")",
+      "Bash(./mysql.exe -u root -e \"USE atlas_prime_logistics; SHOW TABLES;\")",
+      "Bash(./mysql.exe -u root -e \"USE atlas_prime_logistics; SELECT COUNT\\(*\\) AS nb FROM vehicules; SELECT COUNT\\(*\\) AS nb FROM trajets; SELECT COUNT\\(*\\) AS nb FROM trajet_escales;\")",
+      "Bash(xxd \"C:/xampp/htdocs/atlasprime/pages/manifest.php\")",
+      "Bash(./mysql.exe -u root -e \"USE atlas_prime_logistics; ALTER TABLE agences DROP COLUMN ville;\")",
+      "Bash(./mysql.exe -u root -e \"USE atlas_prime_logistics; DESCRIBE agences;\")"
+    ]
+  }
+}

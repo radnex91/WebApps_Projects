@@ -1,0 +1,38 @@
+# MediCore ERP — Rewrite Engine
+Options -Indexes
+RewriteEngine On
+RewriteBase /medicore/
+
+# ── Sécurité (ne bloque que les requêtes directes, pas les sous-requêtes internes) ──
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
+RewriteRule ^includes/ - [F,L]
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
+RewriteRule ^pages/    - [F,L]
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
+RewriteRule ^\.         - [F,L]
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
+RewriteRule ^sql/      - [F,L]
+
+# ── API REST ──
+RewriteRule ^api/(.+)$ pages/api.php [L,QSA]
+
+# ── Points d'entrée ──
+RewriteRule ^auth$        includes/auth.php [L,QSA]
+RewriteRule ^poll$        includes/poll.php [L,QSA]
+RewriteRule ^preferences$ pages/preferences.php [L,QSA]
+
+# ── Page de connexion (sauvegarde des anciens liens /login) ──
+RewriteRule ^login$ index.php [L,QSA]
+
+# ── Modules : /module → pages/module.php ──
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([a-zA-Z_]+)(\.php)?$ pages/$1.php [L,QSA]
+
+# ── Fichiers statiques ──
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

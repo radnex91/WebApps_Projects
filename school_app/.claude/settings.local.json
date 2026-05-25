@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(php -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\eleves\\\\ajouter.php\")",
+      "Bash(php -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\enseignants\\\\ajouter.php\")",
+      "Bash(php -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\enseignants\\\\modifier.php\")",
+      "Bash(php -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\parametres.php\")",
+      "Bash(php -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\notes\\\\index.php\")",
+      "Bash(\"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\eleves\\\\ajouter.php\")",
+      "Bash(\"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\enseignants\\\\ajouter.php\")",
+      "Bash(\"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\enseignants\\\\modifier.php\")",
+      "Bash(\"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\parametres.php\")",
+      "Bash(\"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\school_app\\\\modules\\\\notes\\\\index.php\")",
+      "Bash(find \"C:\\\\xampp\\\\htdocs\\\\school_app\" -name \"*.php\" -exec \"C:\\\\xampp\\\\php\\\\php.exe\" -l {} \\\\;)"
+    ]
+  }
+}

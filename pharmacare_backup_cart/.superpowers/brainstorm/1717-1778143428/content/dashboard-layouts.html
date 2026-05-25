@@ -1,0 +1,120 @@
+<h2>Maquettes — Dashboard par rôle</h2>
+<p class="subtitle">Approche B : 3 templates distincts, un par rôle. Vérifions la structure de chaque dashboard.</p>
+
+<div class="section">
+  <h3 style="color:var(--gold)">Caissier — Dashboard Caisse</h3>
+  <div class="mockup">
+    <div class="mockup-header">Focus : ventes quotidiennes et transactions personnelles</div>
+    <div class="mockup-body">
+      <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Ventes aujourd'hui</div>
+          <div style="font-size:28px;font-weight:700;color:var(--teal);font-family:var(--font-title);">12</div>
+          <div style="font-size:11px;color:var(--text3);">transactions</div>
+        </div>
+        <div style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Mon CA du jour</div>
+          <div style="font-size:28px;font-weight:700;color:var(--gold);font-family:var(--font-title);">145 000</div>
+          <div style="font-size:11px;color:var(--text3);">FCFA</div>
+        </div>
+        <div style="flex:1;min-width:140px;background:linear-gradient(135deg,var(--teal-dim),var(--blue-dim));border:1px solid var(--teal);border-radius:10px;padding:16px;display:flex;align-items:center;gap:10px;">
+          <div style="font-size:28px;">🛒</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">Point de Vente</div>
+            <div style="font-size:11px;color:var(--text2);">Nouvelle vente</div>
+          </div>
+        </div>
+      </div>
+      <div class="placeholder" style="min-height:120px;">Tableau — Dernières transactions (réf, client, total, heure)</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3 style="color:var(--teal)">Pharmacien — Dashboard Gestion</h3>
+  <div class="mockup">
+    <div class="mockup-header">Focus : stock, commandes, tendances de vente (pas de CA)</div>
+    <div class="mockup-body">
+      <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--red);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Alertes stock</div>
+          <div style="font-size:28px;font-weight:700;color:var(--red);font-family:var(--font-title);">5</div>
+          <div style="font-size:11px;color:var(--red);">dont 2 ruptures</div>
+        </div>
+        <div style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Commandes en attente</div>
+          <div style="font-size:28px;font-weight:700;color:var(--blue);font-family:var(--font-title);">3</div>
+          <div style="font-size:11px;color:var(--text3);">à traiter</div>
+        </div>
+        <div style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Ventes 7 derniers jours</div>
+          <div style="display:flex;align-items:flex-end;gap:4px;height:40px;">
+            <div style="width:12px;height:18px;background:var(--teal);border-radius:3px;opacity:.6;"></div>
+            <div style="width:12px;height:26px;background:var(--teal);border-radius:3px;opacity:.7;"></div>
+            <div style="width:12px;height:14px;background:var(--teal);border-radius:3px;opacity:.5;"></div>
+            <div style="width:12px;height:32px;background:var(--teal);border-radius:3px;opacity:.8;"></div>
+            <div style="width:12px;height:22px;background:var(--teal);border-radius:3px;opacity:.6;"></div>
+            <div style="width:12px;height:38px;background:var(--teal);border-radius:3px;opacity:.9;"></div>
+            <div style="width:12px;height:28px;background:var(--teal);border-radius:3px;opacity:.7;"></div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;">Lun ... Dim</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:250px;">
+          <div class="placeholder" style="min-height:130px;">Stock critique — liste des produits sous seuil (nom, stock, seuil)</div>
+        </div>
+        <div style="flex:1;min-width:250px;">
+          <div class="placeholder" style="min-height:130px;">Top 5 produits (30j) — barres de progression</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3 style="color:var(--blue)">Admin — Dashboard Direction</h3>
+  <div class="mockup">
+    <div class="mockup-header">Focus : vue d'ensemble complète de l'activité</div>
+    <div class="mockup-body">
+      <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">CA du mois</div>
+          <div style="font-size:28px;font-weight:700;color:var(--teal);font-family:var(--font-title);">2 450 000</div>
+          <div style="font-size:11px;color:var(--text3);">Aujourd'hui : 145 000</div>
+        </div>
+        <div style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Médicaments</div>
+          <div style="font-size:28px;font-weight:700;color:var(--gold);font-family:var(--font-title);">342</div>
+          <div style="font-size:11px;color:var(--text3);">références actives</div>
+        </div>
+        <div style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Alertes stock</div>
+          <div style="font-size:28px;font-weight:700;color:var(--red);font-family:var(--font-title);">5</div>
+          <div style="font-size:11px;color:var(--text3);">dont 2 ruptures</div>
+        </div>
+        <div style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Ventes aujourd'hui</div>
+          <div style="font-size:28px;font-weight:700;color:var(--blue);font-family:var(--font-title);">12</div>
+          <div style="font-size:11px;color:var(--text3);">transactions</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+        <div style="flex:2;min-width:300px;">
+          <div class="placeholder" style="min-height:130px;">Graphique — Ventes 7 derniers jours (barres)</div>
+        </div>
+        <div style="flex:1;min-width:150px;">
+          <div class="placeholder" style="min-height:130px;">Activité récente — utilisateurs connectés, dernières actions</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:250px;">
+          <div class="placeholder" style="min-height:130px;">Dernières ventes — tableau (réf, client, total, caissier)</div>
+        </div>
+        <div style="flex:1;min-width:250px;">
+          <div class="placeholder" style="min-height:130px;">Top 5 produits (30j) + Commandes en cours (3)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
