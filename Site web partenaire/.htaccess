@@ -1,0 +1,21 @@
+# Hébergement mutualisé — Apache
+# Bloquer l’accès direct au fichier de config (mot de passe MySQL)
+<Files "config.php">
+  Require all denied
+</Files>
+# Optionnel : empêcher l’accès direct au script SQL
+<Files "database.sql">
+  Require all denied
+</Files>
+
+# Images et fichiers statiques : cache navigateur (réduit les rechargements lents au scroll / retour sur la page)
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/gif "access plus 1 year"
+  ExpiresByType image/avif "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 week"
+  ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>

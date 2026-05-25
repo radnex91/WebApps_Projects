@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mysql *)",
+      "Bash(php alter_db.php)",
+      "Bash(where php *)",
+      "Bash(C:/xampp/php/php.exe *)",
+      "Skill(council)",
+      "Bash(php -l includes/dashboard-admin.php)",
+      "Bash(php -l includes/dashboard-pharmacien.php)",
+      "Bash(php -l includes/dashboard-caissier.php)",
+      "Bash(php -l includes/charts.php)",
+      "PowerShell(\\(Get-Content \"C:\\\\xampp\\\\htdocs\\\\pharmacare\\\\includes\\\\dashboard-admin.php\"\\)[165..169] | ForEach-Object { \"$_$\\([char]0x00B6\\)\" })",
+      "Bash(php *)",
+      "Bash(del *)",
+      "Bash(powershell *)"
+    ]
+  }
+}

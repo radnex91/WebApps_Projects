@@ -1,0 +1,42 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - img [ref=e6]
+    - generic [ref=e9]: PharmaCare
+    - generic [ref=e10]: PharmaCare
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - img [ref=e15]
+        - generic [ref=e19]: Gestion complète de stock
+      - generic [ref=e20]:
+        - img [ref=e22]
+        - generic [ref=e26]: Point de vente intégré
+      - generic [ref=e27]:
+        - img [ref=e29]
+        - generic [ref=e32]: Rapports & statistiques
+  - generic [ref=e33]:
+    - generic [ref=e34]:
+      - heading "Connexion" [level=2] [ref=e35]
+      - paragraph [ref=e36]: Accédez à votre espace professionnel
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]: Identifiant
+        - generic [ref=e40]:
+          - img [ref=e41]
+          - textbox "Entrez votre identifiant" [active] [ref=e44]
+      - generic [ref=e45]:
+        - generic [ref=e46]: Mot de passe
+        - generic [ref=e47]:
+          - img [ref=e48]
+          - textbox "••••••••" [ref=e51]
+          - button "Afficher le mot de passe" [ref=e52] [cursor=pointer]:
+            - img [ref=e53]
+      - button "Se connecter" [ref=e56] [cursor=pointer]
+    - generic [ref=e57]:
+      - generic [ref=e58]: Comptes de démonstration
+      - generic [ref=e59]:
+        - generic [ref=e60]: admin
+        - generic [ref=e61]: pharmacien
+        - generic [ref=e62]: caissier
+      - generic [ref=e63]:
+        - text: "Mot de passe:"
+        - code [ref=e64]: password

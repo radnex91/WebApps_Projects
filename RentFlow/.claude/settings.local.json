@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\RentFlow\" -Recurse -File)",
+      "Bash(Select-Object -First 50 FullName)",
+      "Bash(Get-Content \"app\\\\views\\\\settings\\\\install.sql\")",
+      "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow)",
+      "Bash(lt)",
+      "Bash(\"C:/xampp/htdocs/RentFlow/app/views/settings/install.sql\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow -e \"INSERT INTO settings \\(setting_key, setting_value\\) VALUES \\('app_name', 'RentFlow - Gestion Immobilière'\\), \\('currency', 'XOF'\\), \\('timezone', 'Africa/Abidjan'\\), \\('language', 'fr'\\), \\('notifications_enabled', '1'\\), \\('email_notifications', '1'\\), \\('items_per_page', '10'\\), \\('date_format', 'd/m/Y'\\) ON DUPLICATE KEY UPDATE setting_value = VALUES\\(setting_value\\);\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow -e \"UPDATE settings SET setting_value = 'XAF' WHERE setting_key = 'currency'; UPDATE settings SET setting_value = 'Africa/Douala' WHERE setting_key = 'timezone';\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow -e \"DELETE FROM payments; DELETE FROM batches; DELETE FROM landlords; DELETE FROM agencies;\")",
+      "PowerShell(Get-Content \"C:\\\\xampp\\\\htdocs\\\\RentFlow\\\\database\\\\seed.sql\" | & \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow -e \"DESCRIBE agencies; DESCRIBE landlords; DESCRIBE batches;\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow -e \"DESCRIBE batches;\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow -e \"SET FOREIGN_KEY_CHECKS=0; TRUNCATE payments; TRUNCATE batches; TRUNCATE landlords; TRUNCATE agencies; SET FOREIGN_KEY_CHECKS=1;\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow -e \"DESCRIBE payments;\")",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow -e \"DESCRIBE users;\")",
+      "PowerShell(Get-Content \"C:\\\\xampp\\\\htdocs\\\\RentFlow\\\\database\\\\migrations\\\\add_roles_permissions.sql\" | & \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root rentflow -e \"ALTER TABLE batches ADD COLUMN monthly_price DECIMAL\\(10,2\\) NULL AFTER name;\")",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\RentFlow\" -Directory -Recurse -Depth 2 | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"C:\\\\xampp\\\\htdocs\\\\RentFlow\\\\\"\\), \"\" } | Sort-Object)",
+      "Bash(ipconfig)",
+      "Bash(findstr /C:\"Adresse IPv4\")",
+      "Bash(netsh advfirewall *)",
+      "Bash(C:\\\\xampp\\\\mysql\\\\bin\\\\mysqldump.exe *)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysqldump.exe\" -u root --databases rentflow --add-drop-database --routines --triggers)"
+    ]
+  }
+}

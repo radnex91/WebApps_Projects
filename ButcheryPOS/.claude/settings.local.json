@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/c/xampp/php/php.exe -v)",
+      "Bash(php -v)",
+      "Bash(/c/xampp/php/php.exe -m)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); text=data[0]['text']; lines=text.split\\('\\\\n'\\); print\\(f'Total lines: {len\\(lines\\)}'\\); print\\('---FIRST 100---'\\); print\\('\\\\n'.join\\(lines[:100]\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); text=data[0]['text']; lines=text.split\\('\\\\n'\\); print\\('\\\\n'.join\\(lines[100:300]\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); text=data[0]['text']; lines=text.split\\('\\\\n'\\); print\\('\\\\n'.join\\(lines[300:500]\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); text=data[0]['text']; lines=text.split\\('\\\\n'\\); print\\('\\\\n'.join\\(lines[500:800]\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); text=data[0]['text']; lines=text.split\\('\\\\n'\\); print\\('\\\\n'.join\\(lines[800:1100]\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); text=data[0]['text']; lines=text.split\\('\\\\n'\\); print\\('\\\\n'.join\\(lines[1100:1604]\\)\\)\")",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root)",
+      "Bash(C:/xampp/mysql/bin/mysql.exe:*)",
+      "Bash(curl:*)",
+      "Bash(C:/xampp/php/php.exe:*)",
+      "Bash(\"C:/xampp/php/php.exe\" -l public/index.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l public/api/index.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l public/api/scale.php)",
+      "Bash(\"C:/xampp/php/php.exe\" -l \"C:/xampp/htdocs/ButcheryPOS/src/Models/BaseModel.php\")",
+      "Bash(\"C:/xampp/php/php.exe\" -l \"C:/xampp/htdocs/ButcheryPOS/src/Services/SettingsService.php\")",
+      "Bash(php:*)",
+      "Bash(/c/xampp/php/php.exe:*)",
+      "Bash(grep -oP \"t\\\\\\('\\(.*?\\)'\\\\\\)\" C:/xampp/htdocs/ButcheryPOS/templates/**/*.php C:/xampp/htdocs/ButcheryPOS/templates/*.php)",
+      "Bash(grep -r '\\\\$_POST\\\\|$_GET\\\\|\\\\$_REQUEST' C:/xampp/htdocs/ButcheryPOS/src/Repositories/BaseRepository.php 'C:/xampp/htdocs/ButcheryPOS/src/Services/*.php')",
+      "Bash(grep -v '//')",
+      "Bash(/c/xampp/mysql/bin/mysql.exe:*)",
+      "Bash(node -c public/assets/js/breakdown.js)",
+      "Bash(mysql:*)"
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+body {
+    background: linear-gradient(180deg, #f6f8fb 0%, #edf2f7 100%);
+    min-height: 100vh;
+}
+
+.hero-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
+    color: #fff;
+    border: 0;
+}
+
+.stat-card {
+    border: 0;
+    border-radius: 1rem;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.table thead th {
+    white-space: nowrap;
+}
+
+.badge-soft {
+    background: rgba(13, 110, 253, 0.12);
+    color: #0d6efd;
+}
+
+.sale-line {
+    background: #fff;
+}
+
+.cart-preview-empty {
+    padding: 1rem 0;
+}

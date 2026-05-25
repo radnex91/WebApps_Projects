@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"SHOW DATABASES;\")",
+      "Bash(\"C:/xampp/php/php.exe\" -v)",
+      "Bash(C:/xampp/mysql/bin/mysql.exe *)",
+      "Bash(C:/xampp/php/php.exe *)",
+      "Bash(net start *)",
+      "Bash(\"C:/xampp/mysql/bin/mysqld.exe\" --defaults-file=\"C:/xampp/mysql/bin/my.ini\")",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root -e \"SELECT 1;\")"
+    ]
+  }
+}

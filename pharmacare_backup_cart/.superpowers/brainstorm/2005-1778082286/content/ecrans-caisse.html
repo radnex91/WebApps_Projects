@@ -1,0 +1,159 @@
+<h2>Module Caisse — Les 3 écrans principaux</h2>
+<p class="subtitle">Design inspiré de Sage Gestion Caisse, adapté au look PharmaCare existant</p>
+
+<div class="section">
+  <h3>Écran 1 : Ma caisse (ouverte)</h3>
+  <p>Ce que voit le caissier quand sa caisse est ouverte — résumé en temps réel</p>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Caisse — Session de Yasmine Belkacemi</div>
+  <div class="mockup-body" style="font-family: 'Segoe UI', sans-serif; color: #e0e0e0;">
+
+    <!-- Status bar -->
+    <div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:140px; background:#1a2a1a; border:1px solid #2d4a2d; border-radius:8px; padding:14px;">
+        <div style="font-size:11px; color:#6b9b6b; text-transform:uppercase; letter-spacing:0.5px;">Statut</div>
+        <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+          <span style="display:inline-block; width:8px; height:8px; background:#00c853; border-radius:50%; animation:pulse 2s infinite;"></span>
+          <span style="font-size:15px; font-weight:700; color:#00c853;">OUVERTE</span>
+        </div>
+        <div style="font-size:11px; color:#6b9b6b; margin-top:4px;">Depuis 08:32 — 6 mai 2026</div>
+      </div>
+      <div style="flex:1; min-width:140px; background:#1a1e2a; border:1px solid #2d354a; border-radius:8px; padding:14px;">
+        <div style="font-size:11px; color:#6b7b9b; text-transform:uppercase; letter-spacing:0.5px;">Fond de caisse</div>
+        <div style="font-size:20px; font-weight:700; color:#fff; margin-top:4px;">50 000 FCFA</div>
+      </div>
+      <div style="flex:1; min-width:140px; background:#1a1e2a; border:1px solid #2d354a; border-radius:8px; padding:14px;">
+        <div style="font-size:11px; color:#6b7b9b; text-transform:uppercase; letter-spacing:0.5px;">Ventes espèces</div>
+        <div style="font-size:20px; font-weight:700; color:#00c9a7; margin-top:4px;">+ 245 500 FCFA</div>
+        <div style="font-size:11px; color:#6b7b9b; margin-top:4px;">7 ventes aujourd'hui</div>
+      </div>
+      <div style="flex:1; min-width:140px; background:#1a1e2a; border:1px solid #2d354a; border-radius:8px; padding:14px;">
+        <div style="font-size:11px; color:#6b7b9b; text-transform:uppercase; letter-spacing:0.5px;">Total attendu</div>
+        <div style="font-size:20px; font-weight:700; color:#ffd54f; margin-top:4px;">295 500 FCFA</div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex; gap:10px; margin-bottom:20px;">
+      <button class="mock-button" style="background:var(--accent); color:#000; border:none;">Aller au POS</button>
+      <button class="mock-button" style="background:transparent; border:1px solid #555; color:#ccc;">Historique des sessions</button>
+      <button class="mock-button" style="background:#b71c1c; color:#fff; border:none; margin-left:auto;">Fermer la caisse</button>
+    </div>
+
+    <!-- Détail des ventes -->
+    <div style="background:#121212; border-radius:8px; padding:16px; border:1px solid #222;">
+      <div style="font-size:13px; color:#888; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">Ventes de la session</div>
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <tr style="color:#888; border-bottom:1px solid #222;">
+          <td style="padding:8px 4px;">Réf</td><td style="padding:8px 4px;">Heure</td><td style="padding:8px 4px;">Paiement</td><td style="padding:8px 4px; text-align:right;">Total</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1a1a1a;">
+          <td style="padding:8px 4px;">VNT-2026-001</td><td style="padding:8px 4px;">09:15</td><td style="padding:8px 4px;">Espèces</td><td style="padding:8px 4px; text-align:right;">45 500</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1a1a1a;">
+          <td style="padding:8px 4px;">VNT-2026-002</td><td style="padding:8px 4px;">10:30</td><td style="padding:8px 4px;">Carte</td><td style="padding:8px 4px; text-align:right;">12 000</td>
+        </tr>
+        <tr style="border-bottom:1px solid #1a1a1a; color:#888;">
+          <td style="padding:8px 4px;" colspan="4" align="center">... 5 autres ventes ...</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px;">
+  <h3>Écran 2 : Ouverture de caisse</h3>
+  <p>La popup/modale qui s'affiche quand la caisse n'est pas encore ouverte</p>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Ouverture de caisse — Yasmine Belkacemi</div>
+  <div class="mockup-body" style="font-family: 'Segoe UI', sans-serif; color: #e0e0e0; max-width:420px; margin:0 auto;">
+    <div style="text-align:center; margin-bottom:20px;">
+      <div style="font-size:11px; color:#6b7b9b; text-transform:uppercase; letter-spacing:0.5px;">6 mai 2026</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block; font-size:12px; color:#888; margin-bottom:6px;">Fond de caisse (somme dans le tiroir)</label>
+      <input class="mock-input" style="width:100%; font-size:22px; text-align:center; box-sizing:border-box;" placeholder="50 000" value="50 000">
+      <div style="font-size:11px; color:#6b7b9b; margin-top:4px; text-align:center;">Suggestion : 50 000 FCFA (dernier fond utilisé)</div>
+    </div>
+    <button class="mock-button" style="width:100%; background:var(--accent); color:#000; border:none; padding:12px; font-size:16px; font-weight:700;">
+      Ouvrir la caisse
+    </button>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px;">
+  <h3>Écran 3 : Fermeture & Bordereau</h3>
+  <p>Ce que le caissier voit à la fermeture — réconciliation automatique</p>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Bordereau de caisse — 6 mai 2026</div>
+  <div class="mockup-body" style="font-family: 'Segoe UI', sans-serif; color: #e0e0e0;">
+
+    <div style="display:flex; gap:16px; margin-bottom:20px;">
+      <div style="flex:1;">
+        <div style="font-size:10px; color:#6b7b9b; text-transform:uppercase;">Caisse</div>
+        <div style="font-weight:600;">Yasmine Belkacemi</div>
+      </div>
+      <div style="flex:1; text-align:center;">
+        <div style="font-size:10px; color:#6b7b9b; text-transform:uppercase;">Ouverture</div>
+        <div>08:32</div>
+      </div>
+      <div style="flex:1; text-align:right;">
+        <div style="font-size:10px; color:#6b7b9b; text-transform:uppercase;">Fermeture</div>
+        <div>17:45</div>
+      </div>
+    </div>
+
+    <table style="width:100%; border-collapse:collapse; font-size:14px; margin-bottom:16px;">
+      <tr style="border-bottom:1px solid #222;">
+        <td style="padding:10px 8px;">Fond de caisse</td>
+        <td style="padding:10px 8px; text-align:right; font-family:'DM Mono',monospace;">+ 50 000</td>
+      </tr>
+      <tr style="border-bottom:1px solid #222;">
+        <td style="padding:10px 8px;">Ventes espèces (7)</td>
+        <td style="padding:10px 8px; text-align:right; font-family:'DM Mono',monospace; color:#00c9a7;">+ 195 000</td>
+      </tr>
+      <tr style="border-bottom:1px solid #222;">
+        <td style="padding:10px 8px;">Ventes carte (2)</td>
+        <td style="padding:10px 8px; text-align:right; font-family:'DM Mono',monospace; color:#4895ef;">+ 50 500</td>
+      </tr>
+      <tr style="border-bottom:1px solid #333; font-weight:700;">
+        <td style="padding:10px 8px;">Montant attendu</td>
+        <td style="padding:10px 8px; text-align:right; font-family:'DM Mono',monospace; font-size:18px; color:#ffd54f;">245 000</td>
+      </tr>
+    </table>
+
+    <!-- Comptage -->
+    <div style="background:#1a1a1a; border-radius:8px; padding:14px; margin-bottom:14px; border:1px solid #333;">
+      <label style="display:block; font-size:12px; color:#888; margin-bottom:6px;">Montant compté (saisir le total d'espèces dans le tiroir)</label>
+      <input class="mock-input" style="width:100%; font-size:20px; text-align:center; box-sizing:border-box;" placeholder="Saisir le montant compté..." value="243 000">
+    </div>
+
+    <!-- Écart -->
+    <div style="background:#2a1a1a; border:1px solid #5a2a2a; border-radius:8px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+      <span style="color:#ef5350; font-weight:700;">Écart de caisse</span>
+      <span style="font-family:'DM Mono',monospace; font-size:22px; font-weight:700; color:#ef5350;">- 2 000 FCFA</span>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label style="display:block; font-size:12px; color:#888; margin-bottom:6px;">Note (obligatoire si écart &ne; 0)</label>
+      <textarea class="mock-input" style="width:100%; height:50px; box-sizing:border-box;" placeholder="Justification de l'écart...">Écart probablement dû à la monnaie manquante sur le paiement de 09:15</textarea>
+    </div>
+
+    <button class="mock-button" style="width:100%; background:#b71c1c; color:#fff; border:none; padding:12px; font-size:16px; font-weight:700;">
+      Valider la fermeture
+    </button>
+  </div>
+</div>
+
+<style>
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+</style>

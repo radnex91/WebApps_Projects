@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediCore ERP — Démonstration Interactive</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e1a; --surface: #111827; --surface2: #1a2235; --surface3: #1e2d45;
+  --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+  --accent: #3b82f6; --accent2: #60a5fa;
+  --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --purple: #8b5cf6; --cyan: #06b6d4; --gold: #c8a44e;
+  --text: #f1f5f9; --text2: #94a3b8; --text3: #64748b;
+  --radius: 12px; --shadow: 0 4px 24px rgba(0,0,0,.4);
+  --sidebar-w: 240px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+a { text-decoration: none; color: inherit; }
+
+/* ══════════ LANDING ══════════ */
+#landing { display: block; }
+#landing.hidden { display: none; }
+
+.hero {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; text-align: center; padding: 40px 20px;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(59,130,246,.12) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 80% 80%, rgba(139,92,246,.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.015) 1px, transparent 1px);
+  background-size: 60px 60px; pointer-events: none;
+}
+.hero-content { position: relative; z-index: 1; max-width: 800px; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.2);
+  color: var(--accent2); margin-bottom: 24px;
+}
+.hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+.hero h1 {
+  font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 5vw, 3.8rem);
+  font-weight: 700; line-height: 1.15; margin-bottom: 20px;
+  background: linear-gradient(135deg, var(--text) 0%, var(--accent2) 50%, var(--purple) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hero p { font-size: clamp(1rem, 2vw, 1.2rem); color: var(--text2); max-width: 600px; margin: 0 auto 36px; }
+.hero-buttons { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.btn-hero {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 28px; border-radius: 10px; font-family: inherit;
+  font-size: 15px; font-weight: 600; cursor: pointer; border: none; transition: all .25s;
+}
+.btn-hero-primary { background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff; }
+.btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(59,130,246,.4); }
+.btn-hero-secondary { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); }
+.btn-hero-secondary:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+
+.ecg-hero { margin-top: 60px; width: 100%; max-width: 500px; height: 50px; margin-left: auto; margin-right: auto; }
+.ecg-hero path { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: drawEcg 4s ease-in-out infinite; }
+@keyframes drawEcg { 0% { stroke-dashoffset: 1200; } 35% { stroke-dashoffset: 0; } 65% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -1200; } }
+
+section { padding: 80px 20px; }
+.container { max-width: 1100px; margin: 0 auto; }
+.section-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent2); margin-bottom: 12px;
+}
+.section-label::before { content: ''; width: 20px; height: 2px; background: var(--accent); border-radius: 1px; }
+.section-title { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 700; margin-bottom: 16px; line-height: 1.2; }
+.section-desc { color: var(--text2); font-size: 1rem; max-width: 600px; margin-bottom: 48px; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 48px; }
+.kpi-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; position: relative; overflow: hidden; transition: all .3s;
+}
+.kpi-card:hover { border-color: var(--border2); transform: translateY(-3px); }
+.kpi-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.kpi-card.blue::after { background: var(--accent); }
+.kpi-card.green::after { background: var(--green); }
+.kpi-card.yellow::after { background: var(--yellow); }
+.kpi-card.purple::after { background: var(--purple); }
+.kpi-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 16px; }
+.kpi-icon.blue { background: rgba(59,130,246,.15); }
+.kpi-icon.green { background: rgba(16,185,129,.15); }
+.kpi-icon.yellow { background: rgba(245,158,11,.15); }
+.kpi-icon.purple { background: rgba(139,92,246,.15); }
+.kpi-value { font-size: 32px; font-weight: 800; margin-bottom: 4px; }
+.kpi-label { font-size: 13px; color: var(--text2); }
+.kpi-sub { font-size: 11px; color: var(--green); margin-top: 8px; }
+
+.features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.feature-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 28px; transition: all .3s; position: relative; overflow: hidden;
+}
+.feature-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.feature-card::before {
+  content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+  background: linear-gradient(180deg, var(--accent), var(--purple)); opacity: 0; transition: opacity .3s;
+}
+.feature-card:hover::before { opacity: 1; }
+.feature-icon { font-size: 28px; margin-bottom: 16px; display: block; }
+.feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.feature-card p { font-size: 13px; color: var(--text2); }
+.feature-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.feature-tag { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(59,130,246,.08); color: var(--accent2); }
+
+.modules-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.module-item {
+  display: flex; align-items: center; gap: 14px; padding: 16px 20px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; transition: all .2s;
+}
+.module-item:hover { border-color: var(--border2); background: var(--surface2); }
+.module-icon { font-size: 22px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: var(--surface2); flex-shrink: 0; }
+.module-item h4 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.module-item p { font-size: 12px; color: var(--text3); }
+
+.roles-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.role-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; transition: all .3s; }
+.role-card:hover { border-color: var(--border2); transform: translateY(-3px); }
+.role-avatar { width: 48px; height: 48px; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.role-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.role-card p { font-size: 11px; color: var(--text3); }
+
+.cta-section { text-align: center; }
+.cta-box {
+  background: linear-gradient(135deg, var(--surface2), var(--surface3));
+  border: 1px solid var(--border2); border-radius: 20px; padding: 60px 40px;
+  position: relative; overflow: hidden;
+}
+.cta-box::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 100%, rgba(59,130,246,.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cta-box h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; margin-bottom: 12px; position: relative; }
+.cta-box p { color: var(--text2); margin-bottom: 28px; position: relative; }
+
+.footer { padding: 32px 20px; text-align: center; border-top: 1px solid var(--border); font-size: 12px; color: var(--text3); }
+
+.fade-up { opacity: 0; transform: translateY(24px); transition: all .6s ease; }
+.fade-up.visible { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 1024px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+  .roles-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  section { padding: 60px 16px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .features-grid { grid-template-columns: 1fr; }
+  .modules-list { grid-template-columns: 1fr; }
+  .roles-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .roles-grid { grid-template-columns: 1fr; }
+  .hero-buttons { flex-direction: column; align-items: center; }
+}
+
+/* ══════════ INTERACTIVE DEMO APP ══════════ */
+#demo-app { display: none; }
+#demo-app.active { display: flex; min-height: 100vh; }
+
+/* ── SIDEBAR ── */
+.demo-sidebar {
+  width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+}
+.demo-sidebar-logo {
+  padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px;
+}
+.demo-logo-icon {
+  width: 34px; height: 34px; background: linear-gradient(135deg, var(--accent), var(--purple));
+  border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff;
+}
+.demo-brand {
+  font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700;
+  background: linear-gradient(90deg, var(--accent2), var(--purple));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.demo-brand small { display: block; font-family: 'DM Sans', sans-serif; font-size: 9px; color: var(--text3); -webkit-text-fill-color: var(--text3); font-weight: 400; }
+
+.demo-nav { flex: 1; padding: 10px; overflow-y: auto; }
+.demo-nav-section { margin-bottom: 4px; }
+.demo-nav-section-label {
+  font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--text3);
+  text-transform: uppercase; padding: 8px 8px 4px;
+}
+.demo-nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px;
+  cursor: pointer; color: var(--text2); font-size: 13px; font-weight: 500; transition: all .15s; margin-bottom: 2px;
+}
+.demo-nav-item:hover { background: var(--surface2); color: var(--text); }
+.demo-nav-item.active { background: rgba(59,130,246,.18); color: var(--accent2); font-weight: 600; }
+.demo-nav-item.active::before {
+  content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px;
+  background: var(--accent); border-radius: 0 3px 3px 0;
+}
+.demo-nav-item .di { width: 18px; text-align: center; font-size: 15px; flex-shrink: 0; }
+.demo-nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+
+.demo-sidebar-footer {
+  padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface);
+}
+.demo-user-card { display: flex; align-items: center; gap: 10px; }
+.demo-user-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.demo-user-info { flex: 1; min-width: 0; }
+.demo-user-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.demo-user-role { font-size: 10px; color: var(--text2); }
+.demo-back-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 8px; padding: 8px; border-radius: 8px;
+  background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.15);
+  color: #f87171; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.demo-back-btn:hover { background: rgba(239,68,68,.15); color: #fff; }
+
+/* ── MAIN CONTENT ── */
+.demo-main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+.demo-header {
+  height: 56px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 50;
+}
+.demo-header-title { font-size: 15px; font-weight: 600; flex: 1; }
+.demo-header-date { font-size: 12px; color: var(--text3); }
+.demo-header-user {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border);
+}
+.demo-header-user .hu-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: 700;
+}
+.demo-header-user .hu-name { font-size: 12px; font-weight: 600; }
+
+.demo-content { padding: 24px; flex: 1; }
+
+/* ── DEMO SCREENS ── */
+.demo-screen { display: none; animation: fadeIn .3s ease; }
+.demo-screen.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── DEMO UI COMPONENTS ── */
+.demo-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.demo-stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; position: relative; overflow: hidden; transition: all .2s;
+}
+.demo-stat-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.demo-stat-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.demo-stat-card.blue::after { background: var(--accent); }
+.demo-stat-card.green::after { background: var(--green); }
+.demo-stat-card.yellow::after { background: var(--yellow); }
+.demo-stat-card.red::after { background: var(--red); }
+.demo-stat-card.purple::after { background: var(--purple); }
+.demo-stat-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 12px; }
+.demo-stat-icon.blue { background: rgba(59,130,246,.15); }
+.demo-stat-icon.green { background: rgba(16,185,129,.15); }
+.demo-stat-icon.yellow { background: rgba(245,158,11,.15); }
+.demo-stat-icon.red { background: rgba(239,68,68,.15); }
+.demo-stat-icon.purple { background: rgba(139,92,246,.15); }
+.demo-stat-value { font-size: 26px; font-weight: 700; margin-bottom: 2px; }
+.demo-stat-label { font-size: 12px; color: var(--text2); }
+.demo-stat-delta { font-size: 11px; color: var(--green); margin-top: 6px; }
+
+.demo-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+.demo-card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.demo-card-header h3 { font-size: 14px; font-weight: 600; }
+.demo-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.demo-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+.demo-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.demo-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+.demo-badge.green { background: rgba(16,185,129,.12); color: var(--green); }
+.demo-badge.green::before { background: var(--green); }
+.demo-badge.red { background: rgba(239,68,68,.12); color: var(--red); }
+.demo-badge.red::before { background: var(--red); }
+.demo-badge.yellow { background: rgba(245,158,11,.12); color: var(--yellow); }
+.demo-badge.yellow::before { background: var(--yellow); }
+.demo-badge.blue { background: rgba(59,130,246,.12); color: var(--accent2); }
+.demo-badge.blue::before { background: var(--accent2); }
+.demo-badge.purple { background: rgba(139,92,246,.12); color: #a78bfa; }
+.demo-badge.purple::before { background: #a78bfa; }
+
+table.demo-table { width: 100%; border-collapse: collapse; }
+table.demo-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text3); background: rgba(255,255,255,.02); border-bottom: 1px solid var(--border); }
+table.demo-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); }
+table.demo-table tr:last-child td { border-bottom: none; }
+table.demo-table tr:hover td { background: rgba(255,255,255,.02); }
+table.demo-table td strong { color: var(--text); font-weight: 500; }
+
+.demo-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 7px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+.demo-btn-blue { background: var(--accent); color: #fff; }
+.demo-btn-blue:hover { background: #2563eb; }
+.demo-btn-ghost { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); }
+.demo-btn-ghost:hover { color: var(--text); }
+.demo-btn-sm { padding: 5px 10px; font-size: 11px; }
+
+.demo-progress { background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; }
+.demo-progress-fill { height: 100%; border-radius: 4px; }
+
+.demo-timeline-item { display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.demo-timeline-item:last-child { border-bottom: none; }
+.demo-tl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.demo-tl-dot.green { background: var(--green); }
+.demo-tl-dot.blue { background: var(--accent); }
+.demo-tl-dot.yellow { background: var(--yellow); }
+.demo-tl-dot.red { background: var(--red); }
+.demo-tl-title { font-size: 12px; color: var(--text); margin-bottom: 2px; }
+.demo-tl-meta { font-size: 11px; color: var(--text3); }
+
+.demo-schedule-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.demo-schedule-item:last-child { border-bottom: none; }
+.demo-slot-time { font-size: 11px; font-weight: 600; color: var(--text3); width: 42px; flex-shrink: 0; }
+.demo-slot-bar { flex: 1; padding: 7px 10px; border-radius: 6px; font-size: 12px; }
+.demo-slot-bar.blue { background: rgba(59,130,246,.12); border-left: 3px solid var(--accent); color: var(--accent2); }
+.demo-slot-bar.green { background: rgba(16,185,129,.12); border-left: 3px solid var(--green); color: #34d399; }
+.demo-slot-bar.yellow { background: rgba(245,158,11,.12); border-left: 3px solid var(--yellow); color: #fbbf24; }
+.demo-slot-bar.red { background: rgba(239,68,68,.12); border-left: 3px solid var(--red); color: #f87171; }
+
+.demo-patient-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: flex; gap: 12px; align-items: flex-start; transition: border-color .2s; }
+.demo-patient-card:hover { border-color: var(--border2); }
+.demo-patient-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; color: #fff; }
+.demo-patient-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.demo-patient-meta { font-size: 11px; color: var(--text3); }
+
+.demo-bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 80px; }
+.demo-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.demo-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 4px; }
+.demo-bar-label { font-size: 9px; color: var(--text3); }
+.demo-bar-val { font-size: 10px; color: var(--text2); font-weight: 600; }
+
+@media (max-width: 1024px) {
+  .demo-stats { grid-template-columns: repeat(2, 1fr); }
+  .demo-grid-2 { grid-template-columns: 1fr; }
+  .demo-grid-3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .demo-sidebar { transform: translateX(-100%); }
+  .demo-main { margin-left: 0; }
+  .demo-stats { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LANDING PAGE ═══════════════ -->
+<div id="landing">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-content">
+    <div class="hero-badge"><span class="dot"></span> Version 2.4 — Disponible maintenant</div>
+    <h1>MediCore ERP</h1>
+    <p>Système de gestion hospitalière intégré et sécurisé. Pilotez l'ensemble de votre établissement depuis une interface unique.</p>
+    <div class="hero-buttons">
+      <button class="btn-hero btn-hero-primary" onclick="startDemo()"> Démonstration interactive</button>
+      <a href="#features" class="btn-hero btn-hero-secondary"> En savoir plus</a>
+    </div>
+    <div class="ecg-hero">
+      <svg viewBox="0 0 500 50" width="500" height="50">
+        <path d="M0 35 L80 35 L95 20 L110 40 L125 5 L140 40 L155 28 L170 35 L250 35 L265 20 L280 40 L295 5 L310 40 L325 28 L340 35 L420 35 L435 20 L450 40 L465 5 L480 40 L495 28 L500 35"
+          stroke="var(--accent)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- KPIs -->
+<section>
+  <div class="container">
+    <div class="fade-up">
+      <div class="section-label">Tableau de bord</div>
+      <h2 class="section-title">Vue en temps réel de votre établissement</h2>
+      <p class="section-desc">Suivez les indicateurs clés, les alertes critiques et l'activité de votre hôpital en un coup d'œil.</p>
+    </div>
+    <div class="kpi-grid fade-up">
+      <div class="kpi-card blue"><div class="kpi-icon blue">🏥</div><div class="kpi-value" data-count="147">0</div><div class="kpi-label">Patients hospitalisés</div><div class="kpi-sub">+12 cette semaine</div></div>
+      <div class="kpi-card green"><div class="kpi-icon green">🛏️</div><div class="kpi-value">73%</div><div class="kpi-label">Taux d'occupation</div><div class="kpi-sub">32 lits disponibles</div></div>
+      <div class="kpi-card yellow"><div class="kpi-icon yellow">📅</div><div class="kpi-value" data-count="38">0</div><div class="kpi-label">RDV aujourd'hui</div><div class="kpi-sub">5 en attente</div></div>
+      <div class="kpi-card purple"><div class="kpi-icon purple">💰</div><div class="kpi-value">2.4M</div><div class="kpi-label">CA mensuel (FCFA)</div><div class="kpi-sub">+8.3% vs mois dernier</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="fade-up">
+      <div class="section-label">Fonctionnalités clés</div>
+      <h2 class="section-title">Conçu pour la performance et la sécurité</h2>
+      <p class="section-desc">Une architecture robuste avec les meilleures pratiques de sécurité pour protéger les données de vos patients.</p>
+    </div>
+    <div class="features-grid fade-up">
+      <div class="feature-card"><span class="feature-icon">🔐</span><h3>Sécurité renforcée</h3><p>CSRF, HMAC, sessions sécurisées, contrôle d'accès RBAC. Chaque action est tracée et authentifiée.</p><div class="feature-tags"><span class="feature-tag">CSRF</span><span class="feature-tag">HMAC</span><span class="feature-tag">RBAC</span></div></div>
+      <div class="feature-card"><span class="feature-icon">⚡</span><h3>Temps réel</h3><p>Polling automatique pour les KPIs, notifications instantanées et mises à jour en direct du tableau de bord.</p><div class="feature-tags"><span class="feature-tag">Polling</span><span class="feature-tag">Notifications</span><span class="feature-tag">Live</span></div></div>
+      <div class="feature-card"><span class="feature-icon">📱</span><h3>Responsive</h3><p>Interface adaptative pour desktop, tablette et mobile. Accès depuis n'importe quel appareil.</p><div class="feature-tags"><span class="feature-tag">Mobile</span><span class="feature-tag">Tablette</span><span class="feature-tag">Desktop</span></div></div>
+      <div class="feature-card"><span class="feature-icon">🎨</span><h3>Thèmes personnalisables</h3><p>Plusieurs thèmes visuels, taille de police ajustable. Adaptez l'interface à vos préférences.</p><div class="feature-tags"><span class="feature-tag">Thèmes</span><span class="feature-tag">Accessibilité</span></div></div>
+      <div class="feature-card"><span class="feature-icon">📋</span><h3>Traçabilité complète</h3><p>Journal d'activité détaillé, historique des actions, audit trail pour chaque module.</p><div class="feature-tags"><span class="feature-tag">Audit</span><span class="feature-tag">Logs</span><span class="feature-tag">Historique</span></div></div>
+      <div class="feature-card"><span class="feature-icon">🏗️</span><h3>Architecture modulaire</h3><p>32 modules indépendants mais intégrés. Permissions granulaires par rôle et par action.</p><div class="feature-tags"><span class="feature-tag">32 modules</span><span class="feature-tag">Permissions</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- MODULES -->
+<section>
+  <div class="container">
+    <div class="fade-up">
+      <div class="section-label">Modules</div>
+      <h2 class="section-title">32 modules intégrés pour couvrir tous vos besoins</h2>
+      <p class="section-desc">De l'admission du patient à la facturation, en passant par la pharmacie, le laboratoire et le bloc opératoire.</p>
+    </div>
+    <div class="modules-list fade-up">
+      <div class="module-item"><div class="module-icon">👤</div><div><h4>Patients</h4><p>Fiches, admissions, historique complet</p></div></div>
+      <div class="module-item"><div class="module-icon">🚨</div><div><h4>Urgences</h4><p>Tri, priorisation, suivi en temps réel</p></div></div>
+      <div class="module-item"><div class="module-icon">📅</div><div><h4>Rendez-vous</h4><p>Planning, rappels, gestion des créneaux</p></div></div>
+      <div class="module-item"><div class="module-icon">💊</div><div><h4>Pharmacie</h4><p>Stock, ordonnances, dispensation</p></div></div>
+      <div class="module-item"><div class="module-icon">🔬</div><div><h4>Laboratoire</h4><p>Analyses, résultats, suivi biologique</p></div></div>
+      <div class="module-item"><div class="module-icon">📈</div><div><h4>Facturation</h4><p>Devis, factures, paiements, assurance</p></div></div>
+      <div class="module-item"><div class="module-icon">🔪</div><div><h4>Bloc opératoire</h4><p>Interventions, planning chirurgical</p></div></div>
+      <div class="module-item"><div class="module-icon">🤰</div><div><h4>Maternité</h4><p>Suivi grossesse, consultations prénatales</p></div></div>
+      <div class="module-item"><div class="module-icon">🌡️</div><div><h4>Observations</h4><p>Signes vitaux, monitoring infirmier</p></div></div>
+      <div class="module-item"><div class="module-icon">💉</div><div><h4>Admin. médicaments</h4><p>MAR, traçabilité, protocole</p></div></div>
+      <div class="module-item"><div class="module-icon">📝</div><div><h4>Notes cliniques</h4><p>Observations médicales, comptes-rendus</p></div></div>
+      <div class="module-item"><div class="module-icon">📊</div><div><h4>Rapports</h4><p>Statistiques, analytiques, exports</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- RÔLES -->
+<section>
+  <div class="container">
+    <div class="fade-up" style="text-align:center">
+      <div class="section-label" style="justify-content:center">Rôles</div>
+      <h2 class="section-title">Contrôle d'accès par rôle</h2>
+      <p class="section-desc" style="margin:0 auto 48px">Chaque utilisateur accède uniquement aux modules et actions autorisés pour son rôle.</p>
+    </div>
+    <div class="roles-grid fade-up">
+      <div class="role-card"><div class="role-avatar" style="background:rgba(59,130,246,.15)">👑</div><h4>Administrateur</h4><p>Accès complet, gestion des rôles et paramètres</p></div>
+      <div class="role-card"><div class="role-avatar" style="background:rgba(16,185,129,.15)">🩺</div><h4>Médecin</h4><p>Patients, ordonnances, analyses, chirurgie</p></div>
+      <div class="role-card"><div class="role-avatar" style="background:rgba(139,92,246,.15)">💉</div><h4>Infirmier</h4><p>Observations, MAR, notes cliniques</p></div>
+      <div class="role-card"><div class="role-avatar" style="background:rgba(245,158,11,.15)">💊</div><h4>Pharmacien</h4><p>Stock, ordonnances, dispensation</p></div>
+      <div class="role-card"><div class="role-avatar" style="background:rgba(6,182,212,.15)">💰</div><h4>Comptable</h4><p>Facturation, caisse, rapports financiers</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-box fade-up">
+      <h2>Prêt à transformer votre établissement ?</h2>
+      <p>Essayez la démo interactive — aucune connexion requise.</p>
+      <button class="btn-hero btn-hero-primary" style="position:relative" onclick="startDemo()"> Lancer la démonstration →</button>
+    </div>
+  </div>
+</section>
+
+<div class="footer">MediCore ERP v2.4 — Système de gestion hospitalière — 2026</div>
+</div>
+
+<!-- ═══════════════ INTERACTIVE DEMO APP ═══════════════ -->
+<div id="demo-app">
+
+<!-- SIDEBAR -->
+<div class="demo-sidebar">
+  <div class="demo-sidebar-logo">
+    <div class="demo-logo-icon">M</div>
+    <div class="demo-brand">MediCore<small>ERP Hospitalier</small></div>
+  </div>
+  <div class="demo-nav">
+    <div class="demo-nav-section">
+      <div class="demo-nav-section-label">Principal</div>
+      <div class="demo-nav-item active" data-screen="dashboard"><span class="di">📊</span> Tableau de bord</div>
+      <div class="demo-nav-item" data-screen="patients"><span class="di">👤</span> Patients</div>
+      <div class="demo-nav-item" data-screen="urgences"><span class="di">🚨</span> Urgences <span class="demo-nav-badge">3</span></div>
+      <div class="demo-nav-item" data-screen="rdv"><span class="di">📅</span> Rendez-vous</div>
+    </div>
+    <div class="demo-nav-section">
+      <div class="demo-nav-section-label">Clinique</div>
+      <div class="demo-nav-item" data-screen="pharmacie"><span class="di">💊</span> Pharmacie</div>
+      <div class="demo-nav-item" data-screen="labo"><span class="di">🔬</span> Laboratoire</div>
+      <div class="demo-nav-item" data-screen="chirurgie"><span class="di">🔪</span> Bloc opératoire</div>
+    </div>
+    <div class="demo-nav-section">
+      <div class="demo-nav-section-label">Administration</div>
+      <div class="demo-nav-item" data-screen="facturation"><span class="di">📈</span> Facturation</div>
+      <div class="demo-nav-item" data-screen="rapports"><span class="di">📋</span> Rapports</div>
+    </div>
+  </div>
+  <div class="demo-sidebar-footer">
+    <div class="demo-user-card">
+      <div class="demo-user-avatar">AD</div>
+      <div class="demo-user-info">
+        <div class="demo-user-name">Dr. Admin</div>
+        <div class="demo-user-role">Administrateur</div>
+      </div>
+    </div>
+    <div class="demo-back-btn" onclick="exitDemo()">← Retour au site</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="demo-main">
+  <div class="demo-header">
+    <div class="demo-header-title" id="header-title">Tableau de bord</div>
+    <div class="demo-header-date" id="header-date"></div>
+    <div class="demo-header-user">
+      <div class="hu-avatar">AD</div>
+      <div class="hu-name">Dr. Admin</div>
+    </div>
+  </div>
+
+  <div class="demo-content">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div class="demo-screen active" id="screen-dashboard">
+      <div class="demo-stats">
+        <div class="demo-stat-card blue"><div class="demo-stat-icon blue">🏥</div><div class="demo-stat-value">147</div><div class="demo-stat-label">Hospitalisés actifs</div><div class="demo-stat-delta">+12 cette semaine</div></div>
+        <div class="demo-stat-card green"><div class="demo-stat-icon green">🛏️</div><div class="demo-stat-value">73%</div><div class="demo-stat-label">Occupation lits</div><div class="demo-stat-delta">32 libres / 120 total</div></div>
+        <div class="demo-stat-card yellow"><div class="demo-stat-icon yellow">📅</div><div class="demo-stat-value">38</div><div class="demo-stat-label">RDV aujourd'hui</div><div class="demo-stat-delta">5 en attente</div></div>
+        <div class="demo-stat-card purple"><div class="demo-stat-icon purple">💰</div><div class="demo-stat-value">845K</div><div class="demo-stat-label">CA aujourd'hui (FCFA)</div><div class="demo-stat-delta">Mois : 2.4M FCFA</div></div>
+      </div>
+
+      <div class="demo-grid-2">
+        <!-- Planning -->
+        <div class="demo-card">
+          <div class="demo-card-header"><h3>📅 Planning du jour</h3><button class="demo-btn demo-btn-ghost demo-btn-sm">Tout voir</button></div>
+          <div class="demo-schedule-item"><div class="demo-slot-time">08:00</div><div class="demo-slot-bar blue">Aminata Diallo — Consultation cardiologie</div></div>
+          <div class="demo-schedule-item"><div class="demo-slot-time">08:30</div><div class="demo-slot-bar green">Jean Kouassi — Suivi post-opératoire</div></div>
+          <div class="demo-schedule-item"><div class="demo-slot-time">09:00</div><div class="demo-slot-bar yellow">Fatima Benali — Bilan sanguin</div></div>
+          <div class="demo-schedule-item"><div class="demo-slot-time">09:30</div><div class="demo-slot-bar blue">Moussa Traoré — Consultation générale</div></div>
+          <div class="demo-schedule-item"><div class="demo-slot-time">10:00</div><div class="demo-slot-bar red">Aïcha Bah — Urgence pédiatrique</div></div>
+          <div class="demo-schedule-item"><div class="demo-slot-time">10:30</div><div class="demo-slot-bar green">Ibrahim Sanogo — Contrôle diabète</div></div>
+        </div>
+
+        <!-- Hospitalisations -->
+        <div class="demo-card">
+          <div class="demo-card-header"><h3>🏥 Patients hospitalisés</h3><button class="demo-btn demo-btn-ghost demo-btn-sm">Tout voir</button></div>
+          <table class="demo-table">
+            <thead><tr><th>Patient</th><th>Service</th><th>Priorité</th><th>Statut</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Aminata Diallo</strong><br><span style="font-size:11px;color:var(--text3)">34 ans</span></td><td>Cardiologie</td><td><span class="demo-badge red">Critique</span></td><td><span class="demo-badge green">En cours</span></td></tr>
+              <tr><td><strong>Jean-Pierre Kouassi</strong><br><span style="font-size:11px;color:var(--text3)">52 ans</span></td><td>Chirurgie</td><td><span class="demo-badge yellow">Urgent</span></td><td><span class="demo-badge green">En cours</span></td></tr>
+              <tr><td><strong>Fatima Benali</strong><br><span style="font-size:11px;color:var(--text3)">28 ans</span></td><td>Pédiatrie</td><td><span class="demo-badge blue">Normal</span></td><td><span class="demo-badge green">En cours</span></td></tr>
+              <tr><td><strong>Moussa Traoré</strong><br><span style="font-size:11px;color:var(--text3)">67 ans</span></td><td>Réanimation</td><td><span class="demo-badge red">Critique</span></td><td><span class="demo-badge yellow">Observation</span></td></tr>
+              <tr><td><strong>Aïcha Bah</strong><br><span style="font-size:11px;color:var(--text3)">5 ans</span></td><td>Pédiatrie</td><td><span class="demo-badge yellow">Urgent</span></td><td><span class="demo-badge green">En cours</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="demo-grid-3">
+        <!-- Admissions 7j -->
+        <div class="demo-card">
+          <div class="demo-card-header"><h3>📊 Admissions 7 jours</h3></div>
+          <div style="padding:16px">
+            <div class="demo-bar-chart">
+              <div class="demo-bar-col"><div class="demo-bar-val">12</div><div class="demo-bar" style="height:60%;background:rgba(59,130,246,.3)"></div><div class="demo-bar-label">13/05</div></div>
+              <div class="demo-bar-col"><div class="demo-bar-val">8</div><div class="demo-bar" style="height:40%;background:rgba(59,130,246,.3)"></div><div class="demo-bar-label">14/05</div></div>
+              <div class="demo-bar-col"><div class="demo-bar-val">15</div><div class="demo-bar" style="height:75%;background:rgba(59,130,246,.3)"></div><div class="demo-bar-label">15/05</div></div>
+              <div class="demo-bar-col"><div class="demo-bar-val">10</div><div class="demo-bar" style="height:50%;background:rgba(59,130,246,.3)"></div><div class="demo-bar-label">16/05</div></div>
+              <div class="demo-bar-col"><div class="demo-bar-val">18</div><div class="demo-bar" style="height:90%;background:rgba(59,130,246,.3)"></div><div class="demo-bar-label">17/05</div></div>
+              <div class="demo-bar-col"><div class="demo-bar-val">14</div><div class="demo-bar" style="height:70%;background:rgba(59,130,246,.3)"></div><div class="demo-bar-label">18/05</div></div>
+              <div class="demo-bar-col"><div class="demo-bar-val">20</div><div class="demo-bar" style="height:100%;background:var(--accent)"></div><div class="demo-bar-label">19/05</div></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:10px"><span>Total: <strong style="color:var(--text)">97</strong></span><span>Ce mois: <strong style="color:var(--text)">234</strong></span></div>
+          </div>
+        </div>
+
+        <!-- Occupation depts -->
+        <div class="demo-card">
+          <div class="demo-card-header"><h3>🏥 Occupation depts</h3></div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Cardiologie</span><span style="font-size:11px;color:var(--text2)">18/20</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:90%;background:var(--red)"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Chirurgie</span><span style="font-size:11px;color:var(--text2)">22/30</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:73%;background:var(--yellow)"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Pédiatrie</span><span style="font-size:11px;color:var(--text2)">15/25</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:60%;background:var(--green)"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Réanimation</span><span style="font-size:11px;color:var(--text2)">9/10</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:90%;background:var(--red)"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Médecine générale</span><span style="font-size:11px;color:var(--text2)">20/35</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:57%;background:var(--green)"></div></div></div>
+          </div>
+        </div>
+
+        <!-- Activité récente -->
+        <div class="demo-card">
+          <div class="demo-card-header"><h3>📋 Activité récente</h3></div>
+          <div class="demo-timeline-item"><div class="demo-tl-dot red"></div><div><div class="demo-tl-title">Alerte critique — Aminata Diallo</div><div class="demo-tl-meta">Dr. Martin — Il y a 5 min</div></div></div>
+          <div class="demo-timeline-item"><div class="demo-tl-dot green"></div><div><div class="demo-tl-title">Résultats labo disponibles — Fatima B.</div><div class="demo-tl-meta">Laboratoire — Il y a 12 min</div></div></div>
+          <div class="demo-timeline-item"><div class="demo-tl-dot blue"></div><div><div class="demo-tl-title">Nouvelle admission — Ibrahim Sanogo</div><div class="demo-tl-meta">Accueil — Il y a 25 min</div></div></div>
+          <div class="demo-timeline-item"><div class="demo-tl-dot yellow"></div><div><div class="demo-tl-title">Stock critique — Paracétamol 500mg</div><div class="demo-tl-meta">Pharmacie — Il y a 1h</div></div></div>
+          <div class="demo-timeline-item"><div class="demo-tl-dot green"></div><div><div class="demo-tl-title">Sortie validée — Omar Koné</div><div class="demo-tl-meta">Dr. Diallo — Il y a 2h</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PATIENTS ═══ -->
+    <div class="demo-screen" id="screen-patients">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div><h2 style="font-size:20px;font-weight:700">Patients</h2><p style="font-size:13px;color:var(--text2)">1 247 patients enregistrés</p></div>
+        <button class="demo-btn demo-btn-blue">+ Nouveau patient</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" placeholder="Rechercher un patient..." style="flex:1;padding:8px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+        <button class="demo-btn demo-btn-ghost">Filtres</button>
+      </div>
+      <div class="demo-card">
+        <table class="demo-table">
+          <thead><tr><th>Patient</th><th>Âge</th><th>Téléphone</th><th>Dernière visite</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Aminata Diallo</strong><br><span style="font-size:11px;color:var(--text3)">N°PAT-0012</span></td><td>34 ans</td><td>+225 07 12 34 56</td><td>19/05/2026</td><td><span class="demo-badge red">Hospitalisé</span></td><td><button class="demo-btn demo-btn-ghost demo-btn-sm">Voir</button></td></tr>
+            <tr><td><strong>Jean-Pierre Kouassi</strong><br><span style="font-size:11px;color:var(--text3)">N°PAT-0034</span></td><td>52 ans</td><td>+225 05 98 76 54</td><td>18/05/2026</td><td><span class="demo-badge yellow">En traitement</span></td><td><button class="demo-btn demo-btn-ghost demo-btn-sm">Voir</button></td></tr>
+            <tr><td><strong>Fatima Benali</strong><br><span style="font-size:11px;color:var(--text3)">N°PAT-0056</span></td><td>28 ans</td><td>+225 07 45 67 89</td><td>19/05/2026</td><td><span class="demo-badge green">Consultation</span></td><td><button class="demo-btn demo-btn-ghost demo-btn-sm">Voir</button></td></tr>
+            <tr><td><strong>Moussa Traoré</strong><br><span style="font-size:11px;color:var(--text3)">N°PAT-0078</span></td><td>67 ans</td><td>+225 05 23 45 67</td><td>17/05/2026</td><td><span class="demo-badge red">Réanimation</span></td><td><button class="demo-btn demo-btn-ghost demo-btn-sm">Voir</button></td></tr>
+            <tr><td><strong>Aïcha Bah</strong><br><span style="font-size:11px;color:var(--text3)">N°PAT-0089</span></td><td>5 ans</td><td>+225 07 89 01 23</td><td>19/05/2026</td><td><span class="demo-badge yellow">Urgence</span></td><td><button class="demo-btn demo-btn-ghost demo-btn-sm">Voir</button></td></tr>
+            <tr><td><strong>Ibrahim Sanogo</strong><br><span style="font-size:11px;color:var(--text3)">N°PAT-0091</span></td><td>45 ans</td><td>+225 05 67 89 01</td><td>19/05/2026</td><td><span class="demo-badge blue">Nouveau</span></td><td><button class="demo-btn demo-btn-ghost demo-btn-sm">Voir</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ URGENCES ═══ -->
+    <div class="demo-screen" id="screen-urgences">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div><h2 style="font-size:20px;font-weight:700">🚨 Urgences</h2><p style="font-size:13px;color:var(--text2)">3 cas critiques en cours</p></div>
+        <button class="demo-btn demo-btn-blue">+ Nouvelle admission</button>
+      </div>
+      <div class="demo-stats">
+        <div class="demo-stat-card red"><div class="demo-stat-icon red">🔴</div><div class="demo-stat-value">3</div><div class="demo-stat-label">Cas critiques</div></div>
+        <div class="demo-stat-card yellow"><div class="demo-stat-icon yellow">🟡</div><div class="demo-stat-value">7</div><div class="demo-stat-label">Cas urgents</div></div>
+        <div class="demo-stat-card blue"><div class="demo-stat-icon blue">🔵</div><div class="demo-stat-value">12</div><div class="demo-stat-label">Cas normaux</div></div>
+        <div class="demo-stat-card green"><div class="demo-stat-icon green">⏱️</div><div class="demo-stat-value">4min</div><div class="demo-stat-label">Temps moyen d'attente</div></div>
+      </div>
+      <div class="demo-card">
+        <div class="demo-card-header"><h3>File d'attente — Tri</h3></div>
+        <table class="demo-table">
+          <thead><tr><th>Patient</th><th>Arrivée</th><th>CCMU</th><th>Motif</th><th>Médecin</th><th>Statut</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Aminata Diallo</strong></td><td>07:45</td><td><span class="demo-badge red">CCMU 3</span></td><td>Douleur thoracique</td><td>Dr. Martin</td><td><span class="demo-badge red">En cours</span></td></tr>
+            <tr><td><strong>Aïcha Bah</strong></td><td>08:12</td><td><span class="demo-badge yellow">CCMU 2</span></td><td>Fièvre élevée (40°C)</td><td>Dr. Koné</td><td><span class="demo-badge yellow">En attente</span></td></tr>
+            <tr><td><strong>Paul Adjé</strong></td><td>08:30</td><td><span class="demo-badge yellow">CCMU 2</span></td><td>Fracture tibia</td><td>Dr. Touré</td><td><span class="demo-badge yellow">En attente</span></td></tr>
+            <tr><td><strong>Marie Coulibaly</strong></td><td>09:00</td><td><span class="demo-badge blue">CCMU 1</span></td><td>Gastro-entérite</td><td>—</td><td><span class="demo-badge blue">À trier</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ RDV ═══ -->
+    <div class="demo-screen" id="screen-rdv">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div><h2 style="font-size:20px;font-weight:700">📅 Rendez-vous</h2><p style="font-size:13px;color:var(--text2)">38 rendez-vous aujourd'hui</p></div>
+        <button class="demo-btn demo-btn-blue">+ Nouveau RDV</button>
+      </div>
+      <div class="demo-card">
+        <div class="demo-card-header"><h3>Planning — Mardi 19 Mai 2026</h3></div>
+        <div class="demo-schedule-item"><div class="demo-slot-time">08:00</div><div class="demo-slot-bar blue">Aminata Diallo — Dr. Martin — Cardiologie</div></div>
+        <div class="demo-schedule-item"><div class="demo-slot-time">08:30</div><div class="demo-slot-bar green">Jean Kouassi — Dr. Touré — Suivi post-op</div></div>
+        <div class="demo-schedule-item"><div class="demo-slot-time">09:00</div><div class="demo-slot-bar yellow">Fatima Benali — Dr. Koné — Bilan sanguin</div></div>
+        <div class="demo-schedule-item"><div class="demo-slot-time">09:30</div><div class="demo-slot-bar blue">Moussa Traoré — Dr. Martin — Consultation</div></div>
+        <div class="demo-schedule-item"><div class="demo-slot-time">10:00</div><div class="demo-slot-bar green">Ibrahim Sanogo — Dr. Diallo — Contrôle diabète</div></div>
+        <div class="demo-schedule-item"><div class="demo-slot-time">10:30</div><div class="demo-slot-bar blue">Omar Koné — Dr. Touré — Radiographie</div></div>
+        <div class="demo-schedule-item"><div class="demo-slot-time">11:00</div><div class="demo-slot-bar yellow">Kadija Diallo — Dr. Koné — Prénatale</div></div>
+        <div class="demo-schedule-item"><div class="demo-slot-time">11:30</div><div class="demo-slot-bar green">Seydou Bakayoko — Dr. Martin — ECG de contrôle</div></div>
+      </div>
+    </div>
+
+    <!-- ═══ PHARMACIE ═══ -->
+    <div class="demo-screen" id="screen-pharmacie">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div><h2 style="font-size:20px;font-weight:700">💊 Pharmacie</h2><p style="font-size:13px;color:var(--text2)">Gestion des stocks et ordonnances</p></div>
+        <button class="demo-btn demo-btn-blue">+ Nouvelle ordonnance</button>
+      </div>
+      <div class="demo-stats">
+        <div class="demo-stat-card blue"><div class="demo-stat-icon blue">💊</div><div class="demo-stat-value">1 234</div><div class="demo-stat-label">Médicaments en stock</div></div>
+        <div class="demo-stat-card red"><div class="demo-stat-icon red">⚠️</div><div class="demo-stat-value">8</div><div class="demo-stat-label">Stock critique</div></div>
+        <div class="demo-stat-card yellow"><div class="demo-stat-icon yellow">📋</div><div class="demo-stat-value">23</div><div class="demo-stat-label">Ordonnances actives</div></div>
+        <div class="demo-stat-card green"><div class="demo-stat-icon green">✅</div><div class="demo-stat-value">156</div><div class="demo-stat-label">Dispensations ce mois</div></div>
+      </div>
+      <div class="demo-card">
+        <div class="demo-card-header"><h3>Alertes stock</h3></div>
+        <table class="demo-table">
+          <thead><tr><th>Médicament</th><th>Stock actuel</th><th>Seuil min.</th><th>Statut</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Paracétamol 500mg</strong></td><td>45</td><td>200</td><td><span class="demo-badge red">Critique</span></td><td><button class="demo-btn demo-btn-blue demo-btn-sm">Commander</button></td></tr>
+            <tr><td><strong>Amoxicilline 1g</strong></td><td>78</td><td>100</td><td><span class="demo-badge yellow">Bas</span></td><td><button class="demo-btn demo-btn-blue demo-btn-sm">Commander</button></td></tr>
+            <tr><td><strong>Ibuprofène 400mg</strong></td><td>120</td><td>150</td><td><span class="demo-badge yellow">Bas</span></td><td><button class="demo-btn demo-btn-blue demo-btn-sm">Commander</button></td></tr>
+            <tr><td><strong>Morphine 10mg</strong></td><td>12</td><td>20</td><td><span class="demo-badge red">Critique</span></td><td><button class="demo-btn demo-btn-blue demo-btn-sm">Commander</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ LABORATOIRE ═══ -->
+    <div class="demo-screen" id="screen-labo">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div><h2 style="font-size:20px;font-weight:700">🔬 Laboratoire</h2><p style="font-size:13px;color:var(--text2)">Analyses et résultats biologiques</p></div>
+        <button class="demo-btn demo-btn-blue">+ Prescrire analyse</button>
+      </div>
+      <div class="demo-stats">
+        <div class="demo-stat-card blue"><div class="demo-stat-icon blue">🧪</div><div class="demo-stat-value">15</div><div class="demo-stat-label">Analyses en cours</div></div>
+        <div class="demo-stat-card green"><div class="demo-stat-icon green">✅</div><div class="demo-stat-value">8</div><div class="demo-stat-label">Résultats disponibles</div></div>
+        <div class="demo-stat-card yellow"><div class="demo-stat-icon yellow">⏳</div><div class="demo-stat-value">5</div><div class="demo-stat-label">En attente prélèvement</div></div>
+        <div class="demo-stat-card purple"><div class="demo-stat-icon purple">📊</div><div class="demo-stat-value">89</div><div class="demo-stat-label">Analyses ce mois</div></div>
+      </div>
+      <div class="demo-card">
+        <div class="demo-card-header"><h3>Résultats récents</h3></div>
+        <table class="demo-table">
+          <thead><tr><th>Patient</th><th>Analyse</th><th>Prescrit par</th><th>Date</th><th>Statut</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Fatima Benali</strong></td><td>NFS, Glycémie, Créatinine</td><td>Dr. Koné</td><td>19/05</td><td><span class="demo-badge green">Disponible</span></td></tr>
+            <tr><td><strong>Aminata Diallo</strong></td><td>Troponine, D-Dimères</td><td>Dr. Martin</td><td>19/05</td><td><span class="demo-badge yellow">En cours</span></td></tr>
+            <tr><td><strong>Jean Kouassi</strong></td><td>Bilan hépatique complet</td><td>Dr. Touré</td><td>18/05</td><td><span class="demo-badge green">Disponible</span></td></tr>
+            <tr><td><strong>Ibrahim Sanogo</strong></td><td>HbA1c, Glycémie à jeun</td><td>Dr. Diallo</td><td>19/05</td><td><span class="demo-badge blue">Prescrit</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ CHIRURGIE ═══ -->
+    <div class="demo-screen" id="screen-chirurgie">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div><h2 style="font-size:20px;font-weight:700">🔪 Bloc opératoire</h2><p style="font-size:13px;color:var(--text2)">Planning et suivi des interventions</p></div>
+        <button class="demo-btn demo-btn-blue">+ Planifier intervention</button>
+      </div>
+      <div class="demo-stats">
+        <div class="demo-stat-card green"><div class="demo-stat-icon green">✅</div><div class="demo-stat-value">2</div><div class="demo-stat-label">En cours</div></div>
+        <div class="demo-stat-card blue"><div class="demo-stat-icon blue">📅</div><div class="demo-stat-value">5</div><div class="demo-stat-label">Planifiées aujourd'hui</div></div>
+        <div class="demo-stat-card yellow"><div class="demo-stat-icon yellow">⏳</div><div class="demo-stat-value">3</div><div class="demo-stat-label">En préparation</div></div>
+        <div class="demo-stat-card purple"><div class="demo-stat-icon purple">📊</div><div class="demo-stat-value">47</div><div class="demo-stat-label">Interventions ce mois</div></div>
+      </div>
+      <div class="demo-card">
+        <div class="demo-card-header"><h3>Interventions du jour</h3></div>
+        <table class="demo-table">
+          <thead><tr><th>Patient</th><th>Intervention</th><th>Chirurgien</th><th>Bloc</th><th>Horaire</th><th>Statut</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Jean-Pierre Kouassi</strong></td><td>Appendicectomie</td><td>Dr. Touré</td><td>Bloc 2</td><td>08:00 - 09:30</td><td><span class="demo-badge green">Terminée</span></td></tr>
+            <tr><td><strong>Paul Adjé</strong></td><td>Ostéosynthèse tibia</td><td>Dr. Martin</td><td>Bloc 1</td><td>10:00 - 12:00</td><td><span class="demo-badge red">En cours</span></td></tr>
+            <tr><td><strong>Kadija Diallo</strong></td><td>Césarienne programmée</td><td>Dr. Koné</td><td>Bloc 3</td><td>14:00 - 15:30</td><td><span class="demo-badge blue">Planifiée</span></td></tr>
+            <tr><td><strong>Omar Koné</strong></td><td>Hernie inguinale</td><td>Dr. Touré</td><td>Bloc 2</td><td>15:00 - 16:00</td><td><span class="demo-badge yellow">Préparation</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ FACTURATION ═══ -->
+    <div class="demo-screen" id="screen-facturation">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div><h2 style="font-size:20px;font-weight:700">📈 Facturation</h2><p style="font-size:13px;color:var(--text2)">Gestion financière et paiements</p></div>
+        <button class="demo-btn demo-btn-blue">+ Nouvelle facture</button>
+      </div>
+      <div class="demo-stats">
+        <div class="demo-stat-card green"><div class="demo-stat-icon green">💰</div><div class="demo-stat-value">2.4M</div><div class="demo-stat-label">CA mensuel (FCFA)</div><div class="demo-stat-delta">+8.3% vs mois dernier</div></div>
+        <div class="demo-stat-card blue"><div class="demo-stat-icon blue">📄</div><div class="demo-stat-value">845K</div><div class="demo-stat-label">Encaissé aujourd'hui</div></div>
+        <div class="demo-stat-card yellow"><div class="demo-stat-icon yellow">⏳</div><div class="demo-stat-value">320K</div><div class="demo-stat-label">Factures en attente</div></div>
+        <div class="demo-stat-card red"><div class="demo-stat-icon red">❌</div><div class="demo-stat-value">45K</div><div class="demo-stat-label">Impayés</div></div>
+      </div>
+      <div class="demo-card">
+        <div class="demo-card-header"><h3>Dernières factures</h3></div>
+        <table class="demo-table">
+          <thead><tr><th>N° Facture</th><th>Patient</th><th>Montant</th><th>Assurance</th><th>Date</th><th>Statut</th></tr></thead>
+          <tbody>
+            <tr><td><strong>FAC-2026-0234</strong></td><td>Aminata Diallo</td><td>125 000 FCFA</td><td>—</td><td>19/05</td><td><span class="demo-badge green">Payée</span></td></tr>
+            <tr><td><strong>FAC-2026-0233</strong></td><td>Jean Kouassi</td><td>340 000 FCFA</td><td>NSIA Santé</td><td>18/05</td><td><span class="demo-badge yellow">En attente</span></td></tr>
+            <tr><td><strong>FAC-2026-0232</strong></td><td>Fatima Benali</td><td>85 000 FCFA</td><td>—</td><td>18/05</td><td><span class="demo-badge green">Payée</span></td></tr>
+            <tr><td><strong>FAC-2026-0231</strong></td><td>Moussa Traoré</td><td>520 000 FCFA</td><td>UGAN</td><td>17/05</td><td><span class="demo-badge red">Impayée</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ RAPPORTS ═══ -->
+    <div class="demo-screen" id="screen-rapports">
+      <div style="margin-bottom:20px">
+        <h2 style="font-size:20px;font-weight:700">📋 Rapports & Statistiques</h2>
+        <p style="font-size:13px;color:var(--text2)">Analytiques et exports de données</p>
+      </div>
+      <div class="demo-stats">
+        <div class="demo-stat-card blue"><div class="demo-stat-icon blue">👥</div><div class="demo-stat-value">1 247</div><div class="demo-stat-label">Patients total</div><div class="demo-stat-delta">+156 ce mois</div></div>
+        <div class="demo-stat-card green"><div class="demo-stat-icon green">📅</div><div class="demo-stat-value">892</div><div class="demo-stat-label">RDV ce mois</div><div class="demo-stat-delta">+12% vs mois dernier</div></div>
+        <div class="demo-stat-card yellow"><div class="demo-stat-icon yellow">🏥</div><div class="demo-stat-value">234</div><div class="demo-stat-label">Admissions ce mois</div></div>
+        <div class="demo-stat-card purple"><div class="demo-stat-icon purple">🔪</div><div class="demo-stat-value">47</div><div class="demo-stat-label">Chirurgies ce mois</div></div>
+      </div>
+      <div class="demo-grid-2">
+        <div class="demo-card">
+          <div class="demo-card-header"><h3>Admissions par département</h3></div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Médecine générale</span><span style="font-size:11px;color:var(--text2)">78 (33%)</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:33%;background:var(--accent)"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Chirurgie</span><span style="font-size:11px;color:var(--text2)">56 (24%)</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:24%;background:var(--purple)"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Pédiatrie</span><span style="font-size:11px;color:var(--text2)">45 (19%)</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:19%;background:var(--green)"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Cardiologie</span><span style="font-size:11px;color:var(--text2)">34 (15%)</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:15%;background:var(--yellow)"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px">Réanimation</span><span style="font-size:11px;color:var(--text2)">21 (9%)</span></div><div class="demo-progress"><div class="demo-progress-fill" style="width:9%;background:var(--red)"></div></div></div>
+          </div>
+        </div>
+        <div class="demo-card">
+          <div class="demo-card-header"><h3>Exports disponibles</h3></div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:8px"><span style="font-size:13px">📊 Rapport mensuel d'activité</span><button class="demo-btn demo-btn-blue demo-btn-sm">Exporter</button></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:8px"><span style="font-size:13px">💰 Bilan financier</span><button class="demo-btn demo-btn-blue demo-btn-sm">Exporter</button></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:8px"><span style="font-size:13px">💊 État des stocks pharmacie</span><button class="demo-btn demo-btn-blue demo-btn-sm">Exporter</button></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:8px"><span style="font-size:13px">🔪 Rapport chirurgical</span><button class="demo-btn demo-btn-blue demo-btn-sm">Exporter</button></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:8px"><span style="font-size:13px">👥 Liste des patients actifs</span><button class="demo-btn demo-btn-blue demo-btn-sm">Exporter</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+// ═══ DEMO APP NAVIGATION ═══
+var screenTitles = {
+  dashboard: 'Tableau de bord',
+  patients: 'Patients',
+  urgences: 'Urgences',
+  rdv: 'Rendez-vous',
+  pharmacie: 'Pharmacie',
+  labo: 'Laboratoire',
+  chirurgie: 'Bloc opératoire',
+  facturation: 'Facturation',
+  rapports: 'Rapports'
+};
+
+function startDemo() {
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('demo-app').classList.add('active');
+  updateDate();
+}
+
+function exitDemo() {
+  document.getElementById('demo-app').classList.remove('active');
+  document.getElementById('landing').classList.remove('hidden');
+}
+
+function navigateTo(screen) {
+  document.querySelectorAll('.demo-screen').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.demo-nav-item').forEach(function(n) { n.classList.remove('active'); });
+  var target = document.getElementById('screen-' + screen);
+  if (target) target.classList.add('active');
+  var navItem = document.querySelector('.demo-nav-item[data-screen="' + screen + '"]');
+  if (navItem) navItem.classList.add('active');
+  document.getElementById('header-title').textContent = screenTitles[screen] || screen;
+}
+
+document.querySelectorAll('.demo-nav-item').forEach(function(item) {
+  item.addEventListener('click', function() {
+    navigateTo(this.getAttribute('data-screen'));
+  });
+});
+
+function updateDate() {
+  var now = new Date();
+  var options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+  var dateStr = now.toLocaleDateString('fr-FR', options);
+  var timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  var el = document.getElementById('header-date');
+  if (el) el.textContent = dateStr + ' — ' + timeStr;
+}
+setInterval(updateDate, 60000);
+updateDate();
+
+// ═══ LANDING ANIMATIONS ═══
+var observer = new IntersectionObserver(function(entries) {
+  entries.forEach(function(e) {
+    if (e.isIntersecting) { e.target.classList.add('visible'); }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(function(el) { observer.observe(el); });
+
+function animateCounters() {
+  document.querySelectorAll('[data-count]').forEach(function(el) {
+    var target = parseInt(el.getAttribute('data-count'));
+    var current = 0;
+    var step = Math.ceil(target / 40);
+    var timer = setInterval(function() {
+      current += step;
+      if (current >= target) { current = target; clearInterval(timer); }
+      el.textContent = current;
+    }, 30);
+  });
+}
+var counterObserver = new IntersectionObserver(function(entries) {
+  entries.forEach(function(e) {
+    if (e.isIntersecting) { animateCounters(); counterObserver.disconnect(); }
+  });
+}, { threshold: 0.3 });
+var counterEl = document.querySelector('.kpi-grid');
+if (counterEl) counterObserver.observe(counterEl);
+</script>
+</body>
+</html>

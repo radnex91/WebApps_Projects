@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/c/xampp/mysql/bin/mysql.exe *)",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root medicore)",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root -e \"DROP DATABASE medicore; CREATE DATABASE medicore CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root -e \"DROP DATABASE IF EXISTS medicore;\")",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root)",
+      "Bash(\"/c/xampp/mysql/bin/mysql/bin/php.exe\" -r \"var_dump\\(password_verify\\('admin123', '\\\\$2y\\\\$10\\\\$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'\\)\\);\")",
+      "Bash(xxd)",
+      "Bash(xxd \"C:/xampp/htdocs/medicore/sql/medicore.sql\")",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root --default-character-set=utf8mb4 medicore)",
+      "Bash(echo \"EXIT:$?\")",
+      "PowerShell(& 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root -e \"SHOW DATABASES LIKE 'medicore';\" 2>&1)",
+      "PowerShell(Get-Content 'C:\\\\xampp\\\\htdocs\\\\medicore\\\\sql\\\\update_v3.sql' | & 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore 2>&1)",
+      "PowerShell(& 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore -e \"SHOW TABLES LIKE 'audit_acces'; SHOW TABLES LIKE 'observations_infirmieres'; SHOW TABLES LIKE 'administration_medicaments'; SHOW TABLES LIKE 'notes_cliniques'; SHOW TABLES LIKE 'interventions_chirurgicales'; SHOW TABLES LIKE 'examens_imagerie'; SHOW TABLES LIKE 'notifications'; SHOW TABLES LIKE 'consentements_patients'; SHOW TABLES LIKE 'comptes_patients'; SHOW TABLES LIKE 'certificats_deces';\" 2>&1)",
+      "PowerShell(& 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore -e \"SELECT cle FROM app_settings WHERE cle='api_key'; SHOW COLUMNS FROM hospitalisations LIKE 'statut';\" 2>&1)",
+      "PowerShell(& 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore -e \"SHOW TABLES LIKE '%triage%'; SHOW TABLES LIKE '%checklist%'; SHOW TABLES LIKE '%compagnie%'; SHOW TABLES LIKE '%prises_en_charge%'; SHOW TABLES LIKE '%grossesses%'; SHOW TABLES LIKE '%accouchements%'; SHOW TABLES LIKE '%nouveau_nes%'; SHOW TABLES LIKE '%stock_ent%';\" 2>&1)",
+      "PowerShell(& 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore -e \"SELECT id, role_key, label FROM roles_config;\" 2>&1)",
+      "PowerShell(Get-Content 'C:\\\\xampp\\\\htdocs\\\\medicore\\\\sql\\\\seed_permissions_v3.sql' | & 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore 2>&1)"
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mysql --version)",
+      "Bash(php --version)",
+      "Bash(apache -v)",
+      "Bash(httpd -v)",
+      "Read(//c/xampp/mysql/bin/**)",
+      "Read(//c/xampp/php/**)",
+      "Read(//c/xampp/apache/bin/**)",
+      "Bash(xxd /c/xampp/htdocs/DanayLedger/includes/sidebar.php)",
+      "Bash(xxd /c/xampp/htdocs/DanayLedger/includes/header.php)",
+      "Bash(./mysql.exe -u root danay_ledger -e \"SHOW TABLES;\")",
+      "Bash(./mysql.exe -u root danay_ledger)",
+      "Bash(./mysql.exe -u root danay_ledger -e \"DESCRIBE agence; DESCRIBE bank; DESCRIBE users;\")",
+      "Bash(./mysql.exe -u root danay_ledger -e \"SHOW ENGINE INNODB STATUS\\\\G\")",
+      "Bash(./mysql.exe -u root danay_ledger -e \"SELECT COUNT\\(*\\) as count FROM agence; SELECT COUNT\\(*\\) as count FROM bank; SELECT COUNT\\(*\\) as count FROM users;\")",
+      "Bash(./mysql.exe -u root danay_ledger -e 'INSERT IGNORE INTO users \\(username, email, password_hash, full_name, role\\) VALUES \\('\\\\''admin'\\\\'', '\\\\''admin@danayexpress.com'\\\\'', '\\\\''$2y$10$dummyhashplaceholder'\\\\'', '\\\\''Administrateur'\\\\'', '\\\\''admin'\\\\''\\);')",
+      "Bash(./php.exe -r \"echo password_hash\\('admin123', PASSWORD_BCRYPT\\);\")",
+      "Bash(./mysql.exe -u root danay_ledger -e 'UPDATE users SET password_hash = '\\\\''$2y$10$ecVOIbD2a1Wc5wG0xP9k4.k0xVlKoMF47kdVO3sQPoMlld2NMMxFG'\\\\'' WHERE username = '\\\\''admin'\\\\'';')",
+      "Read(//c/xampp/apache/logs/**)",
+      "Read(//c/xampp/mysql/data/**)",
+      "Bash(/c/xampp/mysql/bin/mysql.exe:*)",
+      "Bash(curl:*)",
+      "Bash(/c/xampp/php/php.exe:*)",
+      "Bash(mysql:*)",
+      "Bash(php:*)",
+      "Bash(/c/xampp/apache/logs/error.log)"
+    ]
+  }
+}

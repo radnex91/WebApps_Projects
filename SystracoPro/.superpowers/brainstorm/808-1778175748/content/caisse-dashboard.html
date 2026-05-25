@@ -1,0 +1,136 @@
+<h2>Dashboard de Caisse — Guichetier</h2>
+<p class="subtitle">Vue "caisse ouverte" avec résumé en temps réel et boutons d'action</p>
+
+<div class="mockup">
+  <div class="mockup-header">Page Caisse — État "Ouverte"</div>
+  <div class="mockup-body" style="font-family: Arial, sans-serif; padding: 8px;">
+
+    <!-- Top bar -->
+    <div style="background:#1e3a8a; color:#fff; padding:10px 16px; border-radius:6px 6px 0 0; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <strong>Caisse N° CAISSE-20260507-0001</strong>
+        <span style="margin-left:16px; font-size:12px; opacity:.8;">Ouverte à 07:30 — Guichetier: Paul Biya</span>
+      </div>
+      <span style="background:#16a34a; padding:3px 10px; border-radius:12px; font-size:11px;">OUVERTE</span>
+    </div>
+
+    <div style="display:flex; gap:12px; padding:12px; background:#f8fafc;">
+
+      <!-- Left: Summary cards -->
+      <div style="flex:2;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+
+          <div style="background:#dbeafe; padding:10px; border-radius:6px; border-left:3px solid #2563eb;">
+            <div style="font-size:10px; color:#1e3a8a; text-transform:uppercase;">Fond de caisse</div>
+            <div style="font-size:18px; font-weight:700; color:#1e3a8a;">50 000 FCFA</div>
+          </div>
+
+          <div style="background:#dcfce7; padding:10px; border-radius:6px; border-left:3px solid #16a34a;">
+            <div style="font-size:10px; color:#166534; text-transform:uppercase;">Solde théorique espèces</div>
+            <div style="font-size:18px; font-weight:700; color:#166534;">142 000 FCFA</div>
+          </div>
+        </div>
+
+        <!-- Sales breakdown -->
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">
+          <div style="font-weight:600; font-size:12px; margin-bottom:8px; color:#475569;">TICKETS VENDUS AUJOURD'HUI</div>
+          <table style="width:100%; font-size:11px; border-collapse:collapse;">
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:4px 0;">&#x1F4B5; Espèces</td><td style="text-align:right; font-weight:600;">12 tickets</td><td style="text-align:right;">72 000 FCFA</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:4px 0; color:#f97316;">&#x1F4F1; Orange Money</td><td style="text-align:right; font-weight:600;">3 tickets</td><td style="text-align:right;">21 000 FCFA</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:4px 0; color:#f59e0b;">&#x1F4F1; MTN MoMo</td><td style="text-align:right; font-weight:600;">2 tickets</td><td style="text-align:right;">14 000 FCFA</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:4px 0;">&#x1F4B3; Carte</td><td style="text-align:right; font-weight:600;">1 ticket</td><td style="text-align:right;">7 000 FCFA</td>
+            </tr>
+            <tr style="background:#f8fafc;">
+              <td style="padding:5px 0; font-weight:700;">TOTAL</td><td style="text-align:right; font-weight:700;">18 tickets</td><td style="text-align:right; font-weight:700;">114 000 FCFA</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Manual movements -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+          <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size:10px; color:#991b1b; text-transform:uppercase;">DÉPENSES</div>
+              <span style="font-size:16px; font-weight:700; color:#dc2626;">-8 000 FCFA</span>
+            </div>
+            <div style="font-size:9px; color:#991b1b; margin-top:4px;">2 opérations (carburant, péage)</div>
+          </div>
+          <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size:10px; color:#166534; text-transform:uppercase;">AUTRES RECETTES</div>
+              <span style="font-size:16px; font-weight:700; color:#16a34a;">+15 000 FCFA</span>
+            </div>
+            <div style="font-size:9px; color:#166534; margin-top:4px;">1 opération (colis)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Actions -->
+      <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+        <button style="background:#16a34a; color:#fff; border:none; padding:12px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">
+          + Nouvelle dépense
+        </button>
+        <button style="background:#2563eb; color:#fff; border:none; padding:12px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">
+          + Autre recette
+        </button>
+        <button style="background:#f59e0b; color:#fff; border:none; padding:12px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; margin-top:auto;">
+          &#x1F4CB; Rapport en cours
+        </button>
+        <button style="background:#dc2626; color:#fff; border:none; padding:14px; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer;">
+          CLÔTURER LA CAISSE
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px;">État "Aucune caisse"</h3>
+<div class="mockup">
+  <div class="mockup-header">Page Caisse — Aucune caisse ouverte</div>
+  <div class="mockup-body" style="text-align:center; padding:40px; font-family:Arial;">
+    <div style="font-size:48px; opacity:.2; margin-bottom:12px;">&#x1F4B0;</div>
+    <h3 style="color:#64748b;">Aucune caisse ouverte aujourd'hui</h3>
+    <p style="color:#94a3b8; font-size:13px; margin-bottom:16px;">Vous devez ouvrir votre caisse pour commencer à vendre des tickets.</p>
+    <button style="background:#2563eb; color:#fff; border:none; padding:10px 24px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">
+      Ouvrir la caisse
+    </button>
+  </div>
+</div>
+
+<h3 style="margin-top:24px;">Modal Clôture</h3>
+<div class="mockup">
+  <div class="mockup-header">Modal — Clôturer la caisse</div>
+  <div class="mockup-body" style="padding:16px; font-family:Arial;">
+    <div style="background:#fef3c7; border:1px solid #fcd34d; border-radius:6px; padding:10px; margin-bottom:12px;">
+      <strong>Solde espèces théorique :</strong> <span style="font-size:18px;">142 000 FCFA</span>
+      <div style="font-size:10px; color:#92400e;">= 50 000 (fond) + 72 000 (ventes esp) + 20 000 (recettes esp) — 0 (dépenses esp)</div>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label style="font-weight:600; font-size:12px;">Espèces comptées physiquement</label>
+      <input type="text" value="140 000" style="width:100%; padding:10px; border:2px solid #2563eb; border-radius:6px; font-size:20px; font-weight:700; text-align:center; margin-top:4px;" placeholder="0">
+    </div>
+
+    <div style="background:#fee2e2; border:1px solid #fecaca; border-radius:6px; padding:10px; margin-bottom:12px;">
+      <strong>Écart :</strong> <span style="font-size:18px; color:#dc2626;">-2 000 FCFA</span>
+      <span style="background:#dc2626; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; margin-left:8px;">MANQUANT</span>
+    </div>
+
+    <div>
+      <label style="font-weight:600; font-size:12px;">Observations</label>
+      <textarea style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:6px; margin-top:4px; resize:vertical;" rows="2" placeholder="Ex: Écart probablement dû à..."></textarea>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <button style="flex:1; background:#e2e8f0; border:none; padding:10px; border-radius:6px; font-weight:600; cursor:pointer;">Annuler</button>
+      <button style="flex:2; background:#dc2626; color:#fff; border:none; padding:10px; border-radius:6px; font-weight:700; cursor:pointer;">Confirmer la clôture</button>
+    </div>
+  </div>
+</div>

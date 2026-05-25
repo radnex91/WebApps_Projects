@@ -1,0 +1,744 @@
+<?php
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../config/settings.php';
+
+// Accès : caisse.voir OU caisse.ouvrir
+if (!hasPermission('caisse.voir') && !hasPermission('caisse.ouvrir')) {
+    header('Location: ' . APP_URL . '/dashboard.php?err=access');
+    exit;
+}
+
+$db = getDB();
+$action = $_GET['action'] ?? '';
+
+// ── Helper : solde théorique d'une session ─────────────────
+function soldeSession(PDO $db, int $sessionId): float {
+    $stmt = $db->prepare("
+        SELECT s.fond_initial,
+               COALESCE((SELECT SUM(montant) FROM mouvements_caisse WHERE session_id = s.id AND type = 'entrée'), 0) AS entrees,
+               COALESCE((SELECT SUM(montant) FROM mouvements_caisse WHERE session_id = s.id AND type = 'sortie'), 0) AS sorties
+        FROM sessions_caisse s WHERE s.id = ?
+    ");
+    $stmt->execute([$sessionId]);
+    $r = $stmt->fetch();
+    return (float)$r['fond_initial'] + (float)$r['entrees'] - (float)$r['sorties'];
+}
+
+// ── Helper : durée lisible depuis ouverture ─────────────────
+function dureeDepuis(string $dateOuverture): string {
+    $now = new DateTime();
+    $ouv = new DateTime($dateOuverture);
+    $diff = $now->diff($ouv);
+    $heuresTotales = ($diff->d * 24) + $diff->h;
+    $minutes = $diff->i;
+    if ($heuresTotales > 0) return $heuresTotales . 'h' . str_pad($minutes, 2, '0', STR_PAD_LEFT);
+    return $minutes . 'min';
+}
+
+// ── POST : création de poste (admin) ────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_POST['action_type'] === 'creer_poste') {
+    verifyCsrf();
+    requirePermission('caisse.gerer');
+    $nom = trim($_POST['nom'] ?? '');
+    if ($nom !== '') {
+        $db->prepare("INSERT INTO caisses (nom) VALUES (?)")->execute([$nom]);
+        flash('Poste créé avec succès.', 'success');
+    }
+    header('Location: ' . APP_URL . '/modules/caisse.php'); exit;
+}
+
+// ── POST : clôture de caisse (Z) ────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_POST['action_type'] === 'cloturer') {
+    verifyCsrf();
+    $sessionId = (int)($_POST['session_id'] ?? 0);
+    $soldeReel = (float)($_POST['solde_reel'] ?? 0);
+
+    $stmt = $db->prepare("
+        SELECT s.*, c.nom AS caisse_nom
+        FROM sessions_caisse s JOIN caisses c ON s.caisse_id = c.id
+        WHERE s.id = ?
+    ");
+    $stmt->execute([$sessionId]);
+    $session = $stmt->fetch();
+
+    if (!$session || $session['statut'] !== 'ouverte') {
+        flash('Session invalide ou déjà fermée.', 'error');
+        header('Location: ?'); exit;
+    }
+
+    if ((int)$session['caissier_id'] !== currentUser()['id'] && !hasPermission('caisse.gerer')) {
+        flash('Vous ne pouvez pas clôturer cette caisse.', 'error');
+        header('Location: ?'); exit;
+    }
+
+    // Admin forcé → motif obligatoire
+    if ((int)$session['caissier_id'] !== currentUser()['id'] && hasPermission('caisse.gerer')) {
+        $motifForce = trim($_POST['motif_force'] ?? '');
+        if ($motifForce === '') {
+            flash('Motif obligatoire pour une fermeture forcée.', 'error');
+            header('Location: ?action=z&id=' . $sessionId); exit;
+        }
+        $db->prepare("INSERT INTO mouvements_caisse (session_id, type, montant, motif, moyen) VALUES (?, 'sortie', 0, ?, 'espèces')")
+           ->execute([$sessionId, 'Fermeture forcée admin : ' . $motifForce]);
+    }
+
+    $soldeAttendu = soldeSession($db, $sessionId);
+    $ecart = round($soldeReel - $soldeAttendu, 2);
+
+    $db->prepare("
+        UPDATE sessions_caisse
+        SET date_fermeture = NOW(), solde_attendu = ?, solde_reel = ?, ecart = ?, statut = 'fermée'
+        WHERE id = ?
+    ")->execute([$soldeAttendu, $soldeReel, $ecart, $sessionId]);
+
+    flash('Caisse clôturée. Écart : ' . fmtMoney($ecart) . '.', $ecart === 0.0 ? 'success' : 'info');
+    header('Location: ?'); exit;
+}
+
+// ── POST : ouverture de caisse ──────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_POST['action_type'] === 'ouvrir') {
+    verifyCsrf();
+    requirePermission('caisse.ouvrir');
+    $caisseId = (int)($_POST['caisse_id'] ?? 0);
+    $fond     = max(0, (float)($_POST['fond_initial'] ?? 0));
+
+    $stmt = $db->prepare("SELECT id FROM caisses WHERE id = ? AND actif = 1");
+    $stmt->execute([$caisseId]);
+    if (!$stmt->fetch()) {
+        flash('Poste invalide.', 'error');
+        header('Location: ?'); exit;
+    }
+
+    $stmt = $db->prepare("SELECT id FROM sessions_caisse WHERE caisse_id = ? AND statut = 'ouverte'");
+    $stmt->execute([$caisseId]);
+    if ($stmt->fetch()) {
+        flash('Ce poste a déjà une session ouverte.', 'error');
+        header('Location: ?'); exit;
+    }
+
+    $stmt = $db->prepare("SELECT id FROM sessions_caisse WHERE caissier_id = ? AND statut = 'ouverte'");
+    $stmt->execute([currentUser()['id']]);
+    if ($stmt->fetch()) {
+        flash('Vous avez déjà une session de caisse ouverte.', 'error');
+        header('Location: ?'); exit;
+    }
+
+    $db->prepare("
+        INSERT INTO sessions_caisse (caisse_id, caissier_id, fond_initial, date_ouverture, statut)
+        VALUES (?, ?, ?, NOW(), 'ouverte')
+    ")->execute([$caisseId, currentUser()['id'], $fond]);
+
+    flash('Caisse ouverte avec un fond initial de ' . fmtMoney($fond) . '.', 'success');
+    header('Location: ?'); exit;
+}
+
+// ── POST : mouvement manuel ─────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_POST['action_type'] === 'mouvement') {
+    verifyCsrf();
+    $sessionId = (int)($_POST['session_id'] ?? 0);
+    $typeMvt   = $_POST['type_mvt'] ?? 'sortie';
+    if (!in_array($typeMvt, ['entrée', 'sortie'])) $typeMvt = 'sortie';
+    $montant   = max(0, (float)($_POST['montant'] ?? 0));
+    $motif     = trim($_POST['motif'] ?? '');
+
+    if ($montant <= 0 || $motif === '') {
+        flash('Montant et motif obligatoires.', 'error');
+        header('Location: ?'); exit;
+    }
+
+    $stmt = $db->prepare("SELECT id FROM sessions_caisse WHERE id = ? AND statut = 'ouverte' AND caissier_id = ?");
+    $stmt->execute([$sessionId, currentUser()['id']]);
+    if (!$stmt->fetch()) {
+        flash('Session invalide.', 'error');
+        header('Location: ?'); exit;
+    }
+
+    $labelType = $typeMvt === 'entrée' ? 'Dépôt' : 'Retrait';
+    $db->prepare("INSERT INTO mouvements_caisse (session_id, type, montant, motif, moyen) VALUES (?, ?, ?, ?, 'espèces')")
+       ->execute([$sessionId, $typeMvt, $montant, $labelType . ' : ' . $motif]);
+    flash($labelType . ' de ' . fmtMoney($montant) . ' enregistré.', 'success');
+    header('Location: ?'); exit;
+}
+
+// ═══════════════════════════════════════════════════════════
+// VUE : Ouverture de caisse
+// ═══════════════════════════════════════════════════════════
+if ($action === 'ouvrir'):
+    requirePermission('caisse.ouvrir');
+
+    $dejaOuverte = $db->prepare("SELECT s.id, c.nom FROM sessions_caisse s JOIN caisses c ON s.caisse_id = c.id WHERE s.caissier_id = ? AND s.statut = 'ouverte'");
+    $dejaOuverte->execute([currentUser()['id']]);
+    if ($maSession = $dejaOuverte->fetch()) {
+        flash('Vous avez déjà une session ouverte sur « ' . e($maSession['nom']) . ' ».' , 'info');
+        header('Location: ?'); exit;
+    }
+
+    $toutesCaisses = $db->query("
+        SELECT c.id, c.nom, s.id AS session_id, u.prenom, u.nom AS u_nom
+        FROM caisses c
+        LEFT JOIN sessions_caisse s ON c.id = s.caisse_id AND s.statut = 'ouverte'
+        LEFT JOIN utilisateurs u ON s.caissier_id = u.id
+        WHERE c.actif = 1
+        ORDER BY c.id
+    ")->fetchAll();
+
+    $aucuneDispo = true;
+    foreach ($toutesCaisses as $c) {
+        if (!$c['session_id']) { $aucuneDispo = false; break; }
+    }
+    if ($aucuneDispo) {
+        flash('Tous les postes de caisse sont actuellement occupés.', 'info');
+        header('Location: ?'); exit;
+    }
+
+    layout_head('Ouverture de Caisse', 'caisse');
+    showFlash();
+?>
+<div class="card" style="max-width:580px;margin:0 auto;">
+  <div class="card-header">
+    <div class="card-title">Ouvrir une caisse</div>
+  </div>
+  <div class="card-pad">
+    <form method="POST" id="form-ouvrir">
+      <input type="hidden" name="csrf" value="<?= csrf() ?>">
+      <input type="hidden" name="action_type" value="ouvrir">
+      <input type="hidden" name="caisse_id" id="caisse-id" value="" required>
+      <label style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:12px;display:block;">Choisissez un poste de caisse</label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:20px;">
+        <?php foreach ($toutesCaisses as $c):
+          $estOccupee = $c['session_id'] !== null;
+        ?>
+        <div class="caisse-card <?= $estOccupee ? 'caisse-occupee' : '' ?>"
+             <?= !$estOccupee ? 'data-id="' . (int)$c['id'] . '" onclick="selectCaisse(this)" tabindex="0"' : '' ?>
+             style="
+               border:2px solid var(--border2);
+               border-radius:12px;
+               padding:14px;
+               cursor:<?= $estOccupee ? 'default' : 'pointer' ?>;
+               transition:all 0.15s;
+               background:<?= $estOccupee ? 'var(--bg2)' : 'var(--bg)' ?>;
+               opacity:<?= $estOccupee ? '0.55' : '1' ?>;
+               text-align:center;
+               outline:none;
+             ">
+          <div style="font-size:28px;margin-bottom:6px;"><?= $estOccupee ? icon('lock', 24) : icon('building', 24) ?></div>
+          <div style="font-weight:600;font-size:14px;"><?= e($c['nom']) ?></div>
+          <?php if ($estOccupee): ?>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">
+            Occupée par <?= e($c['prenom'] . ' ' . substr($c['u_nom'], 0, 1) . '.') ?>
+          </div>
+          <?php else: ?>
+          <div style="font-size:11px;color:var(--teal2);margin-top:4px;">Disponible</div>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <div class="form-group">
+        <label>Fond de caisse initial (FCFA)</label>
+        <input type="number" name="fond_initial" value="0" min="0" step="1" required style="font-size:18px;font-weight:600;">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <a href="?" class="btn btn-ghost" style="flex:1;justify-content:center;">Annuler</a>
+        <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;gap:6px;" id="btn-ouvrir" disabled>
+          <?= icon('unlock',14) ?> Ouvrir la caisse
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function selectCaisse(el) {
+  document.querySelectorAll('.caisse-card:not(.caisse-occupee)').forEach(function(c){
+    c.style.borderColor = 'var(--border2)';
+    c.style.background = 'var(--bg)';
+    c.classList.remove('selected');
+  });
+  el.style.borderColor = 'var(--teal2)';
+  el.style.background = 'var(--teal-dim)';
+  el.classList.add('selected');
+  document.getElementById('caisse-id').value = el.dataset.id;
+  document.getElementById('btn-ouvrir').disabled = false;
+}
+</script>
+<?php layout_foot(); return; endif;
+
+// ═══════════════════════════════════════════════════════════
+// VUE : X de caisse (interrogation sans clôture)
+// ═══════════════════════════════════════════════════════════
+if ($action === 'x'):
+    $sessionId = (int)($_GET['id'] ?? 0);
+    $stmt = $db->prepare("
+        SELECT s.*, u.prenom, u.nom AS u_nom, c.nom AS caisse_nom
+        FROM sessions_caisse s
+        JOIN utilisateurs u ON s.caissier_id = u.id
+        JOIN caisses c ON s.caisse_id = c.id
+        WHERE s.id = ?
+    ");
+    $stmt->execute([$sessionId]);
+    $session = $stmt->fetch();
+    if (!$session) { flash('Session introuvable.', 'error'); header('Location: ?'); exit; }
+
+    $solde = soldeSession($db, $sessionId);
+
+    $ventesEspeces = $db->prepare("SELECT COALESCE(SUM(montant), 0) FROM mouvements_caisse WHERE session_id = ? AND type = 'entrée' AND reference_vente IS NOT NULL");
+    $ventesEspeces->execute([$sessionId]);
+    $totalVentes = (float)$ventesEspeces->fetchColumn();
+
+    $depots = $db->prepare("SELECT COALESCE(SUM(montant), 0) FROM mouvements_caisse WHERE session_id = ? AND type = 'entrée' AND reference_vente IS NULL");
+    $depots->execute([$sessionId]);
+    $totalDepots = (float)$depots->fetchColumn();
+
+    $retraits = $db->prepare("SELECT COALESCE(SUM(montant), 0) FROM mouvements_caisse WHERE session_id = ? AND type = 'sortie'");
+    $retraits->execute([$sessionId]);
+    $totalRetraits = (float)$retraits->fetchColumn();
+
+    $nbTickets = $db->prepare("SELECT COUNT(DISTINCT reference_vente) FROM mouvements_caisse WHERE session_id = ? AND reference_vente IS NOT NULL");
+    $nbTickets->execute([$sessionId]);
+    $nb = (int)$nbTickets->fetchColumn();
+
+    $repModes = $db->prepare("
+        SELECT v.mode_paiement, COUNT(*) AS nb
+        FROM ventes v
+        WHERE v.reference IN (SELECT reference_vente FROM mouvements_caisse WHERE session_id = ? AND reference_vente IS NOT NULL)
+        GROUP BY v.mode_paiement
+    ");
+    $repModes->execute([$sessionId]);
+    $modes = $repModes->fetchAll();
+
+    $modeLabels = ['espèces' => 'Espèces', 'carte' => 'Carte', 'chèque' => 'Chèque', 'assurance' => 'Assurance', 'crédit' => 'Crédit'];
+
+    layout_head('Relevé de Caisse', 'caisse');
+    showFlash();
+?>
+<div class="card" style="max-width:500px;margin:0 auto;">
+  <div class="card-header">
+    <div class="card-title">Relevé de caisse</div>
+    <span class="badge badge-gray">Consultation</span>
+  </div>
+  <div class="card-pad" id="x-content">
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:13px;color:var(--text2);">
+      <span><strong><?= e($session['caisse_nom']) ?></strong> — Caissier : <?= e($session['prenom'] . ' ' . $session['u_nom']) ?></span>
+      <span>Ouvert le <?= date('d/m/Y H:i', strtotime($session['date_ouverture'])) ?></span>
+    </div>
+    <div style="font-size:14px;line-height:2.4;">
+      <div style="display:flex;justify-content:space-between;color:var(--text2);">
+        <span>Fond initial</span>
+        <span style="font-weight:500;"><?= fmtMoney((float)$session['fond_initial']) ?></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span>+ Ventes espèces</span>
+        <span style="font-weight:500;"><?= fmtMoney($totalVentes) ?></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span>+ Dépôts</span>
+        <span style="font-weight:500;"><?= fmtMoney($totalDepots) ?></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span>- Retraits / dépenses</span>
+        <span style="font-weight:500;"><?= fmtMoney($totalRetraits) ?></span>
+      </div>
+      <div style="border-top:1px dashed var(--border2);margin:10px 0;"></div>
+      <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:700;" class="c-teal">
+        <span>SOLDE THÉORIQUE</span>
+        <span><?= fmtMoney($solde) ?></span>
+      </div>
+    </div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--text3);">
+      <div>Nb tickets : <strong><?= $nb ?></strong></div>
+      <?php if ($modes): ?>
+      <div style="margin-top:2px;">
+        <?php foreach ($modes as $m): ?>
+        <?= e($modeLabels[$m['mode_paiement']] ?? $m['mode_paiement']) ?> : <?= (int)$m['nb'] ?> &nbsp;
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <a href="?" class="btn btn-ghost" style="flex:1;justify-content:center;">Retour</a>
+      <button class="btn btn-ghost btn-sm" onclick="printSection('x-content')" style="gap:6px;">
+        <?= icon('receipt',14) ?> Imprimer
+      </button>
+    </div>
+  </div>
+</div>
+<?php layout_foot(); return; endif;
+
+// ═══════════════════════════════════════════════════════════
+// VUE : Z de caisse (clôture)
+// ═══════════════════════════════════════════════════════════
+if ($action === 'z'):
+    $sessionId = (int)($_GET['id'] ?? 0);
+    $stmt = $db->prepare("
+        SELECT s.*, u.prenom, u.nom AS u_nom, c.nom AS caisse_nom
+        FROM sessions_caisse s
+        JOIN utilisateurs u ON s.caissier_id = u.id
+        JOIN caisses c ON s.caisse_id = c.id
+        WHERE s.id = ?
+    ");
+    $stmt->execute([$sessionId]);
+    $session = $stmt->fetch();
+    if (!$session || $session['statut'] !== 'ouverte') {
+        flash('Session invalide ou déjà fermée.', 'error'); header('Location: ?'); exit;
+    }
+
+    $soldeAttendu = soldeSession($db, $sessionId);
+    $estForce = (int)$session['caissier_id'] !== currentUser()['id'];
+
+    $mouvements = $db->prepare("SELECT * FROM mouvements_caisse WHERE session_id = ? ORDER BY created_at");
+    $mouvements->execute([$sessionId]);
+    $mvts = $mouvements->fetchAll();
+
+    layout_head('Clôture de Caisse', 'caisse');
+    showFlash();
+?>
+<div class="card" style="max-width:550px;margin:0 auto;">
+  <div class="card-header">
+    <div class="card-title">Clôture de caisse</div>
+    <?php if ($estForce): ?>
+    <span class="badge" style="background:var(--red-dim);color:var(--red);">Fermeture forcée</span>
+    <?php endif; ?>
+  </div>
+  <div class="card-pad" id="z-content" style="display:flex;flex-direction:column;gap:24px;">
+    <!-- Infos session -->
+    <div>
+      <div style="font-weight:600;font-size:15px;margin-bottom:4px;"><?= e($session['caisse_nom']) ?></div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.7;">
+        Caissier : <strong><?= e($session['prenom'] . ' ' . $session['u_nom']) ?></strong><br>
+        Ouverte le <strong><?= date('d/m/Y à H:i', strtotime($session['date_ouverture'])) ?></strong>
+      </div>
+    </div>
+
+    <!-- Solde théorique -->
+    <div style="background:var(--bg2);border-radius:12px;padding:24px;text-align:center;">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Solde théorique</div>
+      <div id="solde-theorique" style="font-size:32px;font-weight:700;color:var(--teal2);line-height:1.2;"
+           data-solde="<?= (float)$soldeAttendu ?>"><?= fmtMoney($soldeAttendu) ?></div>
+    </div>
+
+    <form method="POST" id="form-z" style="display:flex;flex-direction:column;gap:20px;">
+      <input type="hidden" name="csrf" value="<?= csrf() ?>">
+      <input type="hidden" name="action_type" value="cloturer">
+      <input type="hidden" name="session_id" value="<?= (int)$session['id'] ?>">
+
+      <div class="form-group" style="margin-bottom:0;">
+        <label style="margin-bottom:8px;">Solde compté physiquement (FCFA)</label>
+        <input type="number" name="solde_reel" id="solde-reel" min="0" step="1" required
+               style="font-size:18px;font-weight:600;padding:14px 16px;" placeholder="Comptez et saisissez le montant réel">
+      </div>
+
+      <div id="ecart-box" style="text-align:center;padding:16px 20px;border-radius:10px;display:none;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Écart</div>
+        <div id="ecart-val" style="font-size:24px;font-weight:700;"></div>
+      </div>
+
+      <?php if ($estForce && hasPermission('caisse.gerer')): ?>
+      <div class="form-group" style="margin-bottom:0;">
+        <label style="margin-bottom:8px;">Motif de la fermeture forcée *</label>
+        <input type="text" name="motif_force" required placeholder="Raison de la fermeture imposée" style="padding:12px 14px;">
+      </div>
+      <?php endif; ?>
+
+      <div style="display:flex;gap:10px;">
+        <a href="?" class="btn btn-ghost" style="flex:1;justify-content:center;padding:10px;">Annuler</a>
+        <button type="button" class="btn btn-ghost" onclick="printSection('z-content')" style="gap:6px;padding:10px 14px;">
+          <?= icon('receipt',14) ?> Imprimer
+        </button>
+        <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;gap:6px;padding:10px;">
+          <?= icon('lock',14) ?> Clôturer
+        </button>
+      </div>
+    </form>
+
+    <?php if ($mvts): ?>
+    <div style="border-top:1px solid var(--border);padding-top:20px;">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Détail des mouvements</div>
+      <table style="font-size:13px;width:100%;">
+        <thead><tr><th style="padding:8px 6px;">Heure</th><th style="padding:8px 6px;">Motif</th><th style="text-align:right;padding:8px 6px;">Entrée</th><th style="text-align:right;padding:8px 6px;">Sortie</th></tr></thead>
+        <tbody>
+        <?php foreach ($mvts as $m): ?>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="color:var(--text3);padding:10px 6px;"><?= date('H:i', strtotime($m['created_at'])) ?></td>
+          <td style="padding:10px 6px;"><?= e($m['motif']) ?></td>
+          <td style="text-align:right;color:var(--teal2);padding:10px 6px;font-family:'DM Mono',monospace;"><?= $m['type'] === 'entrée' ? fmtMoney((float)$m['montant']) : '' ?></td>
+          <td style="text-align:right;color:var(--red);padding:10px 6px;font-family:'DM Mono',monospace;"><?= $m['type'] === 'sortie' ? fmtMoney((float)$m['montant']) : '' ?></td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php endif; ?>
+  </div>
+</div>
+<script>
+(function(){
+  var reel=document.getElementById('solde-reel');
+  var box=document.getElementById('ecart-box');
+  var val=document.getElementById('ecart-val');
+  var theo=parseFloat(document.getElementById('solde-theorique').dataset.solde);
+  reel.addEventListener('input',function(){
+    var ecart=Math.round((parseFloat(this.value)||0)-theo);
+    if(this.value===''){box.style.display='none';return;}
+    box.style.display='';
+    val.textContent=(ecart>=0?'+':'')+ecart.toLocaleString('fr-FR')+' FCFA';
+    var abs=Math.abs(ecart);
+    if(abs===0){box.style.background='var(--teal-dim)';val.style.color='var(--teal2)';}
+    else if(abs<5000){box.style.background='var(--gold-dim)';val.style.color='var(--gold)';}
+    else{box.style.background='var(--red-dim)';val.style.color='var(--red)';}
+  });
+})();
+</script>
+<?php layout_foot(); return; endif;
+
+// ═══════════════════════════════════════════════════════════
+// VUE : Historique des sessions
+// ═══════════════════════════════════════════════════════════
+if ($action === 'historique'):
+    $filtreCaisse = $_GET['caisse'] ?? '';
+    $filtreDate   = $_GET['date']   ?? '';
+
+    $sql = "
+        SELECT s.*, u.prenom, u.nom AS u_nom, c.nom AS caisse_nom
+        FROM sessions_caisse s
+        JOIN utilisateurs u ON s.caissier_id = u.id
+        JOIN caisses c ON s.caisse_id = c.id
+        WHERE 1=1
+    ";
+    $params = [];
+    if ($filtreCaisse !== '') { $sql .= " AND s.caisse_id = ?"; $params[] = (int)$filtreCaisse; }
+    if ($filtreDate !== '')   { $sql .= " AND DATE(s.date_ouverture) = ?"; $params[] = $filtreDate; }
+    $sql .= " ORDER BY s.date_ouverture DESC LIMIT 50";
+
+    $stmtH = $db->prepare($sql);
+    $stmtH->execute($params);
+    $sessions = $stmtH->fetchAll();
+
+    $allCaisses = $db->query("SELECT id, nom FROM caisses WHERE actif = 1 ORDER BY id")->fetchAll();
+
+    layout_head('Historique Sessions', 'caisse');
+    showFlash();
+?>
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Historique des sessions</div>
+    <a href="?" class="btn btn-ghost btn-sm">← Dashboard</a>
+  </div>
+  <div class="card-pad" style="padding-bottom:10px;">
+    <form method="GET" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+      <input type="hidden" name="action" value="historique">
+      <div class="form-group" style="margin:0;min-width:140px;">
+        <label>Poste</label>
+        <select name="caisse" onchange="this.form.submit()">
+          <option value="">Tous</option>
+          <?php foreach ($allCaisses as $c): ?>
+          <option value="<?= (int)$c['id'] ?>" <?= $filtreCaisse === (string)$c['id'] ? 'selected' : '' ?>><?= e($c['nom']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:140px;">
+        <label>Date</label>
+        <input type="date" name="date" value="<?= e($filtreDate) ?>" onchange="this.form.submit()">
+      </div>
+      <?php if ($filtreCaisse !== '' || $filtreDate !== ''): ?>
+      <a href="?action=historique" class="btn btn-ghost btn-xs" style="align-self:end;margin-bottom:2px;">Réinitialiser</a>
+      <?php endif; ?>
+    </form>
+  </div>
+  <div class="card-pad" style="padding:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>Poste</th><th>Caissier</th><th>Ouverture</th><th>Fermeture</th>
+          <th style="text-align:right;">Fond init.</th><th style="text-align:right;">Attendu</th>
+          <th style="text-align:right;">Réel</th><th style="text-align:right;">Écart</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($sessions as $s):
+          $ecartVal = (float)($s['ecart'] ?? 0);
+          $ecartColor = $ecartVal === 0.0 ? 'var(--teal2)' : ($ecartVal < 0 ? 'var(--red)' : 'var(--gold)');
+        ?>
+        <tr>
+          <td><?= e($s['caisse_nom']) ?></td>
+          <td><?= e($s['prenom'] . ' ' . $s['u_nom']) ?></td>
+          <td><?= date('d/m/Y H:i', strtotime($s['date_ouverture'])) ?></td>
+          <td><?= $s['date_fermeture'] ? date('d/m/Y H:i', strtotime($s['date_fermeture'])) : '<span class="badge" style="background:var(--teal-dim);color:var(--teal2);">En cours</span>' ?></td>
+          <td style="text-align:right;"><?= fmtMoney((float)$s['fond_initial']) ?></td>
+          <td style="text-align:right;"><?= $s['solde_attendu'] !== null ? fmtMoney((float)$s['solde_attendu']) : '—' ?></td>
+          <td style="text-align:right;"><?= $s['solde_reel'] !== null ? fmtMoney((float)$s['solde_reel']) : '—' ?></td>
+          <td style="text-align:right;font-weight:600;color:<?= $ecartColor ?>;"><?= $s['ecart'] !== null ? fmtMoney((float)$s['ecart']) : '—' ?></td>
+        </tr>
+        <?php endforeach; ?>
+        <?php if (!$sessions): ?>
+        <tr><td colspan="8" style="text-align:center;color:var(--text3);padding:30px;">Aucune session trouvée.</td></tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+<?php layout_foot(); return; endif;
+
+// ═══════════════════════════════════════════════════════════
+// VUE : Dashboard (par défaut)
+// ═══════════════════════════════════════════════════════════
+
+$caisses = $db->query("SELECT * FROM caisses WHERE actif = 1 ORDER BY id")->fetchAll();
+
+$sessionsOuvertes = $db->query("
+    SELECT s.*, u.prenom, u.nom AS u_nom, c.nom AS caisse_nom
+    FROM sessions_caisse s
+    JOIN utilisateurs u ON s.caissier_id = u.id
+    JOIN caisses c ON s.caisse_id = c.id
+    WHERE s.statut = 'ouverte'
+")->fetchAll();
+$ouvertesParCaisse = array_column($sessionsOuvertes, null, 'caisse_id');
+
+layout_head('Gestion des Caisses', 'caisse');
+showFlash();
+?>
+
+<?php if (hasPermission('caisse.gerer') && isset($_GET['new'])): ?>
+<div class="card" style="max-width:400px;margin:0 auto 20px;">
+  <div class="card-header"><div class="card-title">Nouveau poste</div></div>
+  <div class="card-pad">
+    <form method="POST">
+      <input type="hidden" name="csrf" value="<?= csrf() ?>">
+      <input type="hidden" name="action_type" value="creer_poste">
+      <div class="form-group">
+        <label>Nom du poste</label>
+        <input type="text" name="nom" placeholder="ex: Caisse 4" required>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <a href="?" class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;">Annuler</a>
+        <button type="submit" class="btn btn-primary btn-sm" style="flex:1;justify-content:center;">Créer</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Dashboard des caisses</div>
+    <div style="display:flex;gap:8px;">
+      <?php if (hasPermission('caisse.ouvrir')): ?>
+      <a href="?action=ouvrir" class="btn btn-primary btn-sm" style="gap:6px;">
+        <?= icon('plus',14) ?> Ouvrir une caisse
+      </a>
+      <?php endif; ?>
+      <a href="?action=historique" class="btn btn-ghost btn-sm" style="gap:6px;">
+        <?= icon('history',14) ?> Historique
+      </a>
+      <?php if (hasPermission('caisse.gerer')): ?>
+      <a href="?new=1" class="btn btn-ghost btn-sm" style="gap:6px;">
+        <?= icon('plus',14) ?> Nouveau poste
+      </a>
+      <?php endif; ?>
+    </div>
+  </div>
+  <div class="card-pad" style="padding:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>Poste</th><th>Statut</th><th>Caissier</th>
+          <th>Ouvert depuis</th><th style="text-align:right;">Solde</th><th style="text-align:center;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($caisses as $c):
+          $session = $ouvertesParCaisse[$c['id']] ?? null;
+          $estOuverte = $session !== null;
+          $solde = $estOuverte ? soldeSession($db, (int)$session['id']) : 0;
+        ?>
+        <tr>
+          <td><strong><?= e($c['nom']) ?></strong></td>
+          <td>
+            <?php if ($estOuverte): ?>
+            <span class="badge" style="background:var(--teal-dim);color:var(--teal2);font-weight:500;">● Ouverte</span>
+            <?php else: ?>
+            <span class="badge badge-gray">○ Fermée</span>
+            <?php endif; ?>
+          </td>
+          <td><?= $estOuverte ? e($session['prenom'] . ' ' . $session['u_nom']) : '—' ?></td>
+          <td style="font-size:12px;color:var(--text2);"><?= $estOuverte ? dureeDepuis($session['date_ouverture']) : '—' ?></td>
+          <td style="text-align:right;font-weight:600;font-family:'DM Mono',monospace;"><?= $estOuverte ? fmtMoney($solde) : '—' ?></td>
+          <td style="text-align:center;">
+            <?php if ($estOuverte): ?>
+              <a href="?action=x&id=<?= (int)$session['id'] ?>" class="btn btn-ghost btn-xs" title="Relevé de caisse sans clôture" style="gap:4px;">
+                <?= icon('eye',13) ?> Relevé
+              </a>
+              <?php $peutCloturer = (int)$session['caissier_id'] === currentUser()['id'] || hasPermission('caisse.gerer'); ?>
+              <?php if ($peutCloturer): ?>
+              <a href="?action=z&id=<?= (int)$session['id'] ?>" class="btn btn-ghost btn-xs" title="Clôturer la caisse" style="gap:4px;color:var(--red);">
+                <?= icon('lock',13) ?> Clôturer
+              </a>
+              <?php endif; ?>
+              <?php if ((int)$session['caissier_id'] === currentUser()['id']): ?>
+              <a href="?action=mouvement&id=<?= (int)$session['id'] ?>" class="btn btn-ghost btn-xs" title="Ajouter un mouvement" style="gap:4px;">
+                <?= icon('plus',13) ?> Mvt
+              </a>
+              <?php endif; ?>
+            <?php endif; ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<?php if ($action === 'mouvement'):
+    $mvtSessionId = (int)($_GET['id'] ?? 0);
+    $stmtMvt = $db->prepare("SELECT s.*, c.nom AS caisse_nom FROM sessions_caisse s JOIN caisses c ON s.caisse_id = c.id WHERE s.id = ? AND s.caissier_id = ? AND s.statut = 'ouverte'");
+    $stmtMvt->execute([$mvtSessionId, currentUser()['id']]);
+    $mvtSession = $stmtMvt->fetch();
+    if ($mvtSession):
+?>
+<div class="card" style="max-width:480px;margin:20px auto 0;">
+  <div class="card-header"><div class="card-title">Mouvement de caisse — <?= e($mvtSession['caisse_nom']) ?></div></div>
+  <div class="card-pad">
+    <form method="POST">
+      <input type="hidden" name="csrf" value="<?= csrf() ?>">
+      <input type="hidden" name="action_type" value="mouvement">
+      <input type="hidden" name="session_id" value="<?= $mvtSessionId ?>">
+      <div class="form-group">
+        <label>Type de mouvement</label>
+        <select name="type_mvt" required>
+          <option value="sortie">Retrait / Dépense</option>
+          <option value="entrée">Dépôt (ajout d'espèces)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Montant (FCFA)</label>
+        <input type="number" name="montant" value="0" min="1" step="1" required style="font-size:16px;font-weight:600;">
+      </div>
+      <div class="form-group">
+        <label>Motif</label>
+        <input type="text" name="motif" placeholder="ex: Achat fournitures, Retrait banque..." required>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <a href="?" class="btn btn-ghost" style="flex:1;justify-content:center;">Annuler</a>
+        <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;gap:6px;">
+          <?= icon('save',14) ?> Enregistrer
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; endif; ?>
+
+<script>
+function printSection(id){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var content=el.innerHTML;
+  var win=window.open('','_blank','width=320,height=600');
+  win.document.write('<!DOCTYPE html><html><head><title>Ticket Caisse</title>'+
+    '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:\'DM Mono\',monospace;font-size:11px;line-height:1.8;padding:16px;max-width:300px;margin:0 auto;}@media print{@page{margin:0;size:80mm auto;}}input,select,button,.btn,.badge-gray,form{display:none;}</style>'+
+    '<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">'+
+    '</head><body>'+content+'<script>window.onload=function(){window.print();}<\/script></body></html>');
+  win.document.close();
+}
+</script>
+
+<?php layout_foot(); ?>

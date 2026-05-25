@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php *)",
+      "Bash(/c/xampp/mysql/bin/mysql.exe *)",
+      "Bash(mysql --version)",
+      "Bash(Select-Object -First 30)",
+      "PowerShell(php -m 2>&1)",
+      "PowerShell(php \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\test_dashboard.php\" 2>&1)",
+      "Bash(/c/xampp/php/php.exe *)",
+      "Bash(python *)",
+      "Bash(mysql *)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"SELECT email, role, statut FROM aureliahost.users;\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\app\\\\core\\\\App.php\" 2>&1)",
+      "PowerShell($response = try { \\(Invoke-WebRequest -Uri \"http://localhost/AureliaHost/\" -UseBasicParsing -TimeoutSec 5\\).StatusCode } catch { $_.Exception.Response.StatusCode.Value__ }; Write-Output \"GET / => HTTP $response\")",
+      "Bash(python3 *)",
+      "PowerShell(\\(Invoke-WebRequest -Uri \"http://localhost/AureliaHost/\" -UseBasicParsing -TimeoutSec 5 -SkipHttpErrorCheck\\).StatusCode)",
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\app\\\\core\\\\App.php\" 2>&1; & \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\app\\\\core\\\\Database.php\" 2>&1; & \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\app\\\\views\\\\layouts\\\\main.php\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\app\\\\core\\\\helpers.php\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\app\\\\controllers\\\\AuthController.php\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\php\\\\php.exe\" -l \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\app\\\\views\\\\layouts\\\\main.php\" 2>&1)",
+      "Bash(curl -s -H \"Accept: application/json\" http://localhost/AureliaHost/hotel/reservations/create)",
+      "Bash(curl -s -H \"Accept: application/json\" http://localhost/AureliaHost/hotel/reservations/form-data/1)",
+      "Bash(curl -s http://localhost/AureliaHost/hotel/reservations)",
+      "Bash(curl *)",
+      "Bash(grep -o '^{.*}$')",
+      "Bash(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\app\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\app\" -Recurse -File | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\xampp\\\\htdocs\\\\AureliaHost\\\\\", \"\"\\) })",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"SHOW TABLES FROM aureliahost;\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"DESCRIBE aureliahost.users;\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"DESCRIBE aureliahost.taxes;\" 2>&1)",
+      "PowerShell(& \"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root -e \"SHOW TABLES FROM aureliahost LIKE '%set%';\" 2>&1)",
+      "Bash(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\AureliaHost\" -Depth 2 -Directory)",
+      "Bash(Sort-Object FullName)"
+    ]
+  }
+}

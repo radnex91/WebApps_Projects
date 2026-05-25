@@ -1,0 +1,26 @@
+Options +FollowSymLinks -Indexes
+
+# === PRODUCTION: Décommentez ces 6 lignes sur le serveur ===
+# SetEnv RENTFLOW_ENV production
+# SetEnv RENTFLOW_DB_HOST localhost
+# SetEnv RENTFLOW_DB_NAME rentflow
+# SetEnv RENTFLOW_DB_USER danayserv
+# SetEnv RENTFLOW_DB_PASS admin1433
+# SetEnv RENTFLOW_BASE_URL https://rentflow.io
+# =========================================================
+RewriteEngine On
+
+# If the request is not an existing file
+RewriteCond %{REQUEST_FILENAME} !-f
+# If the request is not an existing directory
+RewriteCond %{REQUEST_FILENAME} !-d
+# Redirect everything to index.php
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
