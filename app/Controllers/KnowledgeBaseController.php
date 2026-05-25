@@ -42,9 +42,14 @@ class KnowledgeBaseController extends Controller
     }
     public function add(): void
     {
+        $error = $this->requireFields(['title' => 'Titre', 'content' => 'Contenu']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/kb');
+        }
         KnowledgeBase::create([
-            'titre'       => $this->post('title'),
-            'contenu'     => $this->post('content'),
+            'titre'       => trim($this->post('title')),
+            'contenu'     => trim($this->post('content')),
             'categorie_id' => $this->post('category_id') ?: null,
             'user_id'     => Auth::id(),
         ]);
@@ -53,9 +58,14 @@ class KnowledgeBaseController extends Controller
     }
     public function edit(int $id): void
     {
+        $error = $this->requireFields(['title' => 'Titre', 'content' => 'Contenu']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/kb');
+        }
         KnowledgeBase::updateRecord($id, [
-            'titre'       => $this->post('title'),
-            'contenu'     => $this->post('content'),
+            'titre'       => trim($this->post('title')),
+            'contenu'     => trim($this->post('content')),
             'categorie_id' => $this->post('category_id') ?: null,
         ]);
         $this->setFlash('success', 'Article mis à jour');
@@ -63,20 +73,33 @@ class KnowledgeBaseController extends Controller
     }
     public function delete(int $id): void
     {
-        KnowledgeBase::deleteRecord($id);
-        $this->setFlash('success', 'Article supprimé');
+        try {
+            KnowledgeBase::deleteRecord($id);
+            $this->setFlash('success', 'Article supprimé');
+        } catch (\Throwable $e) {
+            $this->setFlash('danger', 'Impossible de supprimer cet article car il est lié à d\'autres enregistrements.');
+        }
         $this->redirect('/gestion-support/kb');
     }
     public function addCategory(): void
     {
-        KnowledgeBaseCategory::create(['nom' => $this->post('name')]);
+        $error = $this->requireFields(['name' => 'Nom']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/kb');
+        }
+        KnowledgeBaseCategory::create(['nom' => trim($this->post('name'))]);
         $this->setFlash('success', 'Catégorie ajoutée');
         $this->redirect('/gestion-support/kb');
     }
     public function deleteCategory(int $id): void
     {
-        KnowledgeBaseCategory::deleteRecord($id);
-        $this->setFlash('success', 'Catégorie supprimée');
+        try {
+            KnowledgeBaseCategory::deleteRecord($id);
+            $this->setFlash('success', 'Catégorie supprimée');
+        } catch (\Throwable $e) {
+            $this->setFlash('danger', 'Impossible de supprimer cette catégorie car elle contient des articles.');
+        }
         $this->redirect('/gestion-support/kb');
     }
 }

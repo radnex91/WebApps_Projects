@@ -9,69 +9,24 @@
     </div>
 </div>
 
-<?php if (empty($users)): ?>
-<div class="empty-state" style="margin-top:20px">
-    <i class="bi bi-people" style="font-size:48px;color:#9e9e9e"></i>
-    <p>Aucun utilisateur trouvé</p>
+<div class="search-bar" style="margin-top:16px">
+    <i class="bi bi-search search-icon"></i>
+    <input type="text" id="searchInput" class="form-input-material" placeholder="Rechercher par nom, email ou rôle..." oninput="renderTable()" style="padding-left:36px">
 </div>
-<?php else: ?>
-<div class="table-container" style="margin-top:20px">
-    <table class="table-material">
-        <thead>
-            <tr>
-                <th>Nom</th>
-                <th>Email</th>
-                <th>Rôle</th>
-                <th style="width:110px">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($users as $u): ?>
-            <tr>
-                <td>
-                    <div class="user-cell">
-                        <div class="user-avatar initials"><?= strtoupper(substr($u->nom, 0, 1)) ?></div>
-                        <?= htmlspecialchars($u->nom) ?>
-                    </div>
-                </td>
-                <td><?= htmlspecialchars($u->email) ?></td>
-                <td>
-                    <?php
-                    $badgeClass = match($u->role) {
-                        'admin' => 'badge-status badge-critical',
-                        'technicien' => 'badge-status badge-medium',
-                        'client' => 'badge-status badge-low',
-                        default => 'badge-status',
-                    };
-                    ?>
-                    <span class="<?= $badgeClass ?>"><?= ucfirst($u->role) ?></span>
-                </td>
-                <td class="actions-cell">
-                    <button class="btn-material btn-material-small btn-material-primary" title="Modifier" onclick="openEditUser(<?= $u->id ?>)">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <form method="POST" action="<?= BASE_URL ?>/admin/users/delete/<?= $u->id ?>" style="display:inline" onsubmit="return confirm('Confirmer la suppression de cet utilisateur ?')">
-                        <button class="btn-material btn-material-small btn-material-danger" title="Supprimer">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-</div>
-<?php endif; ?>
+
+<div id="usersTableContainer" style="margin-top:16px"></div>
+
+<div id="pagination" style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:16px"></div>
 
 <!-- Add Modal -->
-<div class="modal-backdrop" id="addUserModal" style="display:none" onclick="if(event.target===this)closeAddUser()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3><i class="bi bi-person-plus"></i> Nouvel utilisateur</h3>
-            <button class="modal-close" onclick="closeAddUser()">&times;</button>
+<div class="modal-material-overlay" id="addUserModal" style="display:none">
+    <div class="modal-material">
+        <div class="modal-material-header">
+            <h5><i class="bi bi-person-plus"></i> Nouvel utilisateur</h5>
+            <button class="modal-close" onclick="closeModal('addUserModal')">&times;</button>
         </div>
-        <form method="POST" action="<?= BASE_URL ?>/admin/users/add" class="form-material">
-            <div class="modal-body">
+        <form method="POST" action="<?= BASE_URL ?>/admin/users/add">
+            <div class="modal-material-body">
                 <div class="form-group-material">
                     <label class="form-label-material" for="add_name">Nom</label>
                     <input type="text" name="name" id="add_name" class="form-input-material" required>
@@ -81,8 +36,8 @@
                     <input type="email" name="email" id="add_email" class="form-input-material" required>
                 </div>
                 <div class="form-group-material">
-                    <label class="form-label-material" for="add_password">Mot de passe</label>
-                    <input type="password" name="password" id="add_password" class="form-input-material" required>
+                    <label class="form-label-material" for="add_password">Mot de passe (min. 8 caractères)</label>
+                    <input type="password" name="password" id="add_password" class="form-input-material" minlength="8" required>
                 </div>
                 <div class="form-group-material">
                     <label class="form-label-material" for="add_role">Rôle</label>
@@ -93,23 +48,23 @@
                     </select>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-material btn-material-danger" onclick="closeAddUser()">Annuler</button>
-                <button type="submit" class="btn-material btn-material-primary">Ajouter</button>
+            <div class="modal-material-footer">
+                <button type="button" class="btn-material" onclick="closeModal('addUserModal')">Annuler</button>
+                <button type="submit" class="btn-material btn-material-primary"><i class="bi bi-check"></i> Ajouter</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Edit Modal -->
-<div class="modal-backdrop" id="editUserModal" style="display:none" onclick="if(event.target===this)closeEditUser()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3><i class="bi bi-pencil"></i> Modifier utilisateur</h3>
-            <button class="modal-close" onclick="closeEditUser()">&times;</button>
+<div class="modal-material-overlay" id="editUserModal" style="display:none">
+    <div class="modal-material">
+        <div class="modal-material-header">
+            <h5><i class="bi bi-pencil"></i> Modifier utilisateur</h5>
+            <button class="modal-close" onclick="closeModal('editUserModal')">&times;</button>
         </div>
-        <form method="POST" action="<?= BASE_URL ?>/admin/users/edit/" id="editUserForm" class="form-material">
-            <div class="modal-body">
+        <form method="POST" action="<?= BASE_URL ?>/admin/users/edit/" id="editUserForm">
+            <div class="modal-material-body">
                 <div class="form-group-material">
                     <label class="form-label-material" for="edit_name">Nom</label>
                     <input type="text" name="name" id="edit_name" class="form-input-material" required>
@@ -119,8 +74,8 @@
                     <input type="email" name="email" id="edit_email" class="form-input-material" required>
                 </div>
                 <div class="form-group-material">
-                    <label class="form-label-material" for="edit_password">Nouveau mot de passe (laisser vide pour conserver)</label>
-                    <input type="password" name="password" id="edit_password" class="form-input-material">
+                    <label class="form-label-material" for="edit_password">Nouveau mot de passe (min. 8 car., laisser vide pour conserver)</label>
+                    <input type="password" name="password" id="edit_password" class="form-input-material" minlength="8">
                 </div>
                 <div class="form-group-material">
                     <label class="form-label-material" for="edit_role">Rôle</label>
@@ -131,41 +86,142 @@
                     </select>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-material btn-material-danger" onclick="closeEditUser()">Annuler</button>
-                <button type="submit" class="btn-material btn-material-primary">Enregistrer</button>
+            <div class="modal-material-footer">
+                <button type="button" class="btn-material" onclick="closeModal('editUserModal')">Annuler</button>
+                <button type="submit" class="btn-material btn-material-primary"><i class="bi bi-check"></i> Enregistrer</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-const usersData = <?= json_encode($users) ?>;
+const allUsers = <?= json_encode($users) ?>;
+const ITEMS_PER_PAGE = 10;
+let currentPage = 1;
+let sortField = null;
+let sortDir = 'asc';
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+}
 
 function openAddUser() {
     document.getElementById('add_name').value = '';
     document.getElementById('add_email').value = '';
     document.getElementById('add_password').value = '';
     document.getElementById('add_role').value = 'client';
-    document.getElementById('addUserModal').style.display = 'flex';
-}
-
-function closeAddUser() {
-    document.getElementById('addUserModal').style.display = 'none';
+    openModal('addUserModal');
 }
 
 function openEditUser(id) {
-    const u = usersData.find(user => user.id === id);
+    const u = allUsers.find(user => user.id === id);
     if (!u) return;
     document.getElementById('editUserForm').action = '<?= BASE_URL ?>/admin/users/edit/' + id;
     document.getElementById('edit_name').value = u.nom;
     document.getElementById('edit_email').value = u.email;
     document.getElementById('edit_password').value = '';
     document.getElementById('edit_role').value = u.role;
-    document.getElementById('editUserModal').style.display = 'flex';
+    openModal('editUserModal');
 }
 
-function closeEditUser() {
-    document.getElementById('editUserModal').style.display = 'none';
+function getBadgeClass(role) {
+    const map = { admin: 'badge-critical', technicien: 'badge-medium', client: 'badge-low' };
+    return 'badge-status ' + (map[role] || '');
 }
+
+function renderTable() {
+    const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+
+    let filtered = allUsers.filter(u =>
+        (u.nom || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.role || '').toLowerCase().includes(q)
+    );
+
+    if (sortField) {
+        filtered.sort((a, b) => {
+            let va = (a[sortField] || '').toString().toLowerCase();
+            let vb = (b[sortField] || '').toString().toLowerCase();
+            if (sortField === 'id') { va = Number(a.id); vb = Number(b.id); }
+            return sortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+        });
+    }
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const page = filtered.slice(start, start + ITEMS_PER_PAGE);
+
+    if (filtered.length === 0) {
+        document.getElementById('usersTableContainer').innerHTML = `
+            <div class="empty-state">
+                <i class="bi bi-people" style="font-size:48px;color:#9e9e9e"></i>
+                <p>Aucun utilisateur trouvé</p>
+            </div>`;
+        document.getElementById('pagination').innerHTML = '';
+        return;
+    }
+
+    const sortIcon = (f) => sortField === f ? (sortDir === 'asc' ? '&#9650;' : '&#9660;') : '&#9654;&#9664;';
+
+    let html = `<div class="table-container"><table class="table-material"><thead><tr>
+        <th onclick="toggleSort('nom')" style="cursor:pointer">Nom ${sortIcon('nom')}</th>
+        <th onclick="toggleSort('email')" style="cursor:pointer">Email ${sortIcon('email')}</th>
+        <th onclick="toggleSort('role')" style="cursor:pointer">Rôle ${sortIcon('role')}</th>
+        <th style="width:110px">Actions</th>
+    </tr></thead><tbody>`;
+
+    page.forEach(u => {
+        html += `<tr>
+            <td><div class="user-cell"><div class="user-avatar initials">${u.nom.charAt(0).toUpperCase()}</div>${escapeHtml(u.nom)}</div></td>
+            <td>${escapeHtml(u.email)}</td>
+            <td><span class="${getBadgeClass(u.role)}">${u.role.charAt(0).toUpperCase() + u.role.slice(1)}</span></td>
+            <td class="actions-cell">
+                <button class="btn-material btn-material-small btn-material-primary" title="Modifier" onclick="openEditUser(${u.id})"><i class="bi bi-pencil"></i></button>
+                <form method="POST" action="<?= BASE_URL ?>/admin/users/delete/${u.id}" style="display:inline" onsubmit="return confirm('Confirmer la suppression de cet utilisateur ?')">
+                    <button class="btn-material btn-material-small btn-material-danger" title="Supprimer"><i class="bi bi-trash"></i></button>
+                </form>
+            </td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById('usersTableContainer').innerHTML = html;
+
+    let p = `<button class="btn-material btn-material-small" onclick="goPage(${currentPage-1})" ${currentPage <= 1 ? 'disabled' : ''}>Précédent</button>
+        <span style="font-size:13px;color:#666">Page ${currentPage} / ${totalPages} (${filtered.length} utilisateurs)</span>
+        <button class="btn-material btn-material-small" onclick="goPage(${currentPage+1})" ${currentPage >= totalPages ? 'disabled' : ''}>Suivant</button>`;
+    document.getElementById('pagination').innerHTML = p;
+}
+
+function toggleSort(field) {
+    if (sortField === field) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortField = field;
+        sortDir = 'asc';
+    }
+    currentPage = 1;
+    renderTable();
+}
+
+function goPage(p) {
+    currentPage = p;
+    renderTable();
+}
+
+function escapeHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.querySelectorAll('.modal-material-overlay').forEach(el => {
+    el.addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+});
+
+renderTable();
 </script>

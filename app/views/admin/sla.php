@@ -46,14 +46,14 @@
 </div>
 
 <!-- Add Modal -->
-<div class="modal-backdrop" id="addSlaModal" style="display:none" onclick="if(event.target===this)closeAddSla()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3><i class="bi bi-plus-circle"></i> Nouveau SLA</h3>
+<div class="modal-material-overlay" id="addSlaModal" style="display:none" onclick="if(event.target===this)closeAddSla()">
+    <div class="modal-material" onclick="event.stopPropagation()">
+        <div class="modal-material-header">
+            <h5><i class="bi bi-plus-circle"></i> Nouveau SLA</h5>
             <button class="modal-close" onclick="closeAddSla()">&times;</button>
         </div>
         <form method="POST" action="<?= BASE_URL ?>/admin/sla/add" class="form-material">
-            <div class="modal-body">
+            <div class="modal-material-body">
                 <div class="form-group-material">
                     <label class="form-label-material" for="add_priority_id">Priorité</label>
                     <select name="priority_id" id="add_priority_id" class="form-input-material" required>
@@ -72,7 +72,7 @@
                     <input type="number" name="resolution_hours" id="add_resolution_hours" class="form-input-material" placeholder="Ex: 24" required>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-material-footer">
                 <button type="button" class="btn-material btn-material-danger" onclick="closeAddSla()">Annuler</button>
                 <button type="submit" class="btn-material btn-material-primary">Ajouter</button>
             </div>
@@ -81,14 +81,14 @@
 </div>
 
 <!-- Edit Modal -->
-<div class="modal-backdrop" id="editSlaModal" style="display:none" onclick="if(event.target===this)closeEditSla()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3><i class="bi bi-pencil"></i> Modifier le SLA</h3>
+<div class="modal-material-overlay" id="editSlaModal" style="display:none" onclick="if(event.target===this)closeEditSla()">
+    <div class="modal-material" onclick="event.stopPropagation()">
+        <div class="modal-material-header">
+            <h5><i class="bi bi-pencil"></i> Modifier le SLA</h5>
             <button class="modal-close" onclick="closeEditSla()">&times;</button>
         </div>
         <form method="POST" action="<?= BASE_URL ?>/admin/sla/edit/" id="editSlaForm" class="form-material">
-            <div class="modal-body">
+            <div class="modal-material-body">
                 <div class="form-group-material">
                     <label class="form-label-material" for="edit_priority_id">Priorité</label>
                     <select name="priority_id" id="edit_priority_id" class="form-input-material" required>
@@ -107,7 +107,7 @@
                     <input type="number" name="resolution_hours" id="edit_resolution_hours" class="form-input-material" required>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-material-footer">
                 <button type="button" class="btn-material btn-material-danger" onclick="closeEditSla()">Annuler</button>
                 <button type="submit" class="btn-material btn-material-primary">Enregistrer</button>
             </div>

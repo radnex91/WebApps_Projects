@@ -15,10 +15,20 @@ class AuthController extends Controller
     {
         $email = $this->post('email');
         $password = $this->post('password');
+
+        $throttle = Auth::isThrottled($email);
+        if ($throttle['throttled']) {
+            $mins = ceil($throttle['retryAfter'] / 60);
+            $this->setFlash('danger', "Trop de tentatives. Réessayez dans {$mins} minute(s).");
+            $this->redirect('/gestion-support/login');
+            return;
+        }
+
         if (Auth::login($email, $password)) {
             $this->redirect('/gestion-support/' . Auth::role() . '/dashboard');
         }
-        $this->setFlash('danger', 'Email ou mot de passe incorrect');
+        $remaining = $throttle['remaining'] ?? 5;
+        $this->setFlash('danger', "Email ou mot de passe incorrect ({$remaining} tentative(s) restante(s)).");
         $this->redirect('/gestion-support/login');
     }
     public function logout(): void

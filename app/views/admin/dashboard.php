@@ -83,6 +83,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 fetch('/gestion-support/admin/stats/interventions-over-time').then(r=>r.json()).then(d=>{
     const dates = d.map(i=>i.date);

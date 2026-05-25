@@ -46,9 +46,28 @@ class AdminController extends Controller
     }
     public function addUser(): void
     {
+        $error = $this->requireFields(['name' => 'Nom', 'email' => 'Email', 'password' => 'Mot de passe', 'role' => 'Rôle']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/admin/users');
+        }
+        $password = $this->post('password');
+        if (strlen($password) < 8) {
+            $this->setFlash('danger', 'Le mot de passe doit contenir au moins 8 caractères');
+            $this->redirect('/gestion-support/admin/users');
+        }
+        if (!filter_var($this->post('email'), FILTER_VALIDATE_EMAIL)) {
+            $this->setFlash('danger', 'Email invalide');
+            $this->redirect('/gestion-support/admin/users');
+        }
+        $existing = User::whereFirst('email', $this->post('email'));
+        if ($existing) {
+            $this->setFlash('danger', 'Cet email est déjà utilisé');
+            $this->redirect('/gestion-support/admin/users');
+        }
         $data = [
-            'nom'     => $this->post('name'),
-            'email'    => $this->post('email'),
+            'nom'     => trim($this->post('name')),
+            'email'    => trim($this->post('email')),
             'mot_de_passe' => password_hash($this->post('password'), PASSWORD_DEFAULT),
             'role'     => $this->post('role'),
         ];
@@ -67,13 +86,32 @@ class AdminController extends Controller
     }
     public function editUser(int $id): void
     {
+        $error = $this->requireFields(['name' => 'Nom', 'email' => 'Email', 'role' => 'Rôle']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/admin/users');
+        }
+        if (!filter_var($this->post('email'), FILTER_VALIDATE_EMAIL)) {
+            $this->setFlash('danger', 'Email invalide');
+            $this->redirect('/gestion-support/admin/users');
+        }
+        $existing = User::whereFirst('email', $this->post('email'));
+        if ($existing && (int)$existing->id !== $id) {
+            $this->setFlash('danger', 'Cet email est déjà utilisé');
+            $this->redirect('/gestion-support/admin/users');
+        }
         $data = [
-            'nom'  => $this->post('name'),
-            'email' => $this->post('email'),
+            'nom'  => trim($this->post('name')),
+            'email' => trim($this->post('email')),
             'role'  => $this->post('role'),
         ];
-        if ($this->post('password')) {
-            $data['mot_de_passe'] = password_hash($this->post('password'), PASSWORD_DEFAULT);
+        $newPassword = $this->post('password');
+        if ($newPassword) {
+            if (strlen($newPassword) < 8) {
+                $this->setFlash('danger', 'Le mot de passe doit contenir au moins 8 caractères');
+                $this->redirect('/gestion-support/admin/users');
+            }
+            $data['mot_de_passe'] = password_hash($newPassword, PASSWORD_DEFAULT);
         }
         User::updateRecord($id, $data);
         $this->setFlash('success', 'Utilisateur modifié avec succès');
@@ -81,8 +119,12 @@ class AdminController extends Controller
     }
     public function deleteUser(int $id): void
     {
-        User::deleteRecord($id);
-        $this->setFlash('success', 'Utilisateur supprimé avec succès');
+        try {
+            User::deleteRecord($id);
+            $this->setFlash('success', 'Utilisateur supprimé avec succès');
+        } catch (\Throwable $e) {
+            $this->setFlash('danger', 'Impossible de supprimer : cet utilisateur est lié à des tickets ou commentaires.');
+        }
         $this->redirect('/gestion-support/admin/users');
     }
     public function categories(): void
@@ -92,21 +134,35 @@ class AdminController extends Controller
     }
     public function addCategory(): void
     {
-        Category::create(['nom' => $this->post('name')]);
+        $error = $this->requireFields(['name' => 'Nom']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/admin/categories');
+        }
+        Category::create(['nom' => trim($this->post('name'))]);
         $this->setFlash('success', 'Catégorie ajoutée');
         $this->redirect('/gestion-support/admin/categories');
     }
     public function editCategory(int $id): void
     {
-        Category::updateRecord($id, ['nom' => $this->post('name')]);
+        $error = $this->requireFields(['name' => 'Nom']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/admin/categories');
+        }
+        Category::updateRecord($id, ['nom' => trim($this->post('name'))]);
         $this->setFlash('success', 'Catégorie modifiée');
         $this->redirect('/gestion-support/admin/categories');
     }
 
     public function deleteCategory(int $id): void
     {
-        Category::deleteRecord($id);
-        $this->setFlash('success', 'Catégorie supprimée');
+        try {
+            Category::deleteRecord($id);
+            $this->setFlash('success', 'Catégorie supprimée');
+        } catch (\Throwable $e) {
+            $this->setFlash('danger', 'Impossible de supprimer : cette catégorie est liée à des tickets.');
+        }
         $this->redirect('/gestion-support/admin/categories');
     }
     public function priorities(): void
@@ -116,20 +172,30 @@ class AdminController extends Controller
     }
     public function addPriority(): void
     {
+        $error = $this->requireFields(['name' => 'Nom', 'color' => 'Couleur']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/admin/priorities');
+        }
         Priority::create([
-            'nom'   => $this->post('name'),
-            'couleur'  => $this->post('color'),
-            'temps_resolution_heures' => $this->post('sla_hours') ?: 24,
+            'nom'   => trim($this->post('name')),
+            'couleur'  => trim($this->post('color')),
+            'temps_resolution_heures' => (int)($this->post('sla_hours') ?: 24),
         ]);
         $this->setFlash('success', 'Priorité ajoutée');
         $this->redirect('/gestion-support/admin/priorities');
     }
     public function editPriority(int $id): void
     {
+        $error = $this->requireFields(['name' => 'Nom', 'color' => 'Couleur']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/admin/priorities');
+        }
         Priority::updateRecord($id, [
-            'nom'   => $this->post('name'),
-            'couleur'  => $this->post('color'),
-            'temps_resolution_heures' => $this->post('sla_hours') ?: 24,
+            'nom'   => trim($this->post('name')),
+            'couleur'  => trim($this->post('color')),
+            'temps_resolution_heures' => (int)($this->post('sla_hours') ?: 24),
         ]);
         $this->setFlash('success', 'Priorité modifiée');
         $this->redirect('/gestion-support/admin/priorities');
@@ -137,8 +203,12 @@ class AdminController extends Controller
 
     public function deletePriority(int $id): void
     {
-        Priority::deleteRecord($id);
-        $this->setFlash('success', 'Priorité supprimée');
+        try {
+            Priority::deleteRecord($id);
+            $this->setFlash('success', 'Priorité supprimée');
+        } catch (\Throwable $e) {
+            $this->setFlash('danger', 'Impossible de supprimer : cette priorité est liée à des tickets ou configurations SLA.');
+        }
         $this->redirect('/gestion-support/admin/priorities');
     }
     public function sla(): void
@@ -149,20 +219,30 @@ class AdminController extends Controller
     }
     public function addSla(): void
     {
+        $error = $this->requireFields(['priority_id' => 'Priorité', 'response_hours' => 'Délai de réponse', 'resolution_hours' => 'Délai de résolution']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/admin/sla');
+        }
         Sla::create([
-            'priorite_id'           => $this->post('priority_id'),
-            'temps_reponse_heures'  => $this->post('response_hours'),
-            'temps_resolution_heures' => $this->post('resolution_hours'),
+            'priorite_id'           => (int)$this->post('priority_id'),
+            'temps_reponse_heures'  => (int)$this->post('response_hours'),
+            'temps_resolution_heures' => (int)$this->post('resolution_hours'),
         ]);
         $this->setFlash('success', 'Configuration SLA ajoutée');
         $this->redirect('/gestion-support/admin/sla');
     }
     public function editSla(int $id): void
     {
+        $error = $this->requireFields(['priority_id' => 'Priorité', 'response_hours' => 'Délai de réponse', 'resolution_hours' => 'Délai de résolution']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/admin/sla');
+        }
         Sla::updateRecord($id, [
-            'priorite_id'           => $this->post('priority_id'),
-            'temps_reponse_heures'  => $this->post('response_hours'),
-            'temps_resolution_heures' => $this->post('resolution_hours'),
+            'priorite_id'           => (int)$this->post('priority_id'),
+            'temps_reponse_heures'  => (int)$this->post('response_hours'),
+            'temps_resolution_heures' => (int)$this->post('resolution_hours'),
         ]);
         $this->setFlash('success', 'Configuration SLA modifiée');
         $this->redirect('/gestion-support/admin/sla');
@@ -170,8 +250,12 @@ class AdminController extends Controller
 
     public function deleteSla(int $id): void
     {
-        Sla::deleteRecord($id);
-        $this->setFlash('success', 'Configuration SLA supprimée');
+        try {
+            Sla::deleteRecord($id);
+            $this->setFlash('success', 'Configuration SLA supprimée');
+        } catch (\Throwable $e) {
+            $this->setFlash('danger', 'Impossible de supprimer cette configuration SLA.');
+        }
         $this->redirect('/gestion-support/admin/sla');
     }
     public function archive(): void

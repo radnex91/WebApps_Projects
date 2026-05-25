@@ -68,13 +68,18 @@ class TicketController extends Controller
     }
     public function store(): void
     {
+        $error = $this->requireFields(['title' => 'Titre', 'description' => 'Description']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/tickets/create');
+        }
         $categoryId = $this->post('category_id');
         $priorityId = $this->post('priority_id');
         $data = [
-            'titre'       => $this->post('title'),
-            'description' => $this->post('description'),
-            'categorie_id' => $categoryId !== '' ? (int) $categoryId : null,
-            'priorite_id' => $priorityId !== '' ? (int) $priorityId : null,
+            'titre'       => trim($this->post('title')),
+            'description' => trim($this->post('description')),
+            'categorie_id' => $categoryId ? (int) $categoryId : null,
+            'priorite_id' => $priorityId ? (int) $priorityId : null,
             'statut_id'   => 1,
             'user_id'     => Auth::id(),
         ];
@@ -144,13 +149,18 @@ class TicketController extends Controller
     }
     public function update(int $id): void
     {
+        $error = $this->requireFields(['title' => 'Titre', 'description' => 'Description']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/tickets/' . $id);
+        }
         $categoryId = $this->post('category_id');
         $priorityId = $this->post('priority_id');
         Ticket::updateRecord($id, [
-            'titre'       => $this->post('title'),
-            'description' => $this->post('description'),
-            'categorie_id' => $categoryId !== '' ? (int) $categoryId : null,
-            'priorite_id' => $priorityId !== '' ? (int) $priorityId : null,
+            'titre'       => trim($this->post('title')),
+            'description' => trim($this->post('description')),
+            'categorie_id' => $categoryId ? (int) $categoryId : null,
+            'priorite_id' => $priorityId ? (int) $priorityId : null,
         ]);
         TicketHistory::create([
             'ticket_id' => $id,
@@ -163,10 +173,15 @@ class TicketController extends Controller
     }
     public function addComment(int $id): void
     {
+        $error = $this->requireFields(['content' => 'Commentaire']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/tickets/' . $id);
+        }
         Comment::create([
             'ticket_id' => $id,
             'user_id'   => Auth::id(),
-            'contenu'   => $this->post('content'),
+            'contenu'   => trim($this->post('content')),
         ]);
         TicketHistory::create([
             'ticket_id' => $id,
@@ -180,13 +195,22 @@ class TicketController extends Controller
     public function updateStatus(int $id): void
     {
         $statusId = $this->post('status_id');
+        if (!$statusId) {
+            $this->setFlash('danger', 'Veuillez sélectionner un statut.');
+            $this->redirect('/gestion-support/tickets/' . $id);
+        }
+        $statusId = (int) $statusId;
         $status = Status::find($statusId);
+        if (!$status) {
+            $this->setFlash('danger', 'Statut invalide.');
+            $this->redirect('/gestion-support/tickets/' . $id);
+        }
         Ticket::updateRecord($id, ['statut_id' => $statusId]);
         TicketHistory::create([
             'ticket_id' => $id,
             'user_id'   => Auth::id(),
             'champ'    => 'status_changed',
-            'nouvelle_valeur'   => 'Statut changé à: ' . ($status->nom ?? 'Inconnu'),
+            'nouvelle_valeur'   => 'Statut changé à: ' . $status->nom,
         ]);
         $this->setFlash('success', 'Statut mis à jour');
         $this->redirect('/gestion-support/tickets/' . $id);

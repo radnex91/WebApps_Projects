@@ -1,22 +1,44 @@
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1><i class="bi bi-person-plus"></i> Ajouter un utilisateur</h1>
+<div class="page-header">
+    <div>
+        <h1>Ajouter un utilisateur</h1>
+        <div class="page-header-subtitle">Créer un nouveau compte utilisateur</div>
+    </div>
 </div>
-<div class="row">
+<div class="row g-3">
     <div class="col-md-6">
-        <form method="POST" action="/gestion-support/admin/users/add">
-            <div class="mb-3"><label class="form-label">Nom</label><input type="text" name="name" class="form-control" required></div>
-            <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required></div>
-            <div class="mb-3"><label class="form-label">Mot de passe</label><input type="password" name="password" class="form-control" required></div>
-            <div class="mb-3">
-                <label class="form-label">Rôle</label>
-                <select name="role" class="form-select">
-                    <option value="admin">Administrateur</option>
-                    <option value="technicien">Technicien</option>
-                    <option value="client" selected>Client</option>
-                </select>
+        <div class="card-content">
+            <div class="card-content-header">
+                <h5><i class="bi bi-person-plus" style="margin-right:6px;color:var(--md-secondary)"></i> Informations</h5>
             </div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Enregistrer</button>
-            <a href="/gestion-support/admin/users" class="btn btn-secondary">Annuler</a>
-        </form>
+            <div class="card-content-body">
+                <form method="POST" action="/gestion-support/admin/users/add">
+                    <div style="margin-bottom:16px">
+                        <label style="display:block;margin-bottom:6px;font-weight:500;font-size:13px;color:#444">Nom</label>
+                        <input type="text" name="name" class="form-input" required>
+                    </div>
+                    <div style="margin-bottom:16px">
+                        <label style="display:block;margin-bottom:6px;font-weight:500;font-size:13px;color:#444">Email</label>
+                        <input type="email" name="email" class="form-input" required>
+                    </div>
+                    <div style="margin-bottom:16px">
+                        <label style="display:block;margin-bottom:6px;font-weight:500;font-size:13px;color:#444">Mot de passe</label>
+                        <input type="password" name="password" class="form-input" required minlength="8">
+                        <div style="font-size:11px;color:#888;margin-top:4px">Minimum 8 caractères</div>
+                    </div>
+                    <div style="margin-bottom:20px">
+                        <label style="display:block;margin-bottom:6px;font-weight:500;font-size:13px;color:#444">Rôle</label>
+                        <select name="role" class="form-input">
+                            <option value="admin">Administrateur</option>
+                            <option value="technicien">Technicien</option>
+                            <option value="client" selected>Client</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button type="submit" class="btn-material btn-material-primary"><i class="bi bi-save"></i> Enregistrer</button>
+                        <a href="/gestion-support/admin/users" class="btn-material btn-material-outline">Annuler</a>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>

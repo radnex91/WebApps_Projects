@@ -1,8 +1,13 @@
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1><i class="bi bi-archive"></i> Tickets archivés</h1>
-    <a href="/gestion-support/tickets" class="btn btn-primary"><i class="bi bi-arrow-left"></i> Retour</a>
+<div class="page-header">
+    <div>
+        <h1>Tickets archivés</h1>
+        <div class="page-header-subtitle">Liste des tickets archivés</div>
+    </div>
+    <div>
+        <a href="/gestion-support/tickets" class="btn-material btn-material-outline"><i class="bi bi-arrow-left"></i> Retour</a>
+    </div>
 </div>
-<table class="table">
+<table class="table-material">
     <thead><tr><th>ID</th><th>Titre</th><th>Catégorie</th><th>Priorité</th><th>Statut</th><th>Assigné</th></tr></thead>
     <tbody>
         <?php foreach ($tickets as $t): ?>

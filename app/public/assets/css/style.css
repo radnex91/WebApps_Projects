@@ -1349,6 +1349,17 @@ textarea.form-input-material {
   box-shadow: var(--md-shadow-md);
 }
 
+.btn-material-warning {
+  background: #E65100;
+  color: white;
+}
+
+.btn-material-warning:hover {
+  background: #BF360C;
+  color: white;
+  box-shadow: var(--md-shadow-md);
+}
+
 /* Modal Material */
 .modal-material-overlay {
   position: fixed;
@@ -1399,67 +1410,6 @@ textarea.form-input-material {
 
 .modal-close:hover {
   color: var(--md-text-primary);
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.5);
-  z-index: 9998;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fade-in .2s ease;
-}
-
-.modal-card {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 16px 48px rgba(0,0,0,.25);
-  width: 90%;
-  max-width: 480px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  animation: modal-in .25s ease;
-}
-
-.modal-card .modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px 0;
-}
-
-.modal-card .modal-header h3 {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--md-text-primary);
-}
-
-.modal-card .modal-body {
-  padding: 20px 24px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.modal-card .modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 24px 20px;
-}
-
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes modal-in {
-  from { opacity: 0; transform: scale(.95) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .modal-material-body {
@@ -1732,11 +1682,6 @@ textarea.form-input-material {
 .priority-dot.medium { background: var(--md-medium-text); }
 .priority-dot.low { background: var(--md-low-text); }
 
-/* Modal backdrop blur */
-.modal-backdrop {
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
 .modal-material-overlay {
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -1907,7 +1852,7 @@ td .badge-material {
 }
 
 /* Card-content-body table refinement */
-.card-content-body:has(.table) {
+.card-content-body:has(.table-material) {
   padding: 0;
 }
 .card-content-body > .table-material:only-child {

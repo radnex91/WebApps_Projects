@@ -82,17 +82,31 @@ class TechnicienController extends Controller
     public function updateStatus(int $id): void
     {
         $statusId = $this->post('status_id');
+        if (!$statusId) {
+            $this->setFlash('danger', 'Veuillez sélectionner un statut.');
+            $this->redirect('/gestion-support/tickets/' . $id);
+        }
+        $statusId = (int) $statusId;
         $status = Status::find($statusId);
+        if (!$status) {
+            $this->setFlash('danger', 'Statut invalide.');
+            $this->redirect('/gestion-support/tickets/' . $id);
+        }
         Ticket::updateRecord($id, ['statut_id' => $statusId]);
         $this->setFlash('success', 'Statut mis à jour');
         $this->redirect('/gestion-support/tickets/' . $id);
     }
     public function addComment(int $id): void
     {
+        $error = $this->requireFields(['content' => 'Commentaire']);
+        if ($error) {
+            $this->setFlash('danger', $error);
+            $this->redirect('/gestion-support/tickets/' . $id);
+        }
         \App\Models\Comment::create([
             'ticket_id' => $id,
             'user_id'   => Auth::id(),
-            'contenu'   => $this->post('content'),
+            'contenu'   => trim($this->post('content')),
         ]);
         $this->setFlash('success', 'Commentaire ajouté');
         $this->redirect('/gestion-support/tickets/' . $id);

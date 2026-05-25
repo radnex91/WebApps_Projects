@@ -37,14 +37,14 @@
 </div>
 
 <!-- Add Modal -->
-<div class="modal-backdrop" id="addPriorityModal" style="display:none" onclick="if(event.target===this)closeAddPriority()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3><i class="bi bi-plus-circle"></i> Nouvelle priorité</h3>
+<div class="modal-material-overlay" id="addPriorityModal" style="display:none" onclick="if(event.target===this)closeAddPriority()">
+    <div class="modal-material" onclick="event.stopPropagation()">
+        <div class="modal-material-header">
+            <h5><i class="bi bi-plus-circle"></i> Nouvelle priorité</h5>
             <button class="modal-close" onclick="closeAddPriority()">&times;</button>
         </div>
         <form method="POST" action="<?= BASE_URL ?>/admin/priorities/add" class="form-material">
-            <div class="modal-body">
+            <div class="modal-material-body">
                 <div class="form-group-material">
                     <label class="form-label-material" for="add_name">Nom</label>
                     <input type="text" name="name" id="add_name" class="form-input-material" placeholder="Ex: Critique, Haute..." required>
@@ -58,7 +58,7 @@
                     <input type="number" name="sla_hours" id="add_sla_hours" class="form-input-material" placeholder="24" value="24" required>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-material-footer">
                 <button type="button" class="btn-material btn-material-danger" onclick="closeAddPriority()">Annuler</button>
                 <button type="submit" class="btn-material btn-material-primary">Ajouter</button>
             </div>
@@ -67,14 +67,14 @@
 </div>
 
 <!-- Edit Modal -->
-<div class="modal-backdrop" id="editPriorityModal" style="display:none" onclick="if(event.target===this)closeEditPriority()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3><i class="bi bi-pencil"></i> Modifier la priorité</h3>
+<div class="modal-material-overlay" id="editPriorityModal" style="display:none" onclick="if(event.target===this)closeEditPriority()">
+    <div class="modal-material" onclick="event.stopPropagation()">
+        <div class="modal-material-header">
+            <h5><i class="bi bi-pencil"></i> Modifier la priorité</h5>
             <button class="modal-close" onclick="closeEditPriority()">&times;</button>
         </div>
         <form method="POST" action="<?= BASE_URL ?>/admin/priorities/edit/" id="editPriorityForm" class="form-material">
-            <div class="modal-body">
+            <div class="modal-material-body">
                 <div class="form-group-material">
                     <label class="form-label-material" for="edit_name">Nom</label>
                     <input type="text" name="name" id="edit_name" class="form-input-material" required>
@@ -88,7 +88,7 @@
                     <input type="number" name="sla_hours" id="edit_sla_hours" class="form-input-material" required>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-material-footer">
                 <button type="button" class="btn-material btn-material-danger" onclick="closeEditPriority()">Annuler</button>
                 <button type="submit" class="btn-material btn-material-primary">Enregistrer</button>
             </div>

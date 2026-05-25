@@ -1,27 +1,102 @@
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1><i class="bi bi-bar-chart"></i> Rapports</h1>
-</div>
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-bg-primary"><div class="card-body"><h6>Total</h6><p class="display-6"><?= $stats['total'] ?></p></div></div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-bg-success"><div class="card-body"><h6>Résolus</h6><p class="display-6"><?= $stats['resolved'] ?></p></div></div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-bg-warning"><div class="card-body"><h6>Ouverts</h6><p class="display-6"><?= $stats['open'] ?></p></div></div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-bg-info"><div class="card-body"><h6>Taux résolution</h6><p class="display-6"><?= $stats['rate'] ?>%</p></div></div>
+<div class="page-header">
+    <div>
+        <h1>Rapports</h1>
+        <div class="page-header-subtitle">Statistiques et indicateurs d'activité</div>
     </div>
 </div>
-<div class="row">
-    <div class="col-md-6"><div class="card"><div class="card-header">Tickets par statut</div><div class="card-body"><canvas id="reportStatusChart"></canvas></div></div></div>
-    <div class="col-md-6"><div class="card"><div class="card-header">Tickets par technicien</div><div class="card-body"><canvas id="techChart"></canvas></div></div></div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="card-material card-kpi indigo">
+            <div class="card-kpi-header">
+                <div>
+                    <div class="card-kpi-label">Total</div>
+                    <div class="card-kpi-value"><?= $stats['total'] ?></div>
+                </div>
+                <div class="card-kpi-icon">
+                    <i class="bi bi-ticket-perforated"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card-material card-kpi green">
+            <div class="card-kpi-header">
+                <div>
+                    <div class="card-kpi-label">Résolus</div>
+                    <div class="card-kpi-value"><?= $stats['resolved'] ?></div>
+                </div>
+                <div class="card-kpi-icon">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card-material card-kpi amber">
+            <div class="card-kpi-header">
+                <div>
+                    <div class="card-kpi-label">Ouverts</div>
+                    <div class="card-kpi-value"><?= $stats['open'] ?></div>
+                </div>
+                <div class="card-kpi-icon">
+                    <i class="bi bi-envelope-open"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card-material card-kpi cyan">
+            <div class="card-kpi-header">
+                <div>
+                    <div class="card-kpi-label">Taux résolution</div>
+                    <div class="card-kpi-value"><?= $stats['rate'] ?>%</div>
+                </div>
+                <div class="card-kpi-icon">
+                    <i class="bi bi-percent"></i>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-<div class="row mt-4">
-    <div class="col-12"><div class="card"><div class="card-header">Tickets dans le temps</div><div class="card-body"><canvas id="timeChart"></canvas></div></div></div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card-content">
+            <div class="card-content-header">
+                <h5><i class="bi bi-pie-chart" style="margin-right:6px;color:var(--md-secondary)"></i> Tickets par statut</h5>
+            </div>
+            <div class="card-content-body">
+                <canvas id="reportStatusChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card-content">
+            <div class="card-content-header">
+                <h5><i class="bi bi-people" style="margin-right:6px;color:var(--md-secondary)"></i> Tickets par technicien</h5>
+            </div>
+            <div class="card-content-body">
+                <canvas id="techChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
 </div>
+
+<div class="row g-3 mt-2">
+    <div class="col-12">
+        <div class="card-content">
+            <div class="card-content-header">
+                <h5><i class="bi bi-graph-up" style="margin-right:6px;color:var(--md-secondary)"></i> Tickets dans le temps</h5>
+            </div>
+            <div class="card-content-body">
+                <canvas id="timeChart" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 fetch('/gestion-support/admin/stats/tickets-by-status').then(r=>r.json()).then(d=>new Chart(document.getElementById('reportStatusChart'),{type:'pie',data:{labels:d.map(i=>i.label),datasets:[{data:d.map(i=>i.count)]}}));
 fetch('/gestion-support/admin/stats/technician-load').then(r=>r.json()).then(d=>new Chart(document.getElementById('techChart'),{type:'bar',data:{labels:d.map(i=>i.name),datasets:[{label:'Tickets',data:d.map(i=>i.count)]}}));

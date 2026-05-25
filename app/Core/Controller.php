@@ -65,6 +65,20 @@ class Controller
     {
         return $_POST[$key] ?? $default;
     }
+    protected function requireFields(array $fields): ?string
+    {
+        $missing = [];
+        foreach ($fields as $field => $label) {
+            $val = $this->post($field);
+            if ($val === null || trim((string)$val) === '') {
+                $missing[] = $label;
+            }
+        }
+        if (!empty($missing)) {
+            return 'Champs obligatoires : ' . implode(', ', $missing);
+        }
+        return null;
+    }
     protected function get(string $key, $default = null)
     {
         return $_GET[$key] ?? $default;

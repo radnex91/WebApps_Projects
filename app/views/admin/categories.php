@@ -35,20 +35,20 @@
 </div>
 
 <!-- Add Modal -->
-<div class="modal-backdrop" id="addCategoryModal" style="display:none" onclick="if(event.target===this)closeAddCategory()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3><i class="bi bi-plus-circle"></i> Nouvelle catégorie</h3>
+<div class="modal-material-overlay" id="addCategoryModal" style="display:none" onclick="if(event.target===this)closeAddCategory()">
+    <div class="modal-material" onclick="event.stopPropagation()">
+        <div class="modal-material-header">
+            <h5><i class="bi bi-plus-circle"></i> Nouvelle catégorie</h5>
             <button class="modal-close" onclick="closeAddCategory()">&times;</button>
         </div>
         <form method="POST" action="<?= BASE_URL ?>/admin/categories/add" class="form-material">
-            <div class="modal-body">
+            <div class="modal-material-body">
                 <div class="form-group-material">
                     <label class="form-label-material" for="add_name">Nom de la catégorie</label>
                     <input type="text" name="name" id="add_name" class="form-input-material" placeholder="Ex: Réseau, Logiciel..." required>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-material-footer">
                 <button type="button" class="btn-material btn-material-danger" onclick="closeAddCategory()">Annuler</button>
                 <button type="submit" class="btn-material btn-material-primary">Ajouter</button>
             </div>
@@ -57,20 +57,20 @@
 </div>
 
 <!-- Edit Modal -->
-<div class="modal-backdrop" id="editCategoryModal" style="display:none" onclick="if(event.target===this)closeEditCategory()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3><i class="bi bi-pencil"></i> Modifier la catégorie</h3>
+<div class="modal-material-overlay" id="editCategoryModal" style="display:none" onclick="if(event.target===this)closeEditCategory()">
+    <div class="modal-material" onclick="event.stopPropagation()">
+        <div class="modal-material-header">
+            <h5><i class="bi bi-pencil"></i> Modifier la catégorie</h5>
             <button class="modal-close" onclick="closeEditCategory()">&times;</button>
         </div>
         <form method="POST" action="<?= BASE_URL ?>/admin/categories/edit/" id="editCategoryForm" class="form-material">
-            <div class="modal-body">
+            <div class="modal-material-body">
                 <div class="form-group-material">
                     <label class="form-label-material" for="edit_name">Nom de la catégorie</label>
                     <input type="text" name="name" id="edit_name" class="form-input-material" required>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-material-footer">
                 <button type="button" class="btn-material btn-material-danger" onclick="closeEditCategory()">Annuler</button>
                 <button type="submit" class="btn-material btn-material-primary">Enregistrer</button>
             </div>
