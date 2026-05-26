@@ -310,7 +310,7 @@ $receiptFooter = $appSettings['receipt_footer'] ?? '';
                 </div>
             </div>
             <div style="text-align:right">
-                <div class="invoice-label">FACTURE</div>
+                <div class="invoice-label"><i class="bi bi-file-earmark-text me-2"></i>FACTURE</div>
                 <div class="invoice-number"><?= e($sale['invoice_number']) ?></div>
                 <div style="margin-top:0.75rem">
                     <span class="payment-badge" style="background:rgba(16,185,129,0.2);color:#10B981">
@@ -324,19 +324,19 @@ $receiptFooter = $appSettings['receipt_footer'] ?? '';
         <!-- Méta -->
         <div class="invoice-meta">
             <div class="meta-item">
-                <label>Date de vente</label>
+                <label><i class="bi bi-calendar me-1"></i>Date de vente</label>
                 <span><?= date('d/m/Y', strtotime($sale['sale_date'])) ?></span>
             </div>
             <div class="meta-item">
-                <label>Heure</label>
+                <label><i class="bi bi-clock me-1"></i>Heure</label>
                 <span><?= date('H:i', strtotime($sale['sale_date'])) ?></span>
             </div>
             <div class="meta-item">
-                <label>Caissier</label>
+                <label><i class="bi bi-person me-1"></i>Caissier</label>
                 <span><?= e($sale['cashier_name']) ?></span>
             </div>
             <div class="meta-item">
-                <label>Magasin</label>
+                <label><i class="bi bi-building me-1"></i>Magasin</label>
                 <span><?= e($sale['warehouse_name']) ?></span>
             </div>
         </div>
@@ -348,12 +348,12 @@ $receiptFooter = $appSettings['receipt_footer'] ?? '';
             <?php if ($sale['customer_name']): ?>
             <div style="background:var(--body-bg);border-radius:8px;padding:.75rem 1rem;margin-bottom:1.25rem;display:flex;gap:1.5rem">
                 <div>
-                    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:#64748B;font-weight:600">Client</div>
+                    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:#64748B;font-weight:600"><i class="bi bi-person me-1"></i>Client</div>
                     <div style="font-weight:600"><?= e($sale['customer_name']) ?></div>
                 </div>
                 <?php if ($sale['customer_phone']): ?>
                 <div>
-                    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:#64748B;font-weight:600">Téléphone</div>
+                    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:#64748B;font-weight:600"><i class="bi bi-telephone me-1"></i>Téléphone</div>
                     <div><?= e($sale['customer_phone']) ?></div>
                 </div>
                 <?php endif; ?>
@@ -364,14 +364,14 @@ $receiptFooter = $appSettings['receipt_footer'] ?? '';
             <table class="items-table">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Désignation</th>
-                        <th class="text-center">Qté</th>
-                        <th class="text-end">Prix Unit.</th>
+                        <th><i class="bi bi-hash me-1"></i>#</th>
+                        <th><i class="bi bi-box me-1"></i>Désignation</th>
+                        <th class="text-center"><i class="bi bi-calculator me-1"></i>Qté</th>
+                        <th class="text-end"><i class="bi bi-tag me-1"></i>Prix Unit.</th>
                         <?php if ((float)$sale['discount_amount'] > 0): ?>
-                        <th class="text-end">Remise</th>
+                        <th class="text-end"><i class="bi bi-dash me-1"></i>Remise</th>
                         <?php endif; ?>
-                        <th class="text-end">Total</th>
+                        <th class="text-end"><i class="bi bi-currency-dollar me-1"></i>Total</th>
                     </tr>
                 </thead>
                 <tbody>

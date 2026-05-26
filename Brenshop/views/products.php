@@ -76,14 +76,17 @@ require_once __DIR__ . '/layout_top.php';
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div class="d-flex gap-2 align-items-center flex-wrap">
         <form method="GET" class="d-flex gap-2">
-            <input type="text" name="search" value="<?= e($search) ?>" class="form-control form-control-sm" placeholder="Rechercher..." style="width:200px;border-radius:8px">
+            <div class="input-group input-group-sm" style="width:200px">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" name="search" value="<?= e($search) ?>" class="form-control" placeholder="Rechercher..." style="border-radius:0 8px 8px 0">
+            </div>
             <select name="category" class="form-select form-select-sm" style="width:160px;border-radius:8px">
                 <option value="0">Toutes catégories</option>
                 <?php foreach ($categories as $c): ?>
                 <option value="<?= $c['id'] ?>" <?= $c['id'] == $categoryId ? 'selected' : '' ?>><?= e($c['name']) ?></option>
                 <?php endforeach; ?>
             </select>
-            <button type="submit" class="btn btn-sm btn-outline-primary" style="border-radius:8px">Filtrer</button>
+            <button type="submit" class="btn btn-sm btn-outline-primary" style="border-radius:8px"><i class="bi bi-funnel me-1"></i>Filtrer</button>
         </form>
     </div>
     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#productModal" style="border-radius:8px">
@@ -101,13 +104,13 @@ require_once __DIR__ . '/layout_top.php';
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th class="ps-3">Produit</th>
-                        <th>Catégorie</th>
-                        <th>Code-barres</th>
-                        <th class="text-end">Prix Achat</th>
-                        <th class="text-end">Prix Vente</th>
-                        <th class="text-end">Stock Total</th>
-                        <th class="text-center pe-3">Actions</th>
+                        <th class="ps-3"><i class="bi bi-box me-1"></i>Produit</th>
+                        <th><i class="bi bi-tags me-1"></i>Catégorie</th>
+                        <th><i class="bi bi-upc-scan me-1"></i>Code-barres</th>
+                        <th class="text-end"><i class="bi bi-cash me-1"></i>Prix Achat</th>
+                        <th class="text-end"><i class="bi bi-tag me-1"></i>Prix Vente</th>
+                        <th class="text-end"><i class="bi bi-archive me-1"></i>Stock Total</th>
+                        <th class="text-center pe-3"><i class="bi bi-gear me-1"></i>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -128,7 +131,7 @@ require_once __DIR__ . '/layout_top.php';
                                 </div>
                             </div>
                         </td>
-                        <td><span class="badge" style="background:rgba(99,102,241,0.1);color:var(--accent);font-size:.72rem"><?= e($p['category_name'] ?? 'Sans catégorie') ?></span></td>
+                        <td><span class="badge" style="background:rgba(99,102,241,0.1);color:var(--accent);font-size:.72rem"><i class="bi bi-tag me-1"></i><?= e($p['category_name'] ?? 'Sans catégorie') ?></span></td>
                         <td style="font-size:.82rem;font-family:monospace"><?= e($p['barcode'] ?? '—') ?></td>
                         <td class="text-end" style="font-size:.85rem"><?= formatMoney((float)$p['cost_price']) ?></td>
                         <td class="text-end" style="font-size:.85rem;font-weight:600;color:var(--accent)"><?= formatMoney((float)$p['selling_price']) ?></td>
@@ -155,7 +158,7 @@ require_once __DIR__ . '/layout_top.php';
                     </tr>
                     <?php endforeach; ?>
                     <?php if (empty($products)): ?>
-                    <tr><td colspan="7" class="text-center py-4 text-muted">Aucun produit trouvé</td></tr>
+                    <tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-box-seam d-block" style="font-size:2rem;opacity:.2"></i>Aucun produit trouvé</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -189,7 +192,7 @@ require_once __DIR__ . '/layout_top.php';
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content" style="border-radius:16px;border:none">
             <div class="modal-header border-0">
-                <h5 class="modal-title" id="productModalTitle" style="font-family:Syne,sans-serif;font-weight:700">Nouveau Produit</h5>
+                <h5 class="modal-title" id="productModalTitle" style="font-family:Syne,sans-serif;font-weight:700"><i class="bi bi-plus-circle me-2"></i>Nouveau Produit</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" enctype="multipart/form-data">
@@ -198,11 +201,11 @@ require_once __DIR__ . '/layout_top.php';
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-8">
-                            <label class="form-label fw-semibold">Nom du produit <span class="text-danger">*</span></label>
+                            <label class="form-label fw-semibold"><i class="bi bi-type me-1"></i>Nom du produit <span class="text-danger">*</span></label>
                             <input type="text" name="name" id="pName" class="form-control" required style="border-radius:8px">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Catégorie</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-tags me-1"></i>Catégorie</label>
                             <select name="category_id" id="pCategory" class="form-select" style="border-radius:8px">
                                 <option value="">Sans catégorie</option>
                                 <?php foreach ($categories as $c): ?>
@@ -211,15 +214,15 @@ require_once __DIR__ . '/layout_top.php';
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Code-barres</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-upc-scan me-1"></i>Code-barres</label>
                             <input type="text" name="barcode" id="pBarcode" class="form-control" style="border-radius:8px;font-family:monospace">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">SKU / Référence</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-hash me-1"></i>SKU / Référence</label>
                             <input type="text" name="sku" id="pSku" class="form-control" style="border-radius:8px">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Unité</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-rulers me-1"></i>Unité</label>
                             <select name="unit" id="pUnit" class="form-select" style="border-radius:8px">
                                 <option value="pcs">Pièce (pcs)</option>
                                 <option value="kg">Kilogramme (kg)</option>
@@ -232,29 +235,29 @@ require_once __DIR__ . '/layout_top.php';
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Prix d'achat (FCFA)</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-cash-coin me-1"></i>Prix d'achat (FCFA)</label>
                             <input type="number" name="cost_price" id="pCostPrice" class="form-control" min="0" step="1" style="border-radius:8px">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Prix de vente (FCFA) <span class="text-danger">*</span></label>
+                            <label class="form-label fw-semibold"><i class="bi bi-tag me-1"></i>Prix de vente (FCFA) <span class="text-danger">*</span></label>
                             <input type="number" name="selling_price" id="pSellingPrice" class="form-control" min="0" step="1" required style="border-radius:8px">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Alerte stock faible</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-exclamation-triangle me-1"></i>Alerte stock faible</label>
                             <input type="number" name="min_stock_alert" id="pMinStock" class="form-control" min="0" value="5" style="border-radius:8px">
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-semibold">Description</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-chat-left-text me-1"></i>Description</label>
                             <textarea name="description" id="pDesc" class="form-control" rows="2" style="border-radius:8px;resize:none"></textarea>
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-semibold">Image produit</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-image me-1"></i>Image produit</label>
                             <input type="file" name="image" class="form-control" accept="image/*" style="border-radius:8px">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
                     <button type="submit" class="btn btn-primary px-4" style="border-radius:8px">
                         <i class="bi bi-check-lg me-1"></i>Enregistrer
                     </button>
@@ -268,7 +271,7 @@ require_once __DIR__ . '/layout_top.php';
 $extraScript = <<<'SCRIPT'
 <script>
 function loadEdit(product) {
-    document.getElementById('productModalTitle').textContent = 'Modifier Produit';
+    document.getElementById('productModalTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Modifier Produit';
     document.getElementById('productId').value = product.id;
     document.getElementById('pName').value = product.name || '';
     document.getElementById('pBarcode').value = product.barcode || '';
@@ -282,7 +285,7 @@ function loadEdit(product) {
 }
 
 document.getElementById('productModal').addEventListener('hidden.bs.modal', function() {
-    document.getElementById('productModalTitle').textContent = 'Nouveau Produit';
+    document.getElementById('productModalTitle').innerHTML = '<i class="bi bi-plus-circle me-2"></i>Nouveau Produit';
     document.getElementById('productId').value = 0;
     this.querySelector('form').reset();
 });

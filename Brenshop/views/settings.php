@@ -128,22 +128,22 @@ $timezones = ['Africa/Douala','Africa/Yaounde','Africa/Bangui','Africa/Brazzavil
         <div class="settings-card-header"><i class="bi bi-building"></i><h6>Général</h6></div>
         <div class="settings-card-body">
             <div class="form-group">
-                <label>Nom de l'application</label>
+                <label><i class="bi bi-type me-1"></i>Nom de l'application</label>
                 <input type="text" name="app_name" class="form-control form-control-sm" style="border-radius:8px" value="<?= e($appSettings['app_name'] ?? 'POS System') ?>" required>
             </div>
             <div class="form-group">
-                <label>Sous-titre</label>
+                <label><i class="bi bi-chat-left-text me-1"></i>Sous-titre</label>
                 <input type="text" name="app_subtitle" class="form-control form-control-sm" style="border-radius:8px" value="<?= e($appSettings['app_subtitle'] ?? 'Gestion Commerciale') ?>">
             </div>
             <div class="form-group">
-                <label>Logo <span class="hint">(PNG, JPG, max 2MB)</span></label>
+                <label><i class="bi bi-image me-1"></i>Logo <span class="hint">(PNG, JPG, max 2MB)</span></label>
                 <?php if (!empty($appSettings['app_logo'])): ?>
                 <div class="logo-preview">
-                    <img src="<?= BASE_URL ?>/<?= e($appSettings['app_logo']) ?>" alt="Logo">
-                    <label class="btn btn-sm btn-outline-danger" style="border-radius:6px;font-size:.75rem">
-                        <input type="checkbox" name="remove_logo" value="1" style="display:none" onchange="this.parentElement.classList.toggle('active', this.checked)">
+                    <img src="<?= BASE_URL ?>/<?= e($appSettings['app_logo']) ?>" alt="Logo" id="logoPreviewImg">
+                    <input type="hidden" name="remove_logo" id="removeLogoInput" value="">
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="removeLogoBtn" style="border-radius:6px;font-size:.75rem" onclick="toggleRemoveLogo()">
                         <i class="bi bi-trash me-1"></i>Supprimer
-                    </label>
+                    </button>
                 </div>
                 <?php else: ?>
                 <div class="logo-preview">
@@ -153,11 +153,11 @@ $timezones = ['Africa/Douala','Africa/Yaounde','Africa/Bangui','Africa/Brazzavil
                 <input type="file" name="app_logo" accept="image/*" class="form-control form-control-sm" style="border-radius:8px">
             </div>
             <div class="form-group">
-                <label>Pied de ticket / reçu</label>
+                <label><i class="bi bi-receipt me-1"></i>Pied de ticket / reçu</label>
                 <input type="text" name="receipt_footer" class="form-control form-control-sm" style="border-radius:8px" value="<?= e($appSettings['receipt_footer'] ?? '') ?>" placeholder="Merci pour votre achat !">
             </div>
             <div class="form-group">
-                <label>Police des impressions <span class="hint">(factures &amp; tickets)</span></label>
+                <label><i class="bi bi-fonts me-1"></i>Police des impressions <span class="hint">(factures &amp; tickets)</span></label>
                 <select name="invoice_font" class="form-select form-select-sm" style="border-radius:8px">
                     <?php
                     $invoiceFonts = ['DM Mono','DM Sans','Inter','Poppins','Montserrat','Nunito','Rubik','Outfit','Space Grotesk','Manrope','Figtree','Courier Prime','Fira Code','JetBrains Mono','Source Code Pro'];
@@ -175,7 +175,7 @@ $timezones = ['Africa/Douala','Africa/Yaounde','Africa/Bangui','Africa/Brazzavil
         <div class="settings-card-header"><i class="bi bi-palette"></i><h6>Apparence</h6></div>
         <div class="settings-card-body">
             <div class="form-group">
-                <label>Thème</label>
+                <label><i class="bi bi-brush me-1"></i>Thème</label>
                 <select name="theme" class="form-select form-select-sm" style="border-radius:8px" onchange="applyTheme(this.value)">
                     <?php
                     $themes = [
@@ -205,7 +205,7 @@ $timezones = ['Africa/Douala','Africa/Yaounde','Africa/Bangui','Africa/Brazzavil
         <div class="settings-card-header"><i class="bi bi-cash-coin"></i><h6>Devise & Fiscal</h6></div>
         <div class="settings-card-body">
             <div class="form-group">
-                <label>Devise</label>
+                <label><i class="bi bi-currency-dollar me-1"></i>Devise</label>
                 <select name="currency_code" id="currency_code" class="form-select form-select-sm" style="border-radius:8px" onchange="autoFillCurrency(this.value)">
                     <?php foreach ($currencies as $code => $label): ?>
                     <option value="<?= $code ?>" <?= ($appSettings['currency_code'] ?? 'XAF') === $code ? 'selected' : '' ?>><?= $code ?> — <?= $label ?></option>
@@ -215,23 +215,23 @@ $timezones = ['Africa/Douala','Africa/Yaounde','Africa/Bangui','Africa/Brazzavil
             <div class="row g-2">
                 <div class="col-4">
                     <div class="form-group">
-                        <label>Symbole</label>
+                        <label><i class="bi bi-tag me-1"></i>Symbole</label>
                         <input type="text" name="currency_symbol" id="currency_symbol" class="form-control form-control-sm" style="border-radius:8px" value="<?= e($appSettings['currency_symbol'] ?? 'FCFA') ?>">
                     </div>
                 </div>
                 <div class="col-8">
                     <div class="form-group">
-                        <label>Nom complet</label>
+                        <label><i class="bi bi-type me-1"></i>Nom complet</label>
                         <input type="text" name="currency_name" id="currency_name" class="form-control form-control-sm" style="border-radius:8px" value="<?= e($appSettings['currency_name'] ?? 'Franc CFA BEAC') ?>">
                     </div>
                 </div>
             </div>
             <div class="form-group">
-                <label>Taux TVA (%)</label>
+                <label><i class="bi bi-percent me-1"></i>Taux TVA (%)</label>
                 <input type="number" name="tax_rate" min="0" max="100" step="0.01" class="form-control form-control-sm" style="border-radius:8px" value="<?= e($appSettings['tax_rate'] ?? '19.25') ?>">
             </div>
             <div class="form-group">
-                <label>Fuseau horaire</label>
+                <label><i class="bi bi-clock me-1"></i>Fuseau horaire</label>
                 <select name="timezone" class="form-select form-select-sm" style="border-radius:8px">
                     <?php foreach ($timezones as $tz): ?>
                     <option value="<?= $tz ?>" <?= ($appSettings['timezone'] ?? 'Africa/Douala') === $tz ? 'selected' : '' ?>><?= str_replace('_', ' ', $tz) ?></option>
@@ -247,6 +247,25 @@ $timezones = ['Africa/Douala','Africa/Yaounde','Africa/Bangui','Africa/Brazzavil
 <?php require_once __DIR__ . '/layout_bottom.php'; ?>
 
 <script>
+let removeLogoChecked = false;
+function toggleRemoveLogo() {
+    removeLogoChecked = !removeLogoChecked;
+    const btn = document.getElementById('removeLogoBtn');
+    const input = document.getElementById('removeLogoInput');
+    const img = document.getElementById('logoPreviewImg');
+    input.value = removeLogoChecked ? '1' : '';
+    btn.classList.toggle('active', removeLogoChecked);
+    if (removeLogoChecked) {
+        btn.classList.remove('btn-outline-danger');
+        btn.classList.add('btn-danger');
+        img.style.opacity = '0.3';
+    } else {
+        btn.classList.add('btn-outline-danger');
+        btn.classList.remove('btn-danger');
+        img.style.opacity = '1';
+    }
+}
+
 const currencyMap = {
     XAF:  { symbol: 'FCFA', name: 'Franc CFA BEAC' },
 };

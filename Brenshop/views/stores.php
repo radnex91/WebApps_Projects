@@ -57,7 +57,7 @@ require_once __DIR__ . '/layout_top.php';
                         <div style="font-size:.78rem;margin-top:.4rem"><?= e($s['phone'] ?? '') ?> <?= $s['email'] ? '• '.e($s['email']) : '' ?></div>
                         <div style="font-size:.75rem;color:var(--text-muted);margin-top:.3rem">Devise: <strong><?= e($s['currency']) ?></strong> — TVA: <strong><?= $s['tax_rate'] ?>%</strong></div>
                     </div>
-                    <span class="badge bg-success" style="font-size:.68rem">Actif</span>
+                    <span class="badge bg-success" style="font-size:.68rem"><i class="bi bi-check-circle me-1"></i>Actif</span>
                 </div>
                 <div class="d-flex gap-2 mt-3">
                     <button class="btn btn-sm btn-outline-primary flex-1" data-bs-toggle="modal" data-bs-target="#storeModal" onclick='loadStoreEdit(<?= htmlspecialchars(json_encode($s)) ?>)' style="border-radius:6px;font-size:.75rem">
@@ -76,24 +76,24 @@ require_once __DIR__ . '/layout_top.php';
 <div class="modal fade" id="storeModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius:16px;border:none">
-            <div class="modal-header border-0"><h5 class="modal-title" id="storeModalTitle" style="font-family:Syne,sans-serif;font-weight:700">Nouvelle Boutique</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header border-0"><h5 class="modal-title" id="storeModalTitle" style="font-family:Syne,sans-serif;font-weight:700"><i class="bi bi-plus-circle me-2"></i>Nouvelle Boutique</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                 <input type="hidden" name="id" id="storeId" value="0">
                 <div class="modal-body">
                     <div class="row g-2">
-                        <div class="col-8"><label class="form-label fw-semibold">Nom *</label><input type="text" name="name" id="sName" class="form-control" required style="border-radius:8px"></div>
-                        <div class="col-4"><label class="form-label fw-semibold">Code <span class="text-muted" style="font-weight:400;font-size:.72rem">(factures)</span></label><input type="text" name="code" id="sCode" class="form-control" maxlength="10" placeholder="BA" style="border-radius:8px;text-transform:uppercase"></div>
-                        <div class="col-12"><label class="form-label fw-semibold">Adresse</label><input type="text" name="address" id="sAddr" class="form-control" style="border-radius:8px"></div>
-                        <div class="col-6"><label class="form-label fw-semibold">Téléphone</label><input type="text" name="phone" id="sPhone" class="form-control" style="border-radius:8px"></div>
-                        <div class="col-6"><label class="form-label fw-semibold">Email</label><input type="email" name="email" id="sEmail" class="form-control" style="border-radius:8px"></div>
-                        <div class="col-6"><label class="form-label fw-semibold">Devise</label><input type="text" name="currency" id="sCurrency" class="form-control" value="FCFA" style="border-radius:8px"></div>
-                        <div class="col-6"><label class="form-label fw-semibold">TVA (%)</label><input type="number" name="tax_rate" id="sTax" class="form-control" value="18" min="0" step="0.01" style="border-radius:8px"></div>
+                        <div class="col-8"><label class="form-label fw-semibold"><i class="bi bi-type me-1"></i>Nom *</label><input type="text" name="name" id="sName" class="form-control" required style="border-radius:8px"></div>
+                        <div class="col-4"><label class="form-label fw-semibold"><i class="bi bi-hash me-1"></i>Code <span class="text-muted" style="font-weight:400;font-size:.72rem">(factures)</span></label><input type="text" name="code" id="sCode" class="form-control" maxlength="10" placeholder="BA" style="border-radius:8px;text-transform:uppercase"></div>
+                        <div class="col-12"><label class="form-label fw-semibold"><i class="bi bi-geo-alt me-1"></i>Adresse</label><input type="text" name="address" id="sAddr" class="form-control" style="border-radius:8px"></div>
+                        <div class="col-6"><label class="form-label fw-semibold"><i class="bi bi-telephone me-1"></i>Téléphone</label><input type="text" name="phone" id="sPhone" class="form-control" style="border-radius:8px"></div>
+                        <div class="col-6"><label class="form-label fw-semibold"><i class="bi bi-envelope me-1"></i>Email</label><input type="email" name="email" id="sEmail" class="form-control" style="border-radius:8px"></div>
+                        <div class="col-6"><label class="form-label fw-semibold"><i class="bi bi-cash-coin me-1"></i>Devise</label><input type="text" name="currency" id="sCurrency" class="form-control" value="FCFA" style="border-radius:8px"></div>
+                        <div class="col-6"><label class="form-label fw-semibold"><i class="bi bi-percent me-1"></i>TVA (%)</label><input type="number" name="tax_rate" id="sTax" class="form-control" value="18" min="0" step="0.01" style="border-radius:8px"></div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px">Enregistrer</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
+                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px"><i class="bi bi-check-lg me-1"></i>Enregistrer</button>
                 </div>
             </form>
         </div>

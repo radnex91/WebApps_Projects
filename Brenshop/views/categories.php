@@ -80,27 +80,27 @@ require_once __DIR__ . '/layout_top.php';
 <div class="modal fade" id="catModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius:16px;border:none">
-            <div class="modal-header border-0"><h5 class="modal-title" id="catModalTitle" style="font-family:Syne,sans-serif;font-weight:700">Nouvelle Catégorie</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header border-0"><h5 class="modal-title" id="catModalTitle" style="font-family:Syne,sans-serif;font-weight:700"><i class="bi bi-plus-circle me-2"></i>Nouvelle Catégorie</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                 <input type="hidden" name="id" id="catId" value="0">
                 <div class="modal-body">
                     <div class="row g-2">
-                        <div class="col-8"><label class="form-label fw-semibold">Nom *</label><input type="text" name="name" id="catName" class="form-control" required style="border-radius:8px"></div>
+                        <div class="col-8"><label class="form-label fw-semibold"><i class="bi bi-type me-1"></i>Nom *</label><input type="text" name="name" id="catName" class="form-control" required style="border-radius:8px"></div>
                         <div class="col-4">
-                            <label class="form-label fw-semibold">Couleur</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-palette me-1"></i>Couleur</label>
                             <input type="color" name="color" id="catColor" class="form-control form-control-color w-100" value="#3B82F6" style="border-radius:8px;height:38px">
                         </div>
-                        <div class="col-12"><label class="form-label fw-semibold">Icône Bootstrap</label>
+                        <div class="col-12"><label class="form-label fw-semibold"><i class="bi bi-code-slash me-1"></i>Icône Bootstrap</label>
                             <input type="text" name="icon" id="catIcon" class="form-control" value="box" style="border-radius:8px" placeholder="box, tag, cpu, droplet...">
                             <div class="form-text">Nom d'icône <a href="https://icons.getbootstrap.com" target="_blank">Bootstrap Icons</a></div>
                         </div>
-                        <div class="col-12"><label class="form-label fw-semibold">Description</label><textarea name="description" id="catDesc" class="form-control" rows="2" style="border-radius:8px;resize:none"></textarea></div>
+                        <div class="col-12"><label class="form-label fw-semibold"><i class="bi bi-chat-left-text me-1"></i>Description</label><textarea name="description" id="catDesc" class="form-control" rows="2" style="border-radius:8px;resize:none"></textarea></div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px">Enregistrer</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
+                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px"><i class="bi bi-check-lg me-1"></i>Enregistrer</button>
                 </div>
             </form>
         </div>

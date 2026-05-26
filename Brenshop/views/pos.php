@@ -105,10 +105,10 @@ require_once __DIR__ . '/layout_top.php';
 
 <!-- Mini Dashboard -->
 <div class="pos-dashboard" id="posDashboard">
-    <div class="dash-card"><div class="dash-label">Ventes</div><div class="dash-value">—</div></div>
-    <div class="dash-card"><div class="dash-label">Revenu</div><div class="dash-value accent">—</div></div>
-    <div class="dash-card"><div class="dash-label">Panier Moy</div><div class="dash-value">—</div></div>
-    <div class="dash-card"><div class="dash-label">Articles</div><div class="dash-value">—</div></div>
+    <div class="dash-card"><div class="dash-label"><i class="bi bi-receipt me-1"></i>Ventes</div><div class="dash-value">—</div></div>
+    <div class="dash-card"><div class="dash-label"><i class="bi bi-currency-dollar me-1"></i>Revenu</div><div class="dash-value accent">—</div></div>
+    <div class="dash-card"><div class="dash-label"><i class="bi bi-bag me-1"></i>Panier Moy</div><div class="dash-value">—</div></div>
+    <div class="dash-card"><div class="dash-label"><i class="bi bi-box me-1"></i>Articles</div><div class="dash-value">—</div></div>
 </div>
 
 <div class="pos-layout">
@@ -167,13 +167,13 @@ require_once __DIR__ . '/layout_top.php';
     <div class="cart-payment" id="cartPayment">
         <div class="payment-row">
             <select id="paymentMethod" onchange="POS.onPaymentMethodChange()">
-                <option value="cash">Especes</option>
-                <option value="mobile_money">Mobile Money</option>
-                <option value="credit">Credit</option>
+                <option value="cash">💵 Espèces</option>
+                <option value="mobile_money">📱 Mobile Money</option>
+                <option value="credit">💳 Crédit</option>
             </select>
             <select id="mobileProvider" class="d-none" style="flex:1;font-size:.75rem;padding:5px 6px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:6px;font-weight:600">
-                <option value="orange_money">Orange Money</option>
-                <option value="momo">MoMo</option>
+                <option value="orange_money">🟠 Orange Money</option>
+                <option value="momo">🔵 MoMo</option>
             </select>
         </div>
         <div class="payment-row" id="paidRow">
@@ -216,7 +216,7 @@ require_once __DIR__ . '/layout_top.php';
             </div>
         </div>
         <div class="cat-chips">
-            <button class="cat-chip active" data-cat="0" onclick="POS.filterCat(0, this)">Tout</button>
+            <button class="cat-chip active" data-cat="0" onclick="POS.filterCat(0, this)"><i class="bi bi-grid me-1"></i>Tout</button>
             <?php foreach ($categories as $cat): ?>
             <button class="cat-chip" data-cat="<?= $cat['id'] ?>" onclick="POS.filterCat(<?= $cat['id'] ?>, this)" style="--cat-color: <?= $catColors[$cat['id']] ?>"><?= e($cat['name']) ?></button>
             <?php endforeach; ?>
@@ -230,8 +230,8 @@ require_once __DIR__ . '/layout_top.php';
                 <tr>
                     <th style="width:36px"></th>
                     <th>Produit</th>
-                    <th style="width:100px">Stock</th>
-                    <th style="width:110px">Prix</th>
+                    <th style="width:100px"><i class="bi bi-archive me-1"></i>Stock</th>
+                    <th style="width:110px"><i class="bi bi-tag me-1"></i>Prix</th>
                 </tr>
             </thead>
             <tbody id="productsTbody">

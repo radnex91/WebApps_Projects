@@ -96,7 +96,7 @@ require_once __DIR__ . '/layout_top.php';
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-sm mb-0">
-                <thead><tr><th class="ps-3">Produit</th><th>Magasin</th><th class="text-end">Stock Actuel</th><th class="text-end pe-3">Seuil Alerte</th></tr></thead>
+                <thead><tr><th class="ps-3"><i class="bi bi-box me-1"></i>Produit</th><th><i class="bi bi-building me-1"></i>Magasin</th><th class="text-end"><i class="bi bi-archive me-1"></i>Stock Actuel</th><th class="text-end pe-3"><i class="bi bi-exclamation-triangle me-1"></i>Seuil Alerte</th></tr></thead>
                 <tbody>
                     <?php foreach (array_slice($lowStock, 0, $filterLow ? 100 : 5) as $a): ?>
                     <tr>
@@ -126,11 +126,11 @@ require_once __DIR__ . '/layout_top.php';
                     <table class="table table-hover mb-0">
                         <thead class="sticky-top" style="background:#fff">
                             <tr>
-                                <th class="ps-3">Produit</th>
-                                <th>Catégorie</th>
-                                <th>Code</th>
-                                <th class="text-end">Quantité</th>
-                                <th class="text-end pe-3">Valeur Stock</th>
+                                <th class="ps-3"><i class="bi bi-box me-1"></i>Produit</th>
+                                <th><i class="bi bi-tags me-1"></i>Catégorie</th>
+                                <th><i class="bi bi-upc-scan me-1"></i>Code</th>
+                                <th class="text-end"><i class="bi bi-stack me-1"></i>Quantité</th>
+                                <th class="text-end pe-3"><i class="bi bi-currency-dollar me-1"></i>Valeur Stock</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -149,7 +149,7 @@ require_once __DIR__ . '/layout_top.php';
                             </tr>
                             <?php endforeach; ?>
                             <?php if (empty($stockItems)): ?>
-                            <tr><td colspan="5" class="text-center py-4 text-muted">Aucun stock enregistré</td></tr>
+                            <tr><td colspan="5" class="text-center py-4 text-muted"><i class="bi bi-inbox d-block" style="font-size:2rem;opacity:.2"></i>Aucun stock enregistré</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -190,7 +190,7 @@ require_once __DIR__ . '/layout_top.php';
                 </div>
                 <?php endforeach; ?>
                 <?php if (empty($movements)): ?>
-                <div class="text-center py-4 text-muted" style="font-size:.85rem">Aucun mouvement</div>
+                <div class="text-center py-4 text-muted" style="font-size:.85rem"><i class="bi bi-clock-history d-block" style="font-size:2rem;opacity:.2"></i>Aucun mouvement</div>
                 <?php endif; ?>
             </div>
         </div>
@@ -265,22 +265,22 @@ require_once __DIR__ . '/layout_top.php';
 
                     <div class="row g-2">
                         <div class="col-6">
-                            <label class="form-label fw-semibold">Quantité</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-hash me-1"></i>Quantité</label>
                             <input type="number" name="quantity" id="addStockQty" class="form-control" min="0.01" step="0.01" required style="border-radius:8px">
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-semibold">Prix unitaire (coût)</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-cash-coin me-1"></i>Prix unitaire (coût)</label>
                             <input type="number" name="unit_cost" id="addStockCost" class="form-control" min="0" step="1" style="border-radius:8px" placeholder="0">
                         </div>
                     </div>
                     <div class="mt-2">
-                        <label class="form-label fw-semibold">Note</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-chat-left-text me-1"></i>Note</label>
                         <input type="text" name="note" class="form-control" style="border-radius:8px" placeholder="Fournisseur, référence bon de livraison...">
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-success px-4" style="border-radius:8px" id="addStockSubmit" disabled>Ajouter au stock</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
+                    <button type="submit" class="btn btn-success px-4" style="border-radius:8px" id="addStockSubmit" disabled><i class="bi bi-plus-circle me-1"></i>Ajouter au stock</button>
                 </div>
             </form>
         </div>
@@ -510,7 +510,7 @@ require_once __DIR__ . '/layout_top.php';
                 <input type="hidden" name="warehouse_id" value="<?= $warehouseId ?>">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Produit</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-box me-1"></i>Produit</label>
                         <select name="product_id" class="form-select" required style="border-radius:8px">
                             <option value="">Sélectionner un produit...</option>
                             <?php foreach ($stockItems as $s): ?>
@@ -519,17 +519,17 @@ require_once __DIR__ . '/layout_top.php';
                         </select>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label fw-semibold">Quantité à retirer</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-hash me-1"></i>Quantité à retirer</label>
                         <input type="number" name="quantity" class="form-control" min="0.01" step="0.01" required style="border-radius:8px">
                     </div>
                     <div>
-                        <label class="form-label fw-semibold">Motif</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-chat-left-text me-1"></i>Motif</label>
                         <input type="text" name="note" class="form-control" style="border-radius:8px" placeholder="Casse, perte, usage interne...">
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-danger px-4" style="border-radius:8px">Retirer du stock</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
+                    <button type="submit" class="btn btn-danger px-4" style="border-radius:8px"><i class="bi bi-dash-circle me-1"></i>Retirer du stock</button>
                 </div>
             </form>
         </div>
@@ -551,7 +551,7 @@ require_once __DIR__ . '/layout_top.php';
                 <div class="modal-body">
                     <p class="text-muted small">Définissez la nouvelle quantité réelle (après inventaire physique).</p>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Produit</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-box me-1"></i>Produit</label>
                         <select name="product_id" class="form-select" required style="border-radius:8px">
                             <option value="">Sélectionner un produit...</option>
                             <?php foreach ($stockItems as $s): ?>
@@ -560,17 +560,17 @@ require_once __DIR__ . '/layout_top.php';
                         </select>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label fw-semibold">Nouvelle quantité réelle</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-hash me-1"></i>Nouvelle quantité réelle</label>
                         <input type="number" name="quantity" class="form-control" min="0" step="0.01" required style="border-radius:8px">
                     </div>
                     <div>
-                        <label class="form-label fw-semibold">Motif de l'ajustement</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-chat-left-text me-1"></i>Motif de l'ajustement</label>
                         <input type="text" name="note" class="form-control" style="border-radius:8px" placeholder="Inventaire physique du XX/XX/XXXX...">
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-warning px-4" style="border-radius:8px">Ajuster le stock</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
+                    <button type="submit" class="btn btn-warning px-4" style="border-radius:8px"><i class="bi bi-sliders me-1"></i>Ajuster le stock</button>
                 </div>
             </form>
         </div>

@@ -61,7 +61,7 @@ require_once __DIR__ . '/layout_top.php';
     <div class="card-body py-2 px-3">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-auto">
-                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600">Période</label>
+                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600"><i class="bi bi-calendar-range me-1"></i>Période</label>
                 <div class="d-flex gap-2">
                     <input type="date" name="date_from" value="<?= e($dateFrom) ?>" class="form-control form-control-sm" style="border-radius:8px">
                     <span class="d-flex align-items-center text-muted">→</span>
@@ -69,7 +69,7 @@ require_once __DIR__ . '/layout_top.php';
                 </div>
             </div>
             <div class="col-auto">
-                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600">Année</label>
+                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600"><i class="bi bi-calendar me-1"></i>Année</label>
                 <select name="year" class="form-select form-select-sm" style="border-radius:8px">
                     <?php for ($y = date('Y'); $y >= date('Y') - 3; $y--): ?>
                     <option value="<?= $y ?>" <?= $y == $year ? 'selected' : '' ?>><?= $y ?></option>
@@ -77,13 +77,13 @@ require_once __DIR__ . '/layout_top.php';
                 </select>
             </div>
             <div class="col-auto">
-                <button type="submit" class="btn btn-sm btn-primary" style="border-radius:8px">Appliquer</button>
+                <button type="submit" class="btn btn-sm btn-primary" style="border-radius:8px"><i class="bi bi-check me-1"></i>Appliquer</button>
             </div>
             <div class="col-auto ms-auto">
                 <div class="btn-group btn-group-sm">
-                    <a href="?date_from=<?= date('Y-m-d') ?>&date_to=<?= date('Y-m-d') ?>&year=<?= $year ?>" class="btn btn-outline-secondary" style="font-size:.72rem">Aujourd'hui</a>
-                    <a href="?date_from=<?= date('Y-m-01') ?>&date_to=<?= date('Y-m-d') ?>&year=<?= $year ?>" class="btn btn-outline-secondary" style="font-size:.72rem">Ce mois</a>
-                    <a href="?date_from=<?= date('Y-01-01') ?>&date_to=<?= date('Y-12-31') ?>&year=<?= $year ?>" class="btn btn-outline-secondary" style="font-size:.72rem">Cette année</a>
+                    <a href="?date_from=<?= date('Y-m-d') ?>&date_to=<?= date('Y-m-d') ?>&year=<?= $year ?>" class="btn btn-outline-secondary" style="font-size:.72rem"><i class="bi bi-calendar-event me-1"></i>Aujourd'hui</a>
+                    <a href="?date_from=<?= date('Y-m-01') ?>&date_to=<?= date('Y-m-d') ?>&year=<?= $year ?>" class="btn btn-outline-secondary" style="font-size:.72rem"><i class="bi bi-calendar-month me-1"></i>Ce mois</a>
+                    <a href="?date_from=<?= date('Y-01-01') ?>&date_to=<?= date('Y-12-31') ?>&year=<?= $year ?>" class="btn btn-outline-secondary" style="font-size:.72rem"><i class="bi bi-calendar2 me-1"></i>Cette année</a>
                 </div>
             </div>
         </form>
@@ -191,7 +191,7 @@ require_once __DIR__ . '/layout_top.php';
                 </div>
                 <?php endforeach; ?>
                 <?php if (empty($topProducts)): ?>
-                <div class="text-center py-4 text-muted" style="font-size:.85rem">Aucune vente sur cette période</div>
+                <div class="text-center py-4 text-muted" style="font-size:.85rem"><i class="bi bi-inbox d-block" style="font-size:2rem;opacity:.2"></i>Aucune vente sur cette période</div>
                 <?php endif; ?>
             </div>
         </div>

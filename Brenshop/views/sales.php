@@ -80,20 +80,20 @@ require_once __DIR__ . '/layout_top.php';
     <div class="card-body py-2 px-3">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-auto">
-                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600">Recherche</label>
+                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600"><i class="bi bi-search me-1"></i>Recherche</label>
                 <input type="text" name="search" value="<?= e($search) ?>" class="form-control form-control-sm" placeholder="N° facture, client..." style="border-radius:8px;width:200px">
             </div>
             <div class="col-auto">
-                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600">Du</label>
+                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600"><i class="bi bi-calendar me-1"></i>Du</label>
                 <input type="date" name="date_from" value="<?= e($dateFrom) ?>" class="form-control form-control-sm" style="border-radius:8px">
             </div>
             <div class="col-auto">
-                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600">Au</label>
+                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600"><i class="bi bi-calendar me-1"></i>Au</label>
                 <input type="date" name="date_to" value="<?= e($dateTo) ?>" class="form-control form-control-sm" style="border-radius:8px">
             </div>
             <?php if ($canViewAll): ?>
             <div class="col-auto">
-                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600">Caissier</label>
+                <label class="form-label mb-1" style="font-size:.75rem;font-weight:600"><i class="bi bi-person me-1"></i>Caissier</label>
                 <select name="user_id" class="form-select form-select-sm" style="border-radius:8px">
                     <option value="">Tous</option>
                     <?php foreach ($cashiers as $c): ?>
@@ -103,15 +103,15 @@ require_once __DIR__ . '/layout_top.php';
             </div>
             <?php endif; ?>
             <div class="col-auto d-flex gap-2">
-                <button type="submit" class="btn btn-sm btn-primary" style="border-radius:8px">Filtrer</button>
-                <a href="?" class="btn btn-sm btn-outline-secondary" style="border-radius:8px">Réinitialiser</a>
+                <button type="submit" class="btn btn-sm btn-primary" style="border-radius:8px"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+                <a href="?" class="btn btn-sm btn-outline-secondary" style="border-radius:8px"><i class="bi bi-arrow-counterclockwise me-1"></i>Réinitialiser</a>
             </div>
             <div class="col-auto ms-auto text-end">
                 <!-- Quick date filters -->
                 <div class="btn-group btn-group-sm">
-                    <a href="?date_from=<?= date('Y-m-d') ?>&date_to=<?= date('Y-m-d') ?><?= $filterUserId ? '&user_id='.$filterUserId : '' ?>" class="btn btn-outline-secondary" style="font-size:.72rem">Aujourd'hui</a>
-                    <a href="?date_from=<?= date('Y-m-d', strtotime('monday this week')) ?>&date_to=<?= date('Y-m-d') ?><?= $filterUserId ? '&user_id='.$filterUserId : '' ?>" class="btn btn-outline-secondary" style="font-size:.72rem">Cette semaine</a>
-                    <a href="?date_from=<?= date('Y-m-01') ?>&date_to=<?= date('Y-m-d') ?><?= $filterUserId ? '&user_id='.$filterUserId : '' ?>" class="btn btn-outline-secondary" style="font-size:.72rem">Ce mois</a>
+                    <a href="?date_from=<?= date('Y-m-d') ?>&date_to=<?= date('Y-m-d') ?><?= $filterUserId ? '&user_id='.$filterUserId : '' ?>" class="btn btn-outline-secondary" style="font-size:.72rem"><i class="bi bi-calendar-event me-1"></i>Aujourd'hui</a>
+                    <a href="?date_from=<?= date('Y-m-d', strtotime('monday this week')) ?>&date_to=<?= date('Y-m-d') ?><?= $filterUserId ? '&user_id='.$filterUserId : '' ?>" class="btn btn-outline-secondary" style="font-size:.72rem"><i class="bi bi-calendar-week me-1"></i>Cette semaine</a>
+                    <a href="?date_from=<?= date('Y-m-01') ?>&date_to=<?= date('Y-m-d') ?><?= $filterUserId ? '&user_id='.$filterUserId : '' ?>" class="btn btn-outline-secondary" style="font-size:.72rem"><i class="bi bi-calendar-month me-1"></i>Ce mois</a>
                 </div>
             </div>
         </form>
@@ -160,21 +160,21 @@ require_once __DIR__ . '/layout_top.php';
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th class="ps-3">Facture</th>
-                        <th>Date & Heure</th>
-                        <th>Caissier</th>
-                        <th>Magasin</th>
-                        <th>Client</th>
-                        <th>Paiement</th>
-                        <th class="text-end">Total</th>
-                        <th class="text-center">Statut</th>
-                        <th class="text-center pe-3">Actions</th>
+                        <th class="ps-3"><i class="bi bi-file-earmark-text me-1"></i>Facture</th>
+                        <th><i class="bi bi-calendar me-1"></i>Date & Heure</th>
+                        <th><i class="bi bi-person me-1"></i>Caissier</th>
+                        <th><i class="bi bi-building me-1"></i>Magasin</th>
+                        <th><i class="bi bi-people me-1"></i>Client</th>
+                        <th><i class="bi bi-credit-card me-1"></i>Paiement</th>
+                        <th class="text-end"><i class="bi bi-currency-dollar me-1"></i>Total</th>
+                        <th class="text-center"><i class="bi bi-flag me-1"></i>Statut</th>
+                        <th class="text-center pe-3"><i class="bi bi-gear me-1"></i>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($sales as $sale): ?>
                     <?php
-                    $methodLabels = ['cash' => 'Espèces', 'mobile_money' => 'Mobile Money', 'orange_money' => 'Orange Money', 'momo' => 'MoMo', 'card' => 'Carte', 'credit' => 'Crédit', 'mixed' => 'Mixte'];
+                    $methodLabels = ['cash' => '<i class="bi bi-cash me-1"></i>Espèces', 'mobile_money' => '<i class="bi bi-phone me-1"></i>Mobile Money', 'orange_money' => '<i class="bi bi-phone me-1"></i>Orange Money', 'momo' => '<i class="bi bi-phone me-1"></i>MoMo', 'card' => '<i class="bi bi-credit-card me-1"></i>Carte', 'credit' => '<i class="bi bi-credit-card me-1"></i>Crédit', 'mixed' => 'Mixte'];
                     $methodColors = ['cash' => '#10B981', 'mobile_money' => '#6366F1', 'card' => '#F59E0B', 'credit' => '#EF4444', 'mixed' => '#8B5CF6'];
                     $method = $sale['payment_method'];
                     ?>
@@ -200,7 +200,7 @@ require_once __DIR__ . '/layout_top.php';
                         <td class="text-center">
                             <?php
                             $sc = ['completed' => 'success', 'pending' => 'warning', 'cancelled' => 'secondary', 'refunded' => 'info'];
-                            $sl = ['completed' => 'Complété', 'pending' => 'En attente', 'cancelled' => 'Annulé', 'refunded' => 'Remboursé'];
+                            $sl = ['completed' => '<i class="bi bi-check-circle me-1"></i>Complété', 'pending' => '<i class="bi bi-clock me-1"></i>En attente', 'cancelled' => '<i class="bi bi-x-circle me-1"></i>Annulé', 'refunded' => '<i class="bi bi-arrow-counterclockwise me-1"></i>Remboursé'];
                             ?>
                             <span class="badge bg-<?= $sc[$sale['status']] ?? 'secondary' ?>" style="font-size:.7rem">
                                 <?= $sl[$sale['status']] ?? $sale['status'] ?>
@@ -221,7 +221,7 @@ require_once __DIR__ . '/layout_top.php';
                     </tr>
                     <?php endforeach; ?>
                     <?php if (empty($sales)): ?>
-                    <tr><td colspan="9" class="text-center py-4 text-muted">Aucune vente trouvée</td></tr>
+                    <tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-receipt d-block" style="font-size:2rem;opacity:.2"></i>Aucune vente trouvée</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
