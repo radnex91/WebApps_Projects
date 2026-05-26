@@ -641,84 +641,89 @@
 
     <div class="sidebar-nav">
         <?php if (hasPermission('dashboard') || hasPermission('pos')): ?>
-        <div class="nav-section-label">Principal</div>
+        <div class="nav-section-label">🏠 Principal</div>
         <?php if (hasPermission('dashboard')): ?>
         <a href="<?= BASE_URL ?>/views/dashboard.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'dashboard.php') ? 'active' : '' ?>">
-            <i class="bi bi-grid-1x2"></i> Dashboard
+            <i class="bi bi-grid-1x2"></i> 📊 Dashboard
         </a>
         <?php endif; ?>
         <?php if (hasPermission('pos')): ?>
         <a href="<?= BASE_URL ?>/views/pos.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'pos.php') ? 'active' : '' ?>">
-            <i class="bi bi-bag-check"></i> Point de Vente
+            <i class="bi bi-bag-check"></i> 🛒 Point de Vente
         </a>
         <?php endif; ?>
         <?php endif; ?>
 
         <?php if (hasPermission('products') || hasPermission('categories') || hasPermission('stock_view') || hasPermission('transfers')): ?>
-        <div class="nav-section-label">Inventaire</div>
+        <div class="nav-section-label">📦 Inventaire</div>
         <?php if (hasPermission('products')): ?>
         <a href="<?= BASE_URL ?>/views/products.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'products.php') ? 'active' : '' ?>">
-            <i class="bi bi-box-seam"></i> Produits
+            <i class="bi bi-box-seam"></i> 📦 Produits
         </a>
         <?php endif; ?>
         <?php if (hasPermission('categories')): ?>
         <a href="<?= BASE_URL ?>/views/categories.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'categories.php') ? 'active' : '' ?>">
-            <i class="bi bi-tags"></i> Catégories
+            <i class="bi bi-tags"></i> 🏷️ Catégories
         </a>
         <?php endif; ?>
         <?php if (hasPermission('stock_view')): ?>
         <a href="<?= BASE_URL ?>/views/stock.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'stock.php') ? 'active' : '' ?>">
-            <i class="bi bi-bar-chart-steps"></i> Stock
+            <i class="bi bi-bar-chart-steps"></i> 📊 Stock
         </a>
         <?php endif; ?>
         <?php if (hasPermission('transfers')): ?>
         <a href="<?= BASE_URL ?>/views/transfers.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'transfers.php') ? 'active' : '' ?>">
-            <i class="bi bi-arrow-left-right"></i> Transferts
+            <i class="bi bi-arrow-left-right"></i> 🔄 Transferts
         </a>
         <?php endif; ?>
         <?php endif; ?>
 
         <?php if (hasPermission('sales') || hasPermission('customers')): ?>
-        <div class="nav-section-label">Ventes</div>
+        <div class="nav-section-label">💰 Ventes</div>
         <?php if (hasPermission('sales')): ?>
         <a href="<?= BASE_URL ?>/views/sales.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'sales.php') ? 'active' : '' ?>">
-            <i class="bi bi-receipt"></i> Historique Ventes
+            <i class="bi bi-receipt"></i> 🧾 Historique Ventes
         </a>
         <?php endif; ?>
         <?php if (hasPermission('customers')): ?>
         <a href="<?= BASE_URL ?>/views/customers.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'customers.php') ? 'active' : '' ?>">
-            <i class="bi bi-people"></i> Clients
+            <i class="bi bi-people"></i> 👥 Clients
         </a>
         <?php endif; ?>
         <?php endif; ?>
 
         <?php if (hasPermission('reports')): ?>
-        <div class="nav-section-label">Analyse</div>
+        <div class="nav-section-label">📈 Analyse</div>
         <a href="<?= BASE_URL ?>/views/reports.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'reports.php') ? 'active' : '' ?>">
-            <i class="bi bi-graph-up"></i> Rapports
+            <i class="bi bi-graph-up"></i> 📈 Rapports
         </a>
         <?php endif; ?>
 
         <?php if (hasPermission('stores') || hasPermission('warehouses') || hasPermission('users') || hasPermission('settings')): ?>
-        <div class="nav-section-label">Administration</div>
+        <div class="nav-section-label">⚙️ Administration</div>
         <?php if (hasPermission('stores')): ?>
         <a href="<?= BASE_URL ?>/views/stores.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'stores.php') ? 'active' : '' ?>">
-            <i class="bi bi-shop"></i> Boutiques
+            <i class="bi bi-shop"></i> 🏪 Boutiques
         </a>
         <?php endif; ?>
         <?php if (hasPermission('warehouses')): ?>
         <a href="<?= BASE_URL ?>/views/warehouses.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'warehouses.php') ? 'active' : '' ?>">
-            <i class="bi bi-building"></i> Magasins
+            <i class="bi bi-building"></i> 🏗️ Magasins
+        </a>
+        <?php endif; ?>
+        <?php if (hasPermission('caisses')): ?>
+        <a href="<?= BASE_URL ?>/views/caisses.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'caisses.php') ? 'active' : '' ?>">
+            <i class="bi bi-cash-register"></i> 💵 Caisses
         </a>
         <?php endif; ?>
         <?php if (hasPermission('users')): ?>
         <a href="<?= BASE_URL ?>/views/users.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'users.php') ? 'active' : '' ?>">
-            <i class="bi bi-person-gear"></i> Utilisateurs
+            <i class="bi bi-person-gear"></i> 👤 Utilisateurs
         </a>
         <?php endif; ?>
         <?php if (hasPermission('settings')): ?>
         <a href="<?= BASE_URL ?>/views/settings.php" class="<?= (basename($_SERVER['PHP_SELF']) === 'settings.php') ? 'active' : '' ?>">
-            <i class="bi bi-gear"></i> Paramètres
+            <i class="bi bi-gear"></i> ⚙️ Paramètres
         </a>
         <?php endif; ?>
         <?php endif; ?>
