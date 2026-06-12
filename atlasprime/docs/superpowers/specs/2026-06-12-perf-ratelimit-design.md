@@ -130,6 +130,8 @@ CREATE TABLE rate_limits (
 
 L'IP est hashée en SHA-256 pour la conformité RGPD. La clé unique sur (ip_hash, action, window_start) permet un upsert atomique avec `ON DUPLICATE KEY UPDATE attempts = attempts + 1`.
 
+**Calcul de window_start** : pour une fenêtre de N secondes, `window_start` = timestamp arrondi au multiple inférieur de N (ex: pour 900s, `FLOOR(time()/900)*900`). Toutes les requêtes dans la même fenêtre tombent sur la même ligne et incrémentent `attempts`.
+
 ### 2.3 Limites configurables (config.php)
 
 ```php
@@ -232,7 +234,7 @@ Ajout dans `.htaccess` (si pas déjà configuré) pour compresser CSS, JS, woff2
 
 Les 3 couches sont indépendantes :
 - Couche 1 (DB) peut être déployée seule
-- Couche 2 (Rate limiting) nécessite la nouvelle table + les index (couche 1.1) pour performer
+- Couche 2 (Rate limiting) est autonome (sa propre table `rate_limits` a ses propres index)
 - Couche 3 (Frontend) est totalement indépendante
 
 Ordre de déploiement recommandé : 1 → 2 → 3.
