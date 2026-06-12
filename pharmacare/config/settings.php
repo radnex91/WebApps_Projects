@@ -22,8 +22,8 @@ function getAllParams(): array {
                 'tva'               => '19.25',
                 'app_nom'           => 'PharmaCare',
                 'theme'             => 'dark-navy',
-                'police'            => 'DM Sans',
-                'police_titre'      => 'Cormorant Garamond',
+                'police'            => 'Manrope',
+                'police_titre'      => 'Manrope',
                 'pharmacie_adresse' => '',
                 'pharmacie_telephone'=> '',
                 'pharmacie_nif'     => '',
@@ -68,26 +68,13 @@ function getThemes(): array {
  */
 function getPolices(): array {
     return [
-        'DM Sans'           => 'DM Sans (défaut)',
-        'Inter'             => 'Inter',
-        'Nunito'            => 'Nunito',
-        'Poppins'           => 'Poppins',
-        'Lato'              => 'Lato',
-        'Source Sans 3'     => 'Source Sans 3',
-        'Outfit'            => 'Outfit',
-        'Figtree'           => 'Figtree',
+        'Manrope' => 'Manrope',
     ];
 }
 
 function getPolicesTitres(): array {
     return [
-        'Cormorant Garamond' => 'Cormorant Garamond (défaut)',
-        'Playfair Display'   => 'Playfair Display',
-        'DM Serif Display'   => 'DM Serif Display',
-        'Libre Baskerville'  => 'Libre Baskerville',
-        'Fraunces'           => 'Fraunces',
-        'Syne'               => 'Syne',
-        'Unbounded'          => 'Unbounded',
+        'Manrope' => 'Manrope',
     ];
 }
 

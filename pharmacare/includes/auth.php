@@ -1,6 +1,10 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/rate_limit.php';
+require_once __DIR__ . '/audit.php';
+
+// ── Timeout d'inactivité (30 minutes) ──────────────────────
+define('SESSION_TIMEOUT_SECONDS', 900);  // 15 min
 
 function startSession(): void {
     if (session_status() === PHP_SESSION_NONE) {
@@ -17,10 +21,26 @@ function startSession(): void {
             'httponly' => true,
             'samesite' => 'Lax',
         ];
-        session_set_cookie_params($cookieParams);
+        // Durée de vie du cookie : 30 min (le garbage collector PHP gère l'expiration)
+        session_set_cookie_params(array_merge($cookieParams, ['lifetime' => SESSION_TIMEOUT_SECONDS]));
         session_name(SESSION_NAME);
         session_start();
     }
+
+    // Vérifier le timeout d'inactivité
+    $now = time();
+    if (isset($_SESSION['last_activity']) && ($now - $_SESSION['last_activity']) > SESSION_TIMEOUT_SECONDS) {
+        // Session expirée — nettoyage et redirection
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+        }
+        session_destroy();
+        header('Location: ' . APP_URL . '/index.php?timeout=1');
+        exit;
+    }
+    $_SESSION['last_activity'] = $now;
 }
 
 function isLoggedIn(): bool {
@@ -143,10 +163,14 @@ function login(string $loginInput, string $password): array {
         $_SESSION['user_permissions'] = loadPermissions((int)$user['role_id']);
         $db->prepare("UPDATE utilisateurs SET derniere_connexion=NOW() WHERE id=?")->execute([$user['id']]);
         rateLimitReset($ip);
+        auditLog('auth.login', sprintf('Connexion : %s (%s)', $user['login'], $user['role_code']));
         return ['success' => true, 'locked' => false];
     }
 
     $blocked = rateLimitFail($ip);
+    if ($blocked) {
+        auditLog('auth.blocked', sprintf('IP bloquée : %s (login: %s)', $ip, $loginInput));
+    }
     return ['success' => false, 'locked' => $blocked, 'remaining' => $blocked ? RATE_LIMIT_LOCKOUT : 0];
 }
 

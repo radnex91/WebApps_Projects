@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'devise_pos'         => $devInfo[1],
         'tva'                => number_format((float)str_replace(',','.',$_POST['tva'] ?? '19.25'), 2, '.', ''),
         'theme'              => $_POST['theme'] ?? 'dark-cyan',
-        'police'             => $_POST['police'] ?? 'DM Sans',
-        'police_titre'       => $_POST['police_titre'] ?? 'Cormorant Garamond',
+        'police'             => $_POST['police'] ?? 'Manrope',
+        'police_titre'       => $_POST['police_titre'] ?? 'Manrope',
         'pharmacie_adresse'  => trim($_POST['pharmacie_adresse'] ?? ''),
         'pharmacie_telephone'=> trim($_POST['pharmacie_telephone'] ?? ''),
         'pharmacie_nif'      => trim($_POST['pharmacie_nif'] ?? ''),
@@ -204,7 +204,7 @@ showFlash();
       <label>Police principale (corps de texte)</label>
       <select name="police" onchange="previewFont(this.value,'body')">
         <?php foreach ($polices as $fid => $flabel): ?>
-        <option value="<?= e($fid) ?>" <?= ($p['police']??'DM Sans')===$fid?'selected':'' ?>><?= e($flabel) ?></option>
+        <option value="<?= e($fid) ?>" <?= ($p['police']??'Manrope')===$fid?'selected':'' ?>><?= e($flabel) ?></option>
         <?php endforeach; ?>
       </select>
       <div id="preview-body" style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:6px;font-size:14px;color:var(--text2);">
@@ -215,7 +215,7 @@ showFlash();
       <label>Police des titres</label>
       <select name="police_titre" onchange="previewFont(this.value,'title')">
         <?php foreach ($policesTitres as $fid => $flabel): ?>
-        <option value="<?= e($fid) ?>" <?= ($p['police_titre']??'Cormorant Garamond')===$fid?'selected':'' ?>><?= e($flabel) ?></option>
+        <option value="<?= e($fid) ?>" <?= ($p['police_titre']??'Manrope')===$fid?'selected':'' ?>><?= e($flabel) ?></option>
         <?php endforeach; ?>
       </select>
       <div id="preview-title" style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:6px;font-size:22px;font-weight:600;color:var(--text);">
@@ -338,7 +338,7 @@ function toggleHeureFermeture(mode) {
 
 // Appliquer le thème actuel au chargement
 previewTheme('<?= e($p['theme'] ?? 'dark-navy') ?>');
-previewFont('<?= e($p['police'] ?? 'DM Sans') ?>', 'body');
-previewFont('<?= e($p['police_titre'] ?? 'Cormorant Garamond') ?>', 'title');
+previewFont('<?= e($p['police'] ?? 'Manrope') ?>', 'body');
+previewFont('<?= e($p['police_titre'] ?? 'Manrope') ?>', 'title');
 </script>
 <?php layout_foot(); ?>

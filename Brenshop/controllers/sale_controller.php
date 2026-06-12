@@ -4,18 +4,47 @@ require_once __DIR__ . '/../includes/bootstrap.php';
 requireLogin();
 requirePermission('pos');
 
+$action = $_GET['action'] ?? '';
+
+// ── GET endpoints ──
+if ($action === 'daily_stats' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    $storeId = (int)($_GET['store_id'] ?? currentStoreId());
+    $today = date('Y-m-d');
+    $db = Database::getInstance();
+
+    $stmt = $db->prepare("SELECT COUNT(*) as sales_count, COALESCE(SUM(total_amount),0) as revenue, COALESCE(SUM(total_amount),0)/GREATEST(COUNT(*),1) as avg_basket FROM sales WHERE store_id=? AND DATE(created_at)=? AND status='completed'");
+    $stmt->execute([$storeId, $today]);
+    $stats = $stmt->fetch();
+
+    $stmt2 = $db->prepare("SELECT COALESCE(SUM(si.quantity),0) as items_sold FROM sale_items si JOIN sales s ON si.sale_id=s.id WHERE s.store_id=? AND DATE(s.created_at)=? AND s.status='completed'");
+    $stmt2->execute([$storeId, $today]);
+    $items = $stmt2->fetch();
+
+    jsonResponse(true, 'OK', [
+        'sales_count' => (int)$stats['sales_count'],
+        'revenue'      => (float)$stats['revenue'],
+        'avg_basket'   => (int)$stats['sales_count'] > 0 ? round((float)$stats['avg_basket']) : 0,
+        'items_sold'   => (int)$items['items_sold']
+    ]);
+}
+
+// ── POST: Create sale ──
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    jsonResponse(false, 'Méthode non autorisée', null, 405);
+    jsonResponse(false, 'Methode non autorisee', null, 405);
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
 if (!$data) {
-    jsonResponse(false, 'Données JSON invalides', null, 400);
+    jsonResponse(false, 'Donnees JSON invalides', null, 400);
 }
 
-// Validation minimale
 if (empty($data['items']) || !is_array($data['items'])) {
     jsonResponse(false, 'Panier vide ou invalide', null, 400);
+}
+
+$activeCaisseSession = getActiveCaisseSession();
+if (!$activeCaisseSession) {
+    jsonResponse(false, 'Aucune caisse ouverte. Veuillez ouvrir une caisse avant de faire une vente.', null, 400);
 }
 
 $saleData = [
@@ -23,6 +52,7 @@ $saleData = [
     'store_id'        => (int)($data['store_id'] ?? currentStoreId()),
     'warehouse_id'    => (int)($data['warehouse_id'] ?? currentWarehouseId()),
     'caisse_id'       => !empty($data['caisse_id']) ? (int)$data['caisse_id'] : (currentCaisseId() > 0 ? currentCaisseId() : null),
+    'session_id'      => (int)$activeCaisseSession['id'],
     'user_id'         => (int)($_SESSION['user_id']),
     'customer_id'     => !empty($data['customer_id']) ? (int)$data['customer_id'] : null,
     'subtotal'        => (float)($data['subtotal'] ?? 0),
@@ -56,7 +86,7 @@ foreach ($data['items'] as $item) {
 try {
     $saleModel = new Sale();
     $saleId = $saleModel->createSale($saleData, $items);
-    jsonResponse(true, 'Vente enregistrée avec succès', ['sale_id' => $saleId, 'invoice' => $saleData['invoice_number']]);
+    jsonResponse(true, 'Vente enregistree avec succes', ['sale_id' => $saleId, 'invoice' => $saleData['invoice_number']]);
 } catch (Exception $e) {
     jsonResponse(false, 'Erreur: ' . $e->getMessage(), null, 500);
 }

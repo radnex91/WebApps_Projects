@@ -149,7 +149,7 @@ showFlash();
               </button>
               <?php if (!$r['est_systeme'] && hasPermission('roles.gerer')): ?>
               <a href="?action=delete&id=<?= $r['id'] ?>" class="btn btn-ghost btn-xs" style="color:var(--red);"
-                 onclick="return confirm('Supprimer ce rôle ? Les utilisateurs seront réassignés au rôle Caissier.')"><?= icon('trash',13) ?></a>
+                 onclick="showConfirm('Supprimer ce rôle ?','Les utilisateurs seront réassignés au rôle Caissier.',function(){window.location.href=this.href;}.bind(this));return false;"><?= icon('trash',13) ?></a>
               <?php endif; ?>
             </div>
           </td>
@@ -193,7 +193,10 @@ showFlash();
           <label>Nom du rôle *</label>
           <input type="text" name="libelle" required placeholder="ex: Superviseur" autofocus>
         </div>
-        <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;">Permissions</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:13px;font-weight:600;color:var(--text2);">Permissions</span>
+          <button type="button" class="btn btn-ghost btn-xs" onclick="var cbs=this.closest('form').querySelectorAll('input[name=\'perms[]\']');var allChecked=true;cbs.forEach(function(c){if(!c.checked)allChecked=false;});cbs.forEach(function(c){c.checked=!allChecked;})">Tout cocher</button>
+        </div>
         <?php
         $currentModule = '';
         foreach ($allPerms as $p):
@@ -233,7 +236,10 @@ function openEditRoleModal(roleId, permsJson, roleName, isAdmin) {
   const rolePerms = JSON.parse(permsJson);
   const body = document.getElementById('modal-edit-body');
 
-  let html = '';
+  let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
+    '<span style="font-size:13px;font-weight:600;color:var(--text2);">Permissions</span>' +
+    '<button type="button" class="btn btn-ghost btn-xs" onclick="var cbs=this.closest(\'form\').querySelectorAll(\'input[name=\\\'perms[]\\\']\');var allChecked=true;cbs.forEach(function(c){if(!c.checked)allChecked=false;});cbs.forEach(function(c){c.checked=!allChecked;})">Tout cocher</button>' +
+    '</div>';
   let currentModule = '';
 
   ALL_PERMISSIONS.forEach(function(p) {

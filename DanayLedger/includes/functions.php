@@ -43,24 +43,9 @@ function getFlash(string $type): ?string {
 }
 
 function displayFlashMessages(): string {
-    $html = '';
-    foreach (['success', 'error', 'warning', 'info'] as $type) {
-        $msg = getFlash($type);
-        if ($msg) {
-            $icon = match($type) {
-                'success' => 'check-circle-fill',
-                'error'   => 'exclamation-triangle-fill',
-                'warning' => 'exclamation-triangle-fill',
-                'info'    => 'info-circle-fill',
-                default   => 'info-circle-fill',
-            };
-            $html .= '<div class="alert alert-' . ($type === 'error' ? 'danger' : $type) . ' alert-dismissible fade show d-flex align-items-center" role="alert">';
-            $html .= '<i class="bi bi-' . $icon . ' me-2"></i><div>' . e($msg) . '</div>';
-            $html .= '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-            $html .= '</div>';
-        }
-    }
-    return $html;
+    // Les messages sont maintenant affichés en toasts PS5 via footer.php
+    // On retourne vide pour ne pas afficher en double
+    return '';
 }
 
 function formatMoney(float $amount, string $currency = 'XOF'): string {
@@ -170,8 +155,10 @@ function uploadJustificatif(array $file, string $entityType, int $entityId): ?st
     if ($file['size'] > UPLOAD_MAX_SIZE) return null;
     if (!in_array($file['type'], UPLOAD_ALLOWED_TYPES)) return null;
 
-    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $filename = $entityType . '_' . $entityId . '_' . time() . '.' . $ext;
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    // Nom aléatoire pour éviter la prédictibilité et les collisions
+    $randomName = bin2hex(random_bytes(16));
+    $filename = $entityType . '_' . $entityId . '_' . $randomName . '.' . $ext;
     $filepath = UPLOAD_DIR . $filename;
 
     if (!is_dir(UPLOAD_DIR)) mkdir(UPLOAD_DIR, 0755, true);
@@ -237,47 +224,51 @@ function setSystemParam(PDO $db, string $key, string $value, string $description
     $stmt->execute([$key, $value, $description, $userId, $value, $userId]);
 }
 
-function getDashboardStats(PDO $db): array {
+function getDashboardStats(PDO $db, ?int $userId = null): array {
     $today = date('Y-m-d');
     $monthStart = date('Y-m-01');
     $monthEnd = date('Y-m-t');
 
+    // Clause de filtrage par utilisateur (pour dashboards personnalisés)
+    $userFilter = $userId !== null ? ' AND created_by = ' . (int)$userId : '';
+
     // Recettes du jour
-    $stmt = $db->prepare("SELECT COALESCE(SUM(montantexpedition + montantAccompagnement), 0) FROM recette WHERE date = ? AND statut = 'validee'");
+    $stmt = $db->prepare("SELECT COALESCE(SUM(montantexpedition + montantAccompagnement), 0) FROM recette WHERE date = ? AND statut = 'validee'" . $userFilter);
     $stmt->execute([$today]);
     $recettesJour = (float) $stmt->fetchColumn();
 
     // Dépenses du jour
-    $stmt = $db->prepare("SELECT COALESCE(SUM(montant), 0) FROM depenses WHERE date_depense = ? AND statut = 'validee'");
+    $stmt = $db->prepare("SELECT COALESCE(SUM(montant), 0) FROM depenses WHERE date_depense = ? AND statut = 'validee'" . $userFilter);
     $stmt->execute([$today]);
     $depensesJour = (float) $stmt->fetchColumn();
 
     // Recettes camions du jour
-    $stmt = $db->prepare("SELECT COALESCE(SUM(montant), 0) FROM recettes_camions WHERE date_recette = ? AND statut = 'validee'");
+    $stmt = $db->prepare("SELECT COALESCE(SUM(montant), 0) FROM recettes_camions WHERE date_recette = ? AND statut = 'validee'" . $userFilter);
     $stmt->execute([$today]);
     $recettesCamionsJour = (float) $stmt->fetchColumn();
 
     // Recettes du mois
-    $stmt = $db->prepare("SELECT COALESCE(SUM(montantexpedition + montantAccompagnement), 0) FROM recette WHERE date BETWEEN ? AND ? AND statut = 'validee'");
+    $stmt = $db->prepare("SELECT COALESCE(SUM(montantexpedition + montantAccompagnement), 0) FROM recette WHERE date BETWEEN ? AND ? AND statut = 'validee'" . $userFilter);
     $stmt->execute([$monthStart, $monthEnd]);
     $recettesMois = (float) $stmt->fetchColumn();
 
     // Dépenses du mois
-    $stmt = $db->prepare("SELECT COALESCE(SUM(montant), 0) FROM depenses WHERE date_depense BETWEEN ? AND ? AND statut = 'validee'");
+    $stmt = $db->prepare("SELECT COALESCE(SUM(montant), 0) FROM depenses WHERE date_depense BETWEEN ? AND ? AND statut = 'validee'" . $userFilter);
     $stmt->execute([$monthStart, $monthEnd]);
     $depensesMois = (float) $stmt->fetchColumn();
 
     // Versements du mois
-    $stmt = $db->prepare("SELECT COALESCE(SUM(sommeverse), 0) FROM versement WHERE dateversement BETWEEN ? AND ? AND statut = 'validee'");
+    $stmt = $db->prepare("SELECT COALESCE(SUM(sommeverse), 0) FROM versement WHERE dateversement BETWEEN ? AND ? AND statut = 'validee'" . $userFilter);
     $stmt->execute([$monthStart, $monthEnd]);
     $versementsMois = (float) $stmt->fetchColumn();
 
     // Transactions en attente
+    $attenteFilter = $userId !== null ? ' AND created_by = ' . (int)$userId : '';
     $stmt = $db->query("SELECT
-        (SELECT COUNT(*) FROM recette WHERE statut = 'en_attente') +
-        (SELECT COUNT(*) FROM depenses WHERE statut = 'en_attente') +
-        (SELECT COUNT(*) FROM recettes_camions WHERE statut = 'en_attente') +
-        (SELECT COUNT(*) FROM versement WHERE statut = 'en_attente') as total");
+        (SELECT COUNT(*) FROM recette WHERE statut = 'en_attente'" . $attenteFilter . ") +
+        (SELECT COUNT(*) FROM depenses WHERE statut = 'en_attente'" . $attenteFilter . ") +
+        (SELECT COUNT(*) FROM recettes_camions WHERE statut = 'en_attente'" . $attenteFilter . ") +
+        (SELECT COUNT(*) FROM versement WHERE statut = 'en_attente'" . $attenteFilter . ") as total");
     $enAttente = (int) $stmt->fetchColumn();
 
     return [
@@ -291,4 +282,158 @@ function getDashboardStats(PDO $db): array {
         'solde_mois'          => $recettesMois - $depensesMois,
         'en_attente'          => $enAttente,
     ];
+}
+
+/**
+ * Vérifie que l'utilisateur est soit propriétaire de l'enregistrement (created_by), soit admin.
+ * Redirige avec erreur si non autorisé.
+ * @param array $record L'enregistrement (doit contenir 'created_by')
+ * @param string $module Nom du module pour le message d'erreur
+ */
+function checkOwnershipOrAdmin($record, $module = 'cet enregistrement') {
+    if (hasPermission('admin')) return true;
+    if (!isset($record['created_by']) || (int)$record['created_by'] !== (int)$_SESSION['user_id']) {
+        redirectWithMessage(APP_URL . '/' . $module . '/', 'error', 'Vous n\'êtes pas autorisé à modifier ' . $module . ' créé par un autre utilisateur.');
+    }
+    return true;
+}
+
+/**
+ * Rate limiter pour les endpoints CRUD.
+ * Limite le nombre de requêtes par fenêtre de temps, basé sur IP + user_id.
+ * @param string $action Nom de l'action (create, update, delete, validate)
+ * @param int $maxRequests Nombre max de requêtes autorisées
+ * @param int $windowSeconds Fenêtre de temps en secondes
+ * @return bool True si autorisé, die() avec JSON sinon
+ */
+function rateLimit($action = 'crud', $maxRequests = 30, $windowSeconds = 60) {
+    $db = getDB();
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    $userId = $_SESSION['user_id'] ?? 0;
+    $key = $action . '_' . $userId . '_' . $ip;
+    $now = time();
+    $cutoff = $now - $windowSeconds;
+
+    // Nettoyer les anciennes entrées
+    $db->prepare("DELETE FROM login_attempts WHERE username LIKE 'rate_%' AND last_attempt < ?")->execute([date('Y-m-d H:i:s', $cutoff)]);
+
+    // Vérifier le compteur actuel
+    $rateKey = 'rate_' . md5($key);
+    $stmt = $db->prepare("SELECT attempts, last_attempt FROM login_attempts WHERE username = ?");
+    $stmt->execute([$rateKey]);
+    $row = $stmt->fetch();
+
+    if ($row) {
+        $lastTime = strtotime($row['last_attempt']);
+        if ($lastTime > $cutoff && (int)$row['attempts'] >= $maxRequests) {
+            $retryAfter = $windowSeconds - ($now - $lastTime);
+            header('HTTP/1.1 429 Too Many Requests');
+            header('Retry-After: ' . $retryAfter);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Trop de requêtes. Réessayez dans ' . $retryAfter . ' secondes.']);
+            exit;
+        }
+        if ($lastTime > $cutoff) {
+            $db->prepare("UPDATE login_attempts SET attempts = attempts + 1, last_attempt = NOW() WHERE username = ?")->execute([$rateKey]);
+        } else {
+            $db->prepare("UPDATE login_attempts SET attempts = 1, last_attempt = NOW() WHERE username = ?")->execute([$rateKey]);
+        }
+    } else {
+        $db->prepare("INSERT INTO login_attempts (username, attempts, last_attempt) VALUES (?, 1, NOW())")->execute([$rateKey]);
+    }
+    return true;
+}
+
+/**
+ * Backup automatique si activé et si le délai est dépassé.
+ * À appeler depuis header.php pour vérifier périodiquement.
+ */
+function autoBackupIfNeeded() {
+    $db = getDB();
+
+    // Vérifier si l'auto-backup est activé
+    $stmt = $db->prepare("SELECT valeur FROM parametres WHERE cle = 'backup_auto'");
+    $stmt->execute();
+    $auto = $stmt->fetchColumn();
+    if (!$auto || $auto === '0') return;
+
+    // Vérifier la fréquence
+    $stmt = $db->prepare("SELECT valeur FROM parametres WHERE cle = 'backup_frequency'");
+    $stmt->execute();
+    $frequency = $stmt->fetchColumn() ?: 'daily';
+
+    // Vérifier la dernière sauvegarde auto
+    $stmt = $db->prepare("SELECT created_at FROM sauvegardes WHERE type = 'auto' ORDER BY created_at DESC LIMIT 1");
+    $stmt->execute();
+    $lastAuto = $stmt->fetchColumn();
+
+    $shouldBackup = false;
+    if (!$lastAuto) {
+        $shouldBackup = true;
+    } else {
+        $lastTime = strtotime($lastAuto);
+        $now = time();
+        switch ($frequency) {
+            case 'hourly':
+                $shouldBackup = ($now - $lastTime) >= 3600;
+                break;
+            case 'daily':
+                $shouldBackup = ($now - $lastTime) >= 86400;
+                break;
+            case 'weekly':
+                $shouldBackup = ($now - $lastTime) >= 604800;
+                break;
+            case 'monthly':
+                $shouldBackup = ($now - $lastTime) >= 2592000;
+                break;
+            default:
+                $shouldBackup = ($now - $lastTime) >= 86400;
+        }
+    }
+
+    if (!$shouldBackup) return;
+
+    $backupDir = __DIR__ . '/../backups/';
+    if (!is_dir($backupDir)) mkdir($backupDir, 0755, true);
+
+    $filename = 'danay_ledger_auto_' . date('Ymd_His') . '.sql';
+    $filepath = $backupDir . $filename;
+
+    // Fallback PHP-based backup (fiable, pas de dépendance mysqldump)
+    try {
+        $tables = $db->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+        $sql = "-- DanayLedger Auto-Backup " . date('Y-m-d H:i:s') . "\n\n";
+        foreach ($tables as $table) {
+            if ($table === 'sauvegardes') continue; // skip backup table to avoid bloat
+            $create = $db->query("SHOW CREATE TABLE `$table`")->fetch();
+            $sql .= "-- Table: $table\n" . $create['Create Table'] . ";\n\n";
+            $rows = $db->query("SELECT * FROM `$table`")->fetchAll();
+            foreach ($rows as $row) {
+                $values = array_map(function($v) use ($db) { return $v === null ? 'NULL' : $db->quote($v); }, array_values($row));
+                $sql .= "INSERT INTO `$table` VALUES (" . implode(',', $values) . ");\n";
+            }
+            $sql .= "\n";
+        }
+        file_put_contents($filepath, $sql);
+        $size = filesize($filepath);
+        $db->prepare("INSERT INTO sauvegardes (nom_fichier, taille, type, created_by) VALUES (?, ?, 'auto', NULL)")
+           ->execute([$filename, $size]);
+
+        // Nettoyer les vieilles sauvegardes auto (garder les 10 dernières)
+        $stmt = $db->prepare("SELECT id FROM sauvegardes WHERE type = 'auto' ORDER BY created_at DESC LIMIT 10, 100");
+        $stmt->execute();
+        $oldIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($oldIds as $oldId) {
+            $stmt2 = $db->prepare("SELECT nom_fichier FROM sauvegardes WHERE id = ?");
+            $stmt2->execute([$oldId]);
+            $oldFile = $stmt2->fetchColumn();
+            if ($oldFile && file_exists($backupDir . $oldFile)) {
+                @unlink($backupDir . $oldFile);
+            }
+            $db->prepare("DELETE FROM sauvegardes WHERE id = ?")->execute([$oldId]);
+        }
+    } catch (Exception $e) {
+        // Silencieux — ne pas bloquer la navigation pour un backup
+        error_log('DanayLedger auto-backup failed: ' . $e->getMessage());
+    }
 }

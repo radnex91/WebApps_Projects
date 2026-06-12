@@ -769,15 +769,13 @@ body.pos-page .page-content { padding: 0; }
 .caisse-card-icon {
   width: 48px;
   height: 48px;
-  border: 1px solid var(--border);
-  background: var(--body-bg);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 0.5rem;
-  border-radius: 10px;
+  border-radius: 12px;
 }
-.caisse-card-icon i { font-size: 1.4rem; color: var(--accent); }
+.caisse-card-icon i { font-size: 1.4rem; }
 
 /* ── MODALS ── */
 body.pos-page .modal-content {

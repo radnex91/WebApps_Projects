@@ -105,6 +105,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
         WHERE id = ?
     ")->execute([$soldeAttendu, $soldeReel, $ecart, $sessionId]);
 
+    $auditDetail = sprintf('Clôture caisse #%d : attendu=%s, réel=%s, écart=%s%s', $sessionId, fmtMoney($soldeAttendu), fmtMoney($soldeReel), fmtMoney($ecart), !empty($estForce) ? ' [FORCÉE]' : '');
+    auditLog('caisse.close', $auditDetail, $sessionId);
     flash('Caisse clôturée. Écart : ' . fmtMoney($ecart) . '.', $ecart === 0.0 ? 'success' : 'info');
     header('Location: ?'); exit;
 }
@@ -142,6 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
         VALUES (?, ?, ?, NOW(), 'ouverte')
     ")->execute([$caisseId, currentUser()['id'], $fond]);
 
+    $newSessionId = $db->lastInsertId();
+    auditLog('caisse.open', sprintf('Ouverture caisse #%d : fond %s', (int)$newSessionId, fmtMoney($fond)), (int)$newSessionId);
     flash('Caisse ouverte avec un fond initial de ' . fmtMoney($fond) . '.', 'success');
     header('Location: ?'); exit;
 }
@@ -170,6 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
     $labelType = $typeMvt === 'entrée' ? 'Dépôt' : 'Retrait';
     $db->prepare("INSERT INTO mouvements_caisse (session_id, type, montant, motif, moyen) VALUES (?, ?, ?, ?, 'espèces')")
        ->execute([$sessionId, $typeMvt, $montant, $labelType . ' : ' . $motif]);
+    auditLog('caisse.mouvement', sprintf('%s : %s (%s)', $labelType, fmtMoney($montant), $motif), $sessionId);
     flash($labelType . ' de ' . fmtMoney($montant) . ' enregistré.', 'success');
     header('Location: ?'); exit;
 }

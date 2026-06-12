@@ -8,13 +8,13 @@ if (isLoggedIn()) {
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
+    $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    if ($email && $password) {
+    if ($username && $password) {
         $db = getDB();
-        $stmt = $db->prepare("SELECT u.*, r.nom as role_nom, r.permissions FROM utilisateurs u JOIN roles r ON u.role_id = r.id WHERE u.email = ? AND u.statut = 'actif'");
-        $stmt->execute([$email]);
+        $stmt = $db->prepare("SELECT u.*, r.nom as role_nom, r.permissions FROM utilisateurs u JOIN roles r ON u.role_id = r.id WHERE u.username = ? AND u.statut = 'actif'");
+        $stmt->execute([$username]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . BASE_URL . '/dashboard.php');
             exit;
         } else {
-            $error = 'Email ou mot de passe incorrect.';
+            $error = 'Identifiant ou mot de passe incorrect.';
         }
     } else {
         $error = 'Veuillez remplir tous les champs.';
@@ -46,7 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0f3060">
-<title>Connexion — BrenFinance Suite</title>
+<title>Connexion — <?= APP_NAME ?></title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/app.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
@@ -61,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="login-card">
     <div class="login-top">
       <div class="login-logo">₣</div>
-      <div class="login-title">BrenFinance Suite</div>
+      <div class="login-title"><?= APP_NAME ?></div>
       <div class="login-sub">Gestion Caisse · Trésorerie · Finance</div>
     </div>
     <div class="login-body">
@@ -73,8 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <?php endif; ?>
       <form method="post">
         <div class="form-group">
-          <label class="form-label">Adresse email <span class="req">*</span></label>
-          <input type="email" name="email" class="form-control" placeholder="votre@email.com" value="<?= sanitize($_POST['email']??'') ?>" required autofocus>
+          <label class="form-label">Identifiant <span class="req">*</span></label>
+          <input type="text" name="username" class="form-control" placeholder="votre identifiant" value="<?= sanitize($_POST['username']??'') ?>" required autofocus>
         </div>
         <div class="form-group">
           <label class="form-label">Mot de passe <span class="req">*</span></label>

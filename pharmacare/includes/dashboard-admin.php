@@ -9,8 +9,13 @@ require_once __DIR__ . '/charts.php';
 // CA du mois
 $ca_mois  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW())")->fetchColumn();
 
+// CA année en cours
+$ca_annee = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE YEAR(created_at)=YEAR(NOW())")->fetchColumn();
+$nb_ventes_annee = $db->query("SELECT COUNT(*) FROM ventes WHERE YEAR(created_at)=YEAR(NOW())")->fetchColumn();
+
 // Médicaments en stock
 $nb_prods = $db->query("SELECT COUNT(*) FROM produits WHERE actif=1")->fetchColumn();
+$val_stock = $db->query("SELECT COALESCE(SUM(stock * prix_vente),0) FROM produits WHERE actif=1")->fetchColumn();
 
 // Alertes stock
 $alertes  = $db->query("SELECT COUNT(*) FROM produits WHERE stock <= seuil_alerte AND actif=1")->fetchColumn();
@@ -130,7 +135,7 @@ layout_head('Tableau de bord', 'dashboard');
 showFlash();
 ?>
 
-<div class="stats-grid">
+<div class="stats-grid" style="grid-template-columns:repeat(5,1fr);">
   <div class="stat-card s-teal">
     <div class="stat-icon" style="color:var(--teal2);opacity:.25;"><?= icon('money',28) ?></div>
     <div class="stat-label">CA du mois</div>
@@ -141,7 +146,7 @@ showFlash();
     <div class="stat-icon" style="color:var(--gold);opacity:.25;"><?= icon('box',28) ?></div>
     <div class="stat-label">Médicaments en stock</div>
     <div class="stat-value c-gold"><?= fmtInt((int)$nb_prods) ?></div>
-    <div class="stat-sub">références actives</div>
+    <div class="stat-sub">Valeur marchande : <?= fmtMoney($val_stock) ?></div>
   </div>
   <div class="stat-card s-red">
     <div class="stat-icon" style="color:var(--red);opacity:.25;"><?= icon('alert',28) ?></div>
@@ -154,6 +159,12 @@ showFlash();
     <div class="stat-label">Ventes aujourd'hui</div>
     <div class="stat-value c-blue"><?= $ventes_j ?></div>
     <div class="stat-sub">transactions effectuées</div>
+  </div>
+  <div class="stat-card s-purple">
+    <div class="stat-icon" style="color:var(--purple);opacity:.25;"><?= icon('trending',28) ?></div>
+    <div class="stat-label">CA année en cours</div>
+    <div class="stat-value c-purple"><?= fmtMoney($ca_annee) ?></div>
+    <div class="stat-sub"><?= fmtInt((int)$nb_ventes_annee) ?> ventes</div>
   </div>
 </div>
 

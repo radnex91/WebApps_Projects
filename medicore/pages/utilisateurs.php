@@ -42,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'create_user
     if (!$roleValid) { $msg = 'Rôle invalide ou inexistant.'; $msgType = 'red'; }
     $v = (new Validator())
         ->required('prenom', 'Prénom')->required('nom', 'Nom')
+        ->username('username', 'Nom d\'utilisateur')
         ->email('email', 'Email')
         ->min_length('password', 8, 'Mot de passe')
         ->whitelist('statut', ['actif','inactif'], 'Statut');
@@ -50,19 +51,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'create_user
     } elseif (!$v->passes()) {
         $msg = $v->first_error(); $msgType = 'red';
     } else {
-        $exists = db_scalar("SELECT COUNT(*) FROM utilisateurs WHERE email=?", [post_email('email')]);
-        if ($exists) { $msg = 'Email déjà utilisé.'; $msgType = 'red'; }
+        $exists = db_scalar("SELECT COUNT(*) FROM utilisateurs WHERE username=?", [$v->get('username')]);
+        if ($exists) { $msg = 'Nom d\'utilisateur déjà utilisé.'; $msgType = 'red'; }
         else {
         $init = strtoupper(mb_substr($v->get('prenom'),0,1).mb_substr($v->get('nom'),0,1));
         db_exec(
-            "INSERT INTO utilisateurs (nom,prenom,email,mot_de_passe,role,specialite,telephone,extension,statut,planning,avatar_initiales) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            [$v->get('nom'),$v->get('prenom'),post_email('email'),password_hash($_POST['password'],PASSWORD_BCRYPT,['cost'=>12]),
+            "INSERT INTO utilisateurs (nom,prenom,username,email,mot_de_passe,role,specialite,telephone,extension,statut,planning,avatar_initiales) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            [$v->get('nom'),$v->get('prenom'),$v->get('username'),post_email('email'),password_hash($_POST['password'],PASSWORD_BCRYPT,['cost'=>12]),
              $rolePost,post_str('specialite'),post_str('telephone'),post_str('extension'),$v->get('statut'),post_str('planning'),$init]
         );
         invalidate_roles_cache();
         logActivity('Utilisateur créé: '.$v->get('prenom').' '.$v->get('nom').' ('.$rolePost.')', 'green', 'utilisateur');
         $msg = 'Utilisateur créé avec succès.'; $msgType = 'green';
-        } // end else email
+        } // end else username
     } // end if/elseif/else roleValid
 }
 
@@ -84,13 +85,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'update_user
             $roleValidU = $isSelf || in_array($rolePostU, ['admin','medecin','infirmier','pharmacien','comptable']);
         }
         $v = (new Validator())
-            ->required('prenom','Prénom')->required('nom','Nom')->email('email','Email')
+            ->required('prenom','Prénom')->required('nom','Nom')
+            ->username('username','Nom d\'utilisateur')
             ->whitelist('statut',['actif','inactif','conge'],'Statut');
         if (!$roleValidU) { $msg = 'Rôle invalide ou inexistant.'; $msgType = 'red'; }
         elseif (!$v->passes()) { $msg = $v->first_error(); $msgType = 'red'; }
         else {
-            $exists = db_scalar("SELECT COUNT(*) FROM utilisateurs WHERE email=? AND id!=?", [post_email('email'), $id]);
-            if ($exists) { $msg = 'Cet email est déjà utilisé.'; $msgType = 'red'; }
+            $exists = db_scalar("SELECT COUNT(*) FROM utilisateurs WHERE username=? AND id!=?", [$v->get('username'), $id]);
+            if ($exists) { $msg = 'Ce nom d\'utilisateur est déjà utilisé.'; $msgType = 'red'; }
             else {
                 $init  = strtoupper(mb_substr($v->get('prenom'),0,1).mb_substr($v->get('nom'),0,1));
                 $role  = $isSelf
@@ -99,8 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'update_user
                 // post_email() retourne NULL si format invalide -> garder l'email actuel
                 $email = post_email('email') ?? db_scalar("SELECT email FROM utilisateurs WHERE id=?", [$id]);
                 db_exec(
-                    "UPDATE utilisateurs SET nom=?,prenom=?,email=?,role=?,specialite=?,telephone=?,extension=?,statut=?,planning=?,avatar_initiales=? WHERE id=?",
-                    [$v->get('nom'),$v->get('prenom'),$email,$role,
+                    "UPDATE utilisateurs SET nom=?,prenom=?,username=?,email=?,role=?,specialite=?,telephone=?,extension=?,statut=?,planning=?,avatar_initiales=? WHERE id=?",
+                    [$v->get('nom'),$v->get('prenom'),$v->get('username'),$email,$role,
                      post_str('specialite'),post_str('telephone'),post_str('extension'),
                      $v->get('statut'),post_str('planning'),$init,$id]
                 );
@@ -174,14 +176,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'toggle_stat
 //  EXPORT CSV
 if (get_str('export') === 'csv') {
     if (ob_get_level() > 0) ob_end_clean();
-    $all = db_select("SELECT prenom,nom,email,role,specialite,statut,planning,derniere_connexion,created_at FROM utilisateurs ORDER BY role,nom");
+    $all = db_select("SELECT prenom,nom,username,email,role,specialite,statut,planning,derniere_connexion,created_at FROM utilisateurs ORDER BY role,nom");
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="personnel_'.date('Y-m-d').'.csv"');
     $out = fopen('php://output','w');
     fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
-    fputcsv($out, ['Prénom','Nom','Email','Rôle','Spécialité','Statut','Planning','Dernière connexion','Créé le'], ';');
+    fputcsv($out, ['Prénom','Nom','Identifiant','Email','Rôle','Spécialité','Statut','Planning','Dernière connexion','Créé le'], ';');
     foreach ($all as $r) {
-        fputcsv($out, [$r['prenom'],$r['nom'],$r['email'],role_label($r['role']),$r['specialite']??'',$r['statut']??'',$r['planning']??'',$r['derniere_connexion']?fmt_date($r['derniere_connexion'],true):'Jamais',$r['created_at']?fmt_date($r['created_at']):''], ';');
+        fputcsv($out, [$r['prenom'],$r['nom'],$r['username'],$r['email'],role_label($r['role']),$r['specialite']??'',$r['statut']??'',$r['planning']??'',$r['derniere_connexion']?fmt_date($r['derniere_connexion'],true):'Jamais',$r['created_at']?fmt_date($r['created_at']):''], ';');
     }
     fclose($out); exit;
 }
@@ -198,7 +200,7 @@ if (in_array(get_str('role_filter'), array_merge([''], $__allRoles), true)) {
 $search     = get_str('search');
 $whereParts = []; $wParams = [];
 if ($filterRole) { $whereParts[] = "u.role=?"; $wParams[] = $filterRole; }
-if ($search)     { $whereParts[] = "(u.nom LIKE ? OR u.prenom LIKE ? OR u.email LIKE ?)"; $l="%$search%"; $wParams=array_merge($wParams,[$l,$l,$l]); }
+if ($search)     { $whereParts[] = "(u.nom LIKE ? OR u.prenom LIKE ? OR u.username LIKE ? OR u.email LIKE ?)"; $l="%$search%"; $wParams=array_merge($wParams,[$l,$l,$l,$l]); }
 $where = $whereParts ? 'WHERE '.implode(' AND ', $whereParts) : '';
 
 $users = db_select(
@@ -229,7 +231,7 @@ $selfId = (int)($_SESSION['user_id'] ?? 0);
 <!-- Filtres -->
 <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
   <form method="GET" style="display:flex;gap:6px;flex:1;flex-wrap:wrap">
-    <input type="text" name="search" value="<?= h($search) ?>" placeholder=" Nom, email..."
+    <input type="text" name="search" value="<?= h($search) ?>" placeholder=" Nom, identifiant, email..."
       style="flex:1;min-width:180px;padding:8px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;outline:none">
     <select name="role_filter" onchange="this.form.submit()"
       style="padding:8px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
@@ -264,7 +266,8 @@ $selfId = (int)($_SESSION['user_id'] ?? 0);
           <div style="width:34px;height:34px;border-radius:9px;background:<?= h($rColor) ?>22;color:<?= h($rColor) ?>;border:1px solid <?= h($rColor) ?>44;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0"><?= $init ?></div>
           <div>
             <div style="font-weight:600;font-size:13px"><?= h($u['prenom'].' '.$u['nom']) ?> <?= $isSelf?'<span style="font-size:10px;color:var(--text3)">(vous)</span>':'' ?></div>
-            <div class="text-xs text3"><?= h($u['email']) ?></div>
+            <div class="text-xs text3">@<?= h($u['username']) ?></div>
+            <?php if ($u['email']): ?><div class="text-xs text3"><?= h($u['email']) ?></div><?php endif; ?>
           </div>
         </div>
       </td>
@@ -299,10 +302,10 @@ $selfId = (int)($_SESSION['user_id'] ?? 0);
   </table>
 </div>
 
-<!--  MODAL MODIFIER UTILISATEUR
+<!--  MODAL MODIFIER UTILISATEUR -->
 <?php if ($editUser): ?>
-<div id="modal-edit" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:600px;margin:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-edit" class="modal-overlay" style="display:flex;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" role="dialog" aria-modal="true">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(600px,95vw);margin:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>✏️ Modifier — <?= h($editUser['prenom'].' '.$editUser['nom']) ?></h3>
       <a href="utilisateurs.php" style="color:var(--text2);text-decoration:none;font-size:18px"></a>
@@ -314,7 +317,8 @@ $selfId = (int)($_SESSION['user_id'] ?? 0);
       <div class="form-grid">
         <div class="form-group"><label>Prénom *</label><input type="text" name="prenom" value="<?= h($editUser['prenom']) ?>" required maxlength="100"></div>
         <div class="form-group"><label>Nom *</label><input type="text" name="nom" value="<?= h($editUser['nom']) ?>" required maxlength="100"></div>
-        <div class="form-group"><label>Email *</label><input type="email" name="email" value="<?= h($editUser['email']) ?>" required maxlength="150"></div>
+        <div class="form-group"><label>Identifiant *</label><input type="text" name="username" value="<?= h($editUser['username']) ?>" required maxlength="50" pattern="[a-z0-9_\.]{3,50}"></div>
+        <div class="form-group"><label>Email</label><input type="email" name="email" value="<?= h($editUser['email']) ?>" maxlength="150"></div>
         <div class="form-group"><label>Rôle<?= $editUser['id']===$selfId?' (non modifiable)':' *' ?></label>
           <?php if ($editUser['id'] === $selfId): ?>
             <input type="hidden" name="role" value="<?= h($editUser['role']) ?>">
@@ -348,19 +352,20 @@ $selfId = (int)($_SESSION['user_id'] ?? 0);
 </div>
 <?php endif; ?>
 
-<!--  MODAL CRÉER UTILISATEUR
-<div id="modal-create" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:600px;margin:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<!--  MODAL CRÉER UTILISATEUR -->
+<div id="modal-create" class="modal-overlay" style="display:none;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(600px,95vw);margin:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>+ Nouveau compte</h3>
-      <div onclick="document.getElementById('modal-create').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)"></div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-create').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_user"><?= csrf_field() ?>
       <div class="form-grid">
-        <div class="form-group"><label>Prénom *</label><input type="text" name="prenom" required maxlength="100" autofocus></div>
+        <div class="form-group"><label>Prénom *</label><input type="text" name="prenom" required maxlength="100"></div>
         <div class="form-group"><label>Nom *</label><input type="text" name="nom" required maxlength="100"></div>
-        <div class="form-group"><label>Email *</label><input type="email" name="email" required maxlength="150"></div>
+        <div class="form-group"><label>Identifiant *</label><input type="text" name="username" required maxlength="50" pattern="[a-z0-9_\.]{3,50}" placeholder="ex: j.durand" ></div>
+        <div class="form-group"><label>Email</label><input type="email" name="email" maxlength="150"></div>
         <div class="form-group"><label>Rôle *</label>
           <select name="role" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <?php foreach ($rolesMap as $rk => $ri): ?>
@@ -392,11 +397,11 @@ $selfId = (int)($_SESSION['user_id'] ?? 0);
 </div>
 
 <!--  MODAL CHANGER MOT DE PASSE  -->
-<div id="modal-pwd" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:210;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:420px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-pwd" class="modal-overlay" style="display:none;z-index:210;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(420px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3> Changer le mot de passe</h3>
-      <div onclick="document.getElementById('modal-pwd').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)"></div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-pwd').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="change_password">
@@ -423,7 +428,7 @@ $selfId = (int)($_SESSION['user_id'] ?? 0);
   </div>
 </div>
 
-<!--  FORMULAIRE SUPPRESSION DÉFINITIVE (hors boucle)
+<!--  FORMULAIRE SUPPRESSION DÉFINITIVE (hors boucle) -->
 <form method="POST" id="form-delete-user" style="display:none">
   <input type="hidden" name="action" value="delete_user">
   <input type="hidden" name="user_id" id="delete-user-id">

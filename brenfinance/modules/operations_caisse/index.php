@@ -372,11 +372,37 @@ if (!empty($_GET['print_eng']) && !$bonData && !$printData) {
     }
 }
 
-// Operations history
+// Operations history — with date & type filters
 $ops = [];
+$filterDateFrom = trim($_GET['date_from'] ?? date('Y-m-01'));
+$filterDateTo = trim($_GET['date_to'] ?? date('Y-m-t'));
+$filterType = (int)($_GET['type_op'] ?? 0);
+$filterSens = trim($_GET['sens'] ?? '');
+
 if ($selectedCaisse && !$bonData && !$printData && !$printEngData) {
-    $opsR = $db->prepare("SELECT oc.*, to2.libelle as type_nom, to2.sens, mp.libelle as mode_nom, dst.libelle as destination_nom, CONCAT(u.nom,' ',u.prenom) as caissier, de.numero as eng_numero, de.objet as eng_objet, de.statut as eng_statut, de.priorite as eng_priorite, de.date_besoin as eng_date_besoin FROM operations_caisse oc JOIN types_operations to2 ON oc.type_operation_id=to2.id LEFT JOIN modes_paiement mp ON oc.mode_paiement_id=mp.id LEFT JOIN destinations dst ON oc.destination_id=dst.id JOIN utilisateurs u ON oc.saisi_par=u.id LEFT JOIN demandes_engagement de ON oc.engagement_id=de.id WHERE oc.caisse_id=? AND oc.annule=0 ORDER BY oc.created_at DESC LIMIT 100");
-    $opsR->execute([$selectedCaisse['id']]);
+    $opsWhere = ['oc.caisse_id=?', 'oc.annule=0'];
+    $opsParams = [$selectedCaisse['id']];
+
+    if ($filterDateFrom) {
+        $opsWhere[] = 'oc.date_operation >= ?';
+        $opsParams[] = $filterDateFrom;
+    }
+    if ($filterDateTo) {
+        $opsWhere[] = 'oc.date_operation <= ?';
+        $opsParams[] = $filterDateTo;
+    }
+    if ($filterType) {
+        $opsWhere[] = 'oc.type_operation_id = ?';
+        $opsParams[] = $filterType;
+    }
+    if ($filterSens) {
+        $opsWhere[] = 'to2.sens = ?';
+        $opsParams[] = $filterSens;
+    }
+
+    $opsSql = "SELECT oc.*, to2.libelle as type_nom, to2.sens, mp.libelle as mode_nom, dst.libelle as destination_nom, CONCAT(u.nom,' ',u.prenom) as caissier, de.numero as eng_numero, de.objet as eng_objet, de.statut as eng_statut, de.priorite as eng_priorite, de.date_besoin as eng_date_besoin FROM operations_caisse oc JOIN types_operations to2 ON oc.type_operation_id=to2.id LEFT JOIN modes_paiement mp ON oc.mode_paiement_id=mp.id LEFT JOIN destinations dst ON oc.destination_id=dst.id JOIN utilisateurs u ON oc.saisi_par=u.id LEFT JOIN demandes_engagement de ON oc.engagement_id=de.id WHERE " . implode(' AND ', $opsWhere) . " ORDER BY oc.created_at DESC LIMIT 200";
+    $opsR = $db->prepare($opsSql);
+    $opsR->execute($opsParams);
     $ops = $opsR->fetchAll();
 }
 
@@ -678,7 +704,7 @@ new QRCode(document.getElementById('qr-engagement'), {
     </div>
     <div style="font-size:18px;font-weight:700"><?= formatMontant($selectedCaisse['solde_actuel']) ?></div>
     <div>
-      <?php if (!$isCaissier): ?>
+      <?php if (hasPermission('admin', 'all') || hasPermission('all', 'all')): ?>
       <a href="?caisse=" class="btn btn-ghost btn-sm">Changer de caisse</a>
       <?php endif; ?>
     </div>
@@ -745,13 +771,60 @@ new QRCode(document.getElementById('qr-engagement'), {
 <?php endif; ?>
 
 <!-- Operations history -->
+<!-- Date & type filter block -->
+<form method="get" id="ops-filter-form" style="margin-bottom:16px">
+  <input type="hidden" name="caisse" value="<?= $selectedCaisse['id'] ?>">
+  <div class="card" style="padding:0">
+    <div style="padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--primary)">
+        <i class="fa-solid fa-filter" style="font-size:14px"></i>
+        <span>Filtres</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0">
+        <div style="position:relative;display:flex;align-items:center">
+          <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:10px;font-size:12px;color:var(--text3);pointer-events:none"></i>
+          <input type="text" id="search-ops" class="form-control" placeholder="Rechercher..." style="width:170px;font-size:13px;padding-left:30px">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="font-size:12.5px;color:var(--text3);white-space:nowrap">Du</label>
+          <input type="date" name="date_from" value="<?= htmlspecialchars($filterDateFrom) ?>" class="form-control" style="width:150px;font-size:13px" id="filter-date-from">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="font-size:12.5px;color:var(--text3);white-space:nowrap">Au</label>
+          <input type="date" name="date_to" value="<?= htmlspecialchars($filterDateTo) ?>" class="form-control" style="width:150px;font-size:13px" id="filter-date-to">
+        </div>
+        <select name="type_op" class="form-control" style="width:auto;min-width:160px;font-size:13px">
+          <option value="">Tous les types</option>
+          <?php foreach($typesOps as $t): ?>
+          <option value="<?= $t['id'] ?>" <?= $filterType === (int)$t['id'] ? 'selected' : '' ?>><?= sanitize($t['libelle']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <select name="sens" class="form-control" style="width:auto;min-width:130px;font-size:13px">
+          <option value="">Tous les sens</option>
+          <option value="debit" <?= $filterSens==='debit'?'selected':'' ?>>Débit (sortie)</option>
+          <option value="credit" <?= $filterSens==='credit'?'selected':'' ?>>Crédit (entrée)</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-search" style="font-size:12px"></i> Filtrer</button>
+        <?php if ($filterDateFrom || $filterDateTo || $filterType || $filterSens): ?>
+        <a href="?caisse=<?= $selectedCaisse['id'] ?>" class="btn btn-ghost btn-sm">Réinitialiser</a>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php if ($filterDateFrom || $filterDateTo || $filterType || $filterSens): ?>
+    <div style="padding:6px 16px 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--text3)">
+      <span><?= count($ops) ?> résultat(s)</span>
+      <?php if ($filterDateFrom): ?><span class="badge badge-info" style="font-size:10px;cursor:pointer" onclick="document.getElementById('filter-date-from').value='';document.getElementById('ops-filter-form').submit()">Du <?= date('d/m/Y', strtotime($filterDateFrom)) ?> ×</span><?php endif; ?>
+      <?php if ($filterDateTo): ?><span class="badge badge-info" style="font-size:10px;cursor:pointer" onclick="document.getElementById('filter-date-to').value='';document.getElementById('ops-filter-form').submit()">Au <?= date('d/m/Y', strtotime($filterDateTo)) ?> ×</span><?php endif; ?>
+    </div>
+    <?php endif; ?>
+  </div>
+</form>
+
 <div class="card mb-24">
   <div class="card-header">
     <div class="card-title">Historique des opérations</div>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <input type="text" id="search-ops" class="form-control" placeholder="Rechercher..." style="width:180px;display:inline-block">
-
-    </div>
   </div>
   <div class="table-wrap" id="ops-table-wrap">
     <table id="tbl-ops">

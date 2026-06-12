@@ -7,9 +7,13 @@ require_once __DIR__ . '/../config/constants.php';
 function startSecureSession(): void {
     if (session_status() === PHP_SESSION_NONE) {
         ini_set('session.cookie_httponly', '1');
-        ini_set('session.cookie_secure', '0');
+        // Activer secure uniquement en HTTPS
+        $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+        ini_set('session.cookie_secure', $isSecure ? '1' : '0');
         ini_set('session.cookie_samesite', 'Strict');
         ini_set('session.use_strict_mode', '1');
+        // Durée de session : 8 heures
+        ini_set('session.gc_maxlifetime', '28800');
         session_name('DANAYLEDGER_SESSION');
         session_start();
     }

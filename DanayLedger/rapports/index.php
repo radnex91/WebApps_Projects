@@ -58,8 +58,8 @@ $detailAgences->execute([$dateFrom, $dateTo, $dateFrom, $dateTo]); $agenceData =
 
 $agences = getAgences($db);
 ?>
-<div class="main-content">
-    <header class="main-header"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button><h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6></div><div class="header-right"><div class="dropdown"><button class="notif-btn" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
+<div class="main-content" id="main-content" role="main">
+    <header class="main-header" role="banner"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button><span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span></div><div class="header-right"><div class="dropdown"><button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" role="button" tabindex="0" aria-label="Menu utilisateur" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
     <div class="page-content fade-in">
         <div class="page-header">
             <div><h1 class="page-title"><i class="bi bi-bar-chart-fill me-2"></i>Rapports</h1></div>
@@ -74,10 +74,10 @@ $agences = getAgences($db);
         <!-- Filtres -->
         <div class="card mb-3"><div class="card-body">
             <form method="GET" class="row g-2 align-items-end">
-                <div class="col-md-2"><label class="form-label">Type</label><select name="type" class="form-select"><option value="journalier" <?php echo $type==='journalier'?'selected':''; ?>>Journalier</option><option value="hebdomadaire" <?php echo $type==='hebdomadaire'?'selected':''; ?>>Hebdomadaire</option><option value="mensuel" <?php echo $type==='mensuel'?'selected':''; ?>>Mensuel</option><option value="agence" <?php echo $type==='agence'?'selected':''; ?>>Par agence</option><option value="camion" <?php echo $type==='camion'?'selected':''; ?>>Par camion</option></select></div>
-                <div class="col-md-2"><label class="form-label">Du</label><input type="date" name="date_from" value="<?php echo e($dateFrom); ?>" class="form-control"></div>
-                <div class="col-md-2"><label class="form-label">Au</label><input type="date" name="date_to" value="<?php echo e($dateTo); ?>" class="form-control"></div>
-                <div class="col-md-2"><label class="form-label">Agence</label><select name="agence_id" class="form-select"><option value="">Toutes</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>" <?php echo $agenceId==$a['id']?'selected':''; ?>><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
+                <div class="col-md-2"><label for="report_type" class="form-label">Type</label><select name="type" id="report_type" class="form-select"><option value="journalier" <?php echo $type==='journalier'?'selected':''; ?>>Journalier</option><option value="hebdomadaire" <?php echo $type==='hebdomadaire'?'selected':''; ?>>Hebdomadaire</option><option value="mensuel" <?php echo $type==='mensuel'?'selected':''; ?>>Mensuel</option><option value="agence" <?php echo $type==='agence'?'selected':''; ?>>Par agence</option><option value="camion" <?php echo $type==='camion'?'selected':''; ?>>Par camion</option></select></div>
+                <div class="col-md-2"><label for="date_from" class="form-label">Du</label><input type="date" name="date_from" id="date_from" value="<?php echo e($dateFrom); ?>" class="form-control"></div>
+                <div class="col-md-2"><label for="date_to" class="form-label">Au</label><input type="date" name="date_to" id="date_to" value="<?php echo e($dateTo); ?>" class="form-control"></div>
+                <div class="col-md-2"><label for="filter_agence_id" class="form-label">Agence</label><select name="agence_id" id="filter_agence_id" class="form-select"><option value="">Toutes</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>" <?php echo $agenceId==$a['id']?'selected':''; ?>><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
                 <div class="col-md-2"><button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Générer</button></div>
             </form>
         </div></div>
@@ -119,13 +119,13 @@ $agences = getAgences($db);
 
             <div class="col-lg-6">
                 <div class="card"><div class="card-header"><i class="bi bi-cash-coin me-2"></i>Recettes par catégorie</div><div class="card-body">
-                    <div class="chart-container" style="height:250px"><canvas id="chartRecettes"></canvas></div>
+                    <div class="chart-container" style="height:250px"><canvas id="chartRecettes" role="img" aria-label="Graphique des recettes par catégorie"></canvas></div>
                     <table class="table table-sm mt-2"><tbody><?php foreach($recettesParCat as $rc): ?><tr><td><?php echo e($rc['cat'] ?? 'Non classé'); ?></td><td class="text-success"><?php echo formatMoney($rc['total']); ?></td></tr><?php endforeach; ?></tbody></table>
                 </div></div>
             </div>
             <div class="col-lg-6">
                 <div class="card"><div class="card-header"><i class="bi bi-cart-dash me-2"></i>Dépenses par catégorie</div><div class="card-body">
-                    <div class="chart-container" style="height:250px"><canvas id="chartDepenses"></canvas></div>
+                    <div class="chart-container" style="height:250px"><canvas id="chartDepenses" role="img" aria-label="Graphique des dépenses par catégorie"></canvas></div>
                     <table class="table table-sm mt-2"><tbody><?php foreach($depensesParCat as $dc): ?><tr><td><?php echo e($dc['cat'] ?? 'Non classé'); ?></td><td class="text-danger"><?php echo formatMoney($dc['total']); ?></td></tr><?php endforeach; ?></tbody></table>
                 </div></div>
             </div>

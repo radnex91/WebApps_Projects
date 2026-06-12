@@ -1,7 +1,10 @@
 <?php
 session_start();
 
-define('APP_NAME', 'BrenFinance Suite');
+// Fuseau horaire du Cameroun (UTC+1)
+date_default_timezone_set('Africa/Douala');
+
+define('APP_NAME', 'BrenFinance Suite Pro');
 define('APP_VERSION', '1.0.0');
 define('BASE_PATH', dirname(__DIR__));
 define('BASE_URL', '/brenfinance');

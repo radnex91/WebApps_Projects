@@ -195,7 +195,7 @@ if ($action === 'livrer_form' && $id && hasPermission('commandes.modifier')) {
             </tfoot>
           </table>
         </div>
-        <form method="POST" action="?action=livrer&id=<?= $id ?>" onsubmit="return checkValidation()">
+        <form method="POST" action="?action=livrer&id=<?= $id ?>" onsubmit="return checkValidation(this)">
           <input type="hidden" name="csrf" value="<?= csrf() ?>">
           <div style="font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Vérification de réception</div>
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
@@ -237,13 +237,14 @@ if ($action === 'livrer_form' && $id && hasPermission('commandes.modifier')) {
           </div>
         </form>
         <script>
-        function checkValidation() {
+        function checkValidation(form) {
           var boxes = document.querySelectorAll('input[name="checks[]"]:checked');
           if (boxes.length === 0) {
             alert('Veuillez cocher au moins une case de vérification.');
             return false;
           }
-          return confirm('Confirmer la livraison ? Le stock sera mis à jour.');
+          showConfirm('Confirmer la livraison ?','Le stock sera mis à jour pour les produits commandés.',function(){ form.submit(); });
+          return false;
         }
         </script>
       </div>
@@ -370,7 +371,7 @@ if (in_array($action, ['add', 'edit'])) {
         <div class="modal-footer">
           <a href="<?= APP_URL ?>/modules/commandes.php" class="btn btn-ghost">Annuler</a>
           <?php if ($id && hasPermission('commandes.modifier')): ?>
-          <a href="?action=delete&id=<?= $id ?>" class="btn btn-danger" onclick="return confirm('Supprimer cette commande ?')"><?= icon('trash',14) ?> Supprimer</a>
+          <a href="?action=delete&id=<?= $id ?>" class="btn btn-danger" onclick="showConfirm('Supprimer cette commande ?','Cette action est irréversible.',function(){window.location.href=this.href;}.bind(this));return false;"><?= icon('trash',14) ?> Supprimer</a>
           <?php endif; ?>
           <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> Enregistrer</button>
         </div>
@@ -496,7 +497,7 @@ if ($action === 'bon' && $id) {
     <title>Bon de livraison — <?= e($cmd['reference']) ?></title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: 'DM Sans', -apple-system, sans-serif; font-size: 13px; color: #1a1a2e; background: #fff; }
+      body { font-family: 'Manrope', -apple-system, sans-serif; font-size: 13px; color: #1a1a2e; background: #fff; }
       .page { max-width: 800px; margin: 0 auto; padding: 40px 48px; }
       .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 2px solid #0d9488; padding-bottom: 20px; }
       .brand h1 { font-size: 22px; color: #0d9488; font-weight: 700; }

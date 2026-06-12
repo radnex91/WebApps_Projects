@@ -21,8 +21,13 @@ $_fontSize = max(12, min(20, (int)($_s['font_size'] ?? 14)));
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Connexion — MediCore ERP</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="<?= APP_URL ?>/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  .skip-nav { position: absolute; top: -100%; left: 16px; background: #2d7dd2; color: #fff; padding: 8px 16px; border-radius: 0 0 8px 8px; font-size: 13px; font-weight: 600; z-index: 9999; transition: top .2s; }
+  .skip-nav:focus { top: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { font-size: <?= $_fontSize ?>px; }
   body {
@@ -84,14 +89,13 @@ $_fontSize = max(12, min(20, (int)($_s['font_size'] ?? 14)));
   .brand-title {
     position: relative; z-index: 1;
     font-size: 2rem; font-weight: 700;
-    background: linear-gradient(135deg, #60a5fa, #c8a44e);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    color: #60a5fa;
     letter-spacing: -0.5px; margin-bottom: 8px;
     text-align: center;
   }
   .brand-sub {
     position: relative; z-index: 1;
-    color: #5b6e8a; font-size: .85rem; font-weight: 400;
+    color: #8b9ec2; font-size: .85rem; font-weight: 400;
     text-align: center; max-width: 260px; line-height: 1.6;
   }
 
@@ -267,11 +271,16 @@ $_fontSize = max(12, min(20, (int)($_s['font_size'] ?? 14)));
     .panel-form { padding: 24px 16px 40px; }
     .form-header h1 { font-size: 1.3rem; }
   }
+  @media (prefers-reduced-motion: reduce) {
+    .ecg-line { animation: none; stroke-dashoffset: 0; }
+    .has-error .ecg-line, .has-timeout .ecg-line { animation: none; }
+  }
 </style>
 </head>
 <body class="<?= $error ? 'has-error' : ($timeout ? 'has-timeout' : '') ?>">
+<a href="#login-form" class="skip-nav">Aller au formulaire de connexion</a>
 
-<div class="panel-brand">
+<div class="panel-brand" aria-hidden="true">
   <div class="accent-line"></div>
 
   <div class="medical-symbol">
@@ -319,25 +328,25 @@ $_fontSize = max(12, min(20, (int)($_s['font_size'] ?? 14)));
       <div class="alert alert-success"> Déconnexion réussie</div>
     <?php endif; ?>
 
-    <form method="POST" action="<?= APP_URL ?>/auth">
+    <form method="POST" action="<?= APP_URL ?>/auth" id="login-form">
       <input type="hidden" name="action" value="login">
       <?= csrf_field() ?>
       <div class="field-group">
-        <label>Email professionnel</label>
+        <label for="username">Nom d'utilisateur</label>
         <div class="input-wrap">
-          <span class="input-icon">✉</span>
-          <input type="email" name="email" placeholder="admin@medicore.fr" value="admin@medicore.fr" required autocomplete="username">
+          <span class="input-icon" aria-hidden="true">👤</span>
+          <input type="text" name="username" id="username" placeholder="admin" value="" required autocomplete="username" autocapitalize="off">
         </div>
       </div>
       <div class="field-group">
-        <label>Mot de passe</label>
+        <label for="password">Mot de passe</label>
         <div class="field-pwd">
           <div class="input-wrap">
-            <span class="input-icon">🔒</span>
+            <span class="input-icon" aria-hidden="true">🔒</span>
             <input type="password" name="password" id="pwd" placeholder="••••••••" value="password" required autocomplete="current-password">
           </div>
-          <button type="button" class="pwd-toggle" onclick="togglePwd()" title="Afficher/Masquer">
-            <span id="pwd-icon">👁</span>
+          <button type="button" class="pwd-toggle" onclick="togglePwd()" title="Afficher/Masquer le mot de passe" aria-label="Afficher ou masquer le mot de passe">
+            <span id="pwd-icon" aria-hidden="true">👁</span>
           </button>
         </div>
       </div>
@@ -350,25 +359,25 @@ $_fontSize = max(12, min(20, (int)($_s['font_size'] ?? 14)));
       <div class="demo-title"> Comptes de démonstration</div>
       <div class="demo-grid">
         <?php foreach ([
-          ['admin@medicore.fr',     'Administrateur'],
-          ['dr.martin@medicore.fr', 'Médecin'],
-          ['pharmacie@medicore.fr', 'Pharmacien'],
-          ['compta@medicore.fr',    'Comptable'],
-          ['infirmier@medicore.fr', 'Infirmier'],
-        ] as [$email, $role]): ?>
-        <span class="email" onclick="remplir('<?= $email ?>')"><?= $email ?></span>
+          ['admin',      'Administrateur'],
+          ['dr.martin',  'Médecin'],
+          ['pharmacie',  'Pharmacien'],
+          ['compta',     'Comptable'],
+          ['infirmier',  'Infirmier'],
+        ] as [$username, $role]): ?>
+        <span class="email" onclick="remplir('<?= $username ?>')"><?= $username ?></span>
         <span class="role"><?= $role ?></span>
         <?php endforeach; ?>
       </div>
-      <div class="demo-hint">Mot de passe : <strong>password</strong> — Cliquez sur un email</div>
+      <div class="demo-hint">Mot de passe : <strong>password</strong> — Cliquez sur un identifiant</div>
     </div>
   </div>
 </div>
 
 <script>
-function remplir(email) {
-  document.querySelector('input[name="email"]').value = email;
-  document.querySelector('input[name="password"]').value = 'admin123';
+function remplir(username) {
+  document.querySelector('input[name="username"]').value = username;
+  document.querySelector('input[name="password"]').value = 'password';
 }
 function togglePwd() {
   var inp = document.getElementById('pwd');

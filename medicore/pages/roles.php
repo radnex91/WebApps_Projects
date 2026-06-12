@@ -604,11 +604,11 @@ $presetOptions = [
 <?php endif; ?>
 
 <!--  MODAL NOUVEAU ROLE  -->
-<div id="modal-new-role" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:540px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-new-role" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(540px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>Créer un nouveau rôle</h3>
-      <div onclick="document.getElementById('modal-new-role').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">X</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-new-role').style.display='none'" aria-label="Fermer">X</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_role">
@@ -616,7 +616,7 @@ $presetOptions = [
 
       <div class="form-group" style="margin-bottom:14px">
         <label>Libellé du rôle *</label>
-        <input type="text" name="label" required maxlength="100" autofocus
+        <input type="text" name="label" required maxlength="100" 
                placeholder="ex: Neurochirurgien, Stagiaire, Radiologue, Chef de service...">
         <div style="font-size:11px;color:var(--text3);margin-top:4px">Un identifiant unique sera généré automatiquement depuis le libellé.</div>
       </div>

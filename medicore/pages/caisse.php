@@ -334,13 +334,13 @@ $statutLabel = ['ouvert'=>'⏳ En attente','paye'=>'✅ Payé','annule'=>'✕ An
 </div>
 
 <!--  MODAL NOUVELLE VENTE  -->
-<div id="modal-vente" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto"
-     onclick="if(event.target===this)closeModal('modal-vente')">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:720px;box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
+<div id="modal-vente" class="modal-overlay" style="display:none;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto"
+     role="dialog" aria-modal="true" onclick="if(event.target===this)closeModal('modal-vente')">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(720px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
 
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0;z-index:1">
       <h3> Nouvelle vente  Caisse pharmacie</h3>
-      <div onclick="closeModal('modal-vente')" style="cursor:pointer;width:28px;height:28px;background:var(--surface2);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text2)"></div>
+      <button type="button" class="modal-close" onclick="closeModal('modal-vente')" aria-label="Fermer" style="width:28px;height:28px;background:var(--surface2);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text2)"></button>
     </div>
 
     <form method="POST" id="form-vente" style="padding:24px">
@@ -350,7 +350,7 @@ $statutLabel = ['ouvert'=>'⏳ En attente','paye'=>'✅ Payé','annule'=>'✕ An
       <?= csrf_field() ?>
 
       <div class="form-group" style="margin-bottom:16px">
-        <label>Patient <span style="color:var(--text3);font-size:10px">(optionnel)</span></label>
+        <label for="sel-patient">Patient <span style="color:var(--text3);font-size:10px">(optionnel)</span></label>
         <select name="patient_id" id="sel-patient" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
           <option value=""> Vente anonyme </option>
           <?php foreach ($patients as $p): ?>
@@ -387,7 +387,7 @@ $statutLabel = ['ouvert'=>'⏳ En attente','paye'=>'✅ Payé','annule'=>'✕ An
         <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px"> Paiement</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
           <div class="form-group">
-            <label>Mode de paiement</label>
+            <label for="sel-mode">Mode de paiement</label>
             <select name="mode_paiement" id="sel-mode" onchange="updateMonnaie()">
               <option value="especes"> Espèces</option>
               <option value="carte"> Carte bancaire</option>
@@ -398,7 +398,7 @@ $statutLabel = ['ouvert'=>'⏳ En attente','paye'=>'✅ Payé','annule'=>'✕ An
             </select>
           </div>
           <div class="form-group" id="zone-recu">
-            <label>Montant reçu (<?= h($s['currency_symbol'] ?? '') ?>)</label>
+            <label for="inp-recu">Montant reçu (<?= h($s['currency_symbol'] ?? '') ?>)</label>
             <input type="number" name="montant_recu" id="inp-recu" step="0.01" min="0" value="0"
                    oninput="updateMonnaie()" style="font-size:16px;font-weight:700;text-align:center">
           </div>
@@ -410,8 +410,8 @@ $statutLabel = ['ouvert'=>'⏳ En attente','paye'=>'✅ Payé','annule'=>'✕ An
       </div>
 
       <div class="form-group" style="margin-bottom:20px">
-        <label>Notes</label>
-        <input type="text" name="notes" maxlength="255" placeholder="ex: Ordonnance fournie / Remise accordée...">
+        <label for="caisse-notes">Notes</label>
+        <input type="text" name="notes" id="caisse-notes" maxlength="255" placeholder="ex: Ordonnance fournie / Remise accordée...">
       </div>
 
       <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border)">
@@ -424,9 +424,9 @@ $statutLabel = ['ouvert'=>'⏳ En attente','paye'=>'✅ Payé','annule'=>'✕ An
 
 <!--  MODAL TICKET  -->
 <?php if ($ticket_print): ?>
-<div id="modal-ticket" style="position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:300;display:flex;align-items:center;justify-content:center"
-     onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:#fff;border-radius:12px;width:380px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-ticket" class="modal-overlay" style="z-index:300;display:flex;align-items:center;justify-content:center"
+     role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#fff;border-radius:12px;width:min(380px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="background:var(--surface);border-radius:12px 12px 0 0;padding:12px 16px;display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-blue btn-sm" onclick="printTicket()">🖨 Imprimer</button>
       <a href="pharmacie.php?tab=ordonnances" class="btn btn-ghost btn-sm"> Pharmacie</a>
@@ -556,7 +556,7 @@ function addLigne(prefillId = null, prefillQty = 1) {
       <input type="text" id="pu-${idx}" readonly style="${fieldStyle};background:var(--surface2);border-color:var(--border);color:var(--text2)">
       <input type="number" name="remise[]" id="rem-${idx}" value="0" min="0" max="100" step="0.5" oninput="calcLigne(${idx})" style="${fieldStyle}">
       <input type="text" id="tl-${idx}" readonly style="${fieldStyle};background:var(--surface2);border-color:var(--border);color:var(--green);font-weight:700">
-      <button type="button" onclick="removeLigne(${idx})" style="width:28px;height:28px;background:rgba(239,68,68,.15);border:none;border-radius:6px;color:#f87171;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center"></button>
+      <button type="button" onclick="removeLigne(${idx})" style="width:44px;height:44px;background:rgba(var(--red-rgb),.15);border:none;border-radius:6px;color:var(--red);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center"></button>
     `;
     container.appendChild(div);
 

@@ -15,9 +15,11 @@ USE `medicore`;
 -- ─── UTILISATEURS ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `utilisateurs` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(50) NOT NULL,
   `nom` varchar(100) NOT NULL,
   `prenom` varchar(100) NOT NULL,
-  `email` varchar(150) NOT NULL UNIQUE,
+  `email` varchar(150) DEFAULT NULL,
+  UNIQUE KEY `uq_username` (`username`),
   `mot_de_passe` varchar(255) NOT NULL,
   `role` varchar(50) NOT NULL DEFAULT 'infirmier',
   `specialite` varchar(100) DEFAULT NULL,
@@ -237,16 +239,16 @@ CREATE TABLE IF NOT EXISTS `activite_log` (
 -- ============================================================
 
 -- Utilisateurs (mot de passe: admin123 hashé en bcrypt)
-INSERT INTO `utilisateurs` (`nom`, `prenom`, `email`, `mot_de_passe`, `role`, `specialite`, `telephone`, `extension`, `statut`, `planning`, `avatar_initiales`) VALUES
-('Admin', 'Système', 'admin@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 'Administration', '01 23 45 67 89', '2100', 'actif', 'Journée (08h-18h)', 'AD'),
-('Bernard', 'Patrick', 'p.bernard@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Cardiologie', '01 23 45 67 01', '2201', 'actif', 'Journée (08h-18h)', 'PB'),
-('Martin', 'Carole', 'c.martin@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Médecine générale', '01 23 45 67 02', '2315', 'actif', 'Matin (07h-15h)', 'CM'),
-('Leroy', 'François', 'f.leroy@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Neurologie', '01 23 45 67 03', '2408', 'actif', 'Journée (09h-19h)', 'FL'),
-('Rousseau', 'Marie', 'm.rousseau@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Pédiatrie', '01 23 45 67 04', '2512', 'actif', 'Matin (08h-16h)', 'MR'),
-('Simon', 'Antoine', 'a.simon@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Chirurgie orthopédique', '01 23 45 67 05', '2617', 'actif', 'Matin (06h-14h)', 'AS'),
-('Dupont', 'Isabelle', 'i.dupont@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'infirmier', 'Soins généraux', '01 23 45 67 10', '3001', 'actif', 'Matin (07h-15h)', 'ID'),
-('Lefebvre', 'Sophie', 's.lefebvre@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'pharmacien', 'Pharmacie hospitalière', '01 23 45 67 20', '4001', 'actif', 'Journée (08h-18h)', 'SL'),
-('Moreau', 'Jean', 'j.moreau@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'comptable', 'Finance', '01 23 45 67 30', '5001', 'actif', 'Journée (08h-18h)', 'JM');
+INSERT INTO `utilisateurs` (`nom`, `prenom`, `username`, `email`, `mot_de_passe`, `role`, `specialite`, `telephone`, `extension`, `statut`, `planning`, `avatar_initiales`) VALUES
+('Admin', 'Système', 'admin', 'admin@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 'Administration', '01 23 45 67 89', '2100', 'actif', 'Journée (08h-18h)', 'AD'),
+('Bernard', 'Patrick', 'dr.martin', 'p.bernard@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Cardiologie', '01 23 45 67 01', '2201', 'actif', 'Journée (08h-18h)', 'PB'),
+('Martin', 'Carole', 'c.martin', 'c.martin@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Médecine générale', '01 23 45 67 02', '2315', 'actif', 'Matin (07h-15h)', 'CM'),
+('Leroy', 'François', 'f.leroy', 'f.leroy@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Neurologie', '01 23 45 67 03', '2408', 'actif', 'Journée (09h-19h)', 'FL'),
+('Rousseau', 'Marie', 'm.rousseau', 'm.rousseau@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Pédiatrie', '01 23 45 67 04', '2512', 'actif', 'Matin (08h-16h)', 'MR'),
+('Simon', 'Antoine', 'a.simon', 'a.simon@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', 'Chirurgie orthopédique', '01 23 45 67 05', '2617', 'actif', 'Matin (06h-14h)', 'AS'),
+('Dupont', 'Isabelle', 'pharmacie', 'i.dupont@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'infirmier', 'Soins généraux', '01 23 45 67 10', '3001', 'actif', 'Matin (07h-15h)', 'ID'),
+('Lefebvre', 'Sophie', 'compta', 's.lefebvre@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'pharmacien', 'Pharmacie hospitalière', '01 23 45 67 20', '4001', 'actif', 'Journée (08h-18h)', 'SL'),
+('Moreau', 'Jean', 'infirmier', 'j.moreau@medicore.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'comptable', 'Finance', '01 23 45 67 30', '5001', 'actif', 'Journée (08h-18h)', 'JM');
 
 -- Départements
 INSERT INTO `departements` (`nom`, `code`, `capacite_lits`, `chef_service_id`, `etage`, `couleur`) VALUES

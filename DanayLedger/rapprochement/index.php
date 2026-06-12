@@ -50,8 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $rapprochements = $db->query("SELECT r.*, a.nomagence as agence_nom FROM rapprochement r LEFT JOIN agence a ON r.agence_id=a.id ORDER BY r.created_at DESC LIMIT 50")->fetchAll();
 $agences = getAgences($db);
 ?>
-<div class="main-content">
-    <header class="main-header"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button><h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6></div><div class="header-right"><div class="dropdown"><button class="notif-btn" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
+<div class="main-content" id="main-content" role="main">
+    <header class="main-header" role="banner"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button><span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span></div><div class="header-right"><div class="dropdown"><button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" role="button" tabindex="0" aria-label="Menu utilisateur" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
     <div class="page-content fade-in">
         <?php echo displayFlashMessages(); ?>
         <div class="page-header"><div><h1 class="page-title"><i class="bi bi-scale me-2"></i>Rapprochement Financier</h1><p class="page-subtitle">Comparaison recettes / versements</p></div>
@@ -59,7 +59,7 @@ $agences = getAgences($db);
         </div>
 
         <div class="card"><div class="table-container">
-            <table class="table">
+            <table class="table" aria-label="Rapprochement bancaire">
                 <thead><tr><th>Période</th><th>Agence</th><th>Total Recettes</th><th>Total Versements</th><th>Écart</th><th>Statut</th><th>Actions</th></tr></thead>
                 <tbody>
                 <?php foreach ($rapprochements as $r): ?>
@@ -72,7 +72,7 @@ $agences = getAgences($db);
                     <td><span class="badge <?php echo $r['statut']==='valide'?'bg-success':($r['statut']==='ecart_detecte'?'bg-danger':'bg-warning text-dark'); ?>"><?php echo e($r['statut']==='valide'?'Validé':($r['statut']==='ecart_detecte'?'Écart détecté':'En cours')); ?></span></td>
                     <td>
                         <?php if ($r['statut']==='en_cours' && hasPermission('rapprochement_validate')): ?>
-                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="action" value="validate"><input type="hidden" name="id" value="<?php echo $r['id']; ?>"><button type="submit" class="btn btn-sm btn-outline-success" data-confirm="Valider ce rapprochement ?"><i class="bi bi-check-lg"></i></button></form>
+                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="action" value="validate"><input type="hidden" name="id" value="<?php echo $r['id']; ?>"><button type="submit" class="btn btn-sm btn-outline-success" aria-label="Valider" data-confirm="Valider ce rapprochement ?"><i class="bi bi-check-lg"></i></button></form>
                         <?php endif; ?>
                         <button class="btn btn-sm btn-outline-secondary no-print" onclick="window.print()"><i class="bi bi-printer"></i></button>
                     </td>
@@ -86,13 +86,13 @@ $agences = getAgences($db);
 </div>
 
 <!-- Modal Nouveau Rapprochement -->
-<div class="modal fade" id="newModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Nouveau rapprochement</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal fade" id="newModal" tabindex="-1" aria-labelledby="newModalLabel"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="newModalLabel">Nouveau rapprochement</h5><button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="modal"></button></div>
     <form method="POST"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="action" value="create">
     <div class="modal-body">
         <div class="mb-3"><label class="form-label">Date début <span class="text-danger">*</span></label><input type="date" name="date_debut" class="form-control" required></div>
         <div class="mb-3"><label class="form-label">Date fin <span class="text-danger">*</span></label><input type="date" name="date_fin" class="form-control" required></div>
-        <div class="mb-3"><label class="form-label">Agence</label><select name="agence_id" class="form-select"><option value="">Toutes les agences</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>"><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
+        <div class="mb-3"><label for="filter_agence_id" class="form-label">Agence</label><select name="agence_id" id="filter_agence_id" class="form-select"><option value="">Toutes les agences</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>"><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
         <div class="mb-3"><label class="form-label">Observations</label><textarea name="observations" class="form-control" rows="3"></textarea></div>
     </div>
     <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer le rapprochement</button></div>

@@ -20,7 +20,7 @@ MediCore ERP is a hospital management system (French-language UI) built with van
 2. Import database: `mysql -u root < sql/medicore.sql` (or via phpMyAdmin)
 3. If upgrading an existing install, also run `sql/update.sql`
 4. Access at `http://localhost/medicore`
-5. Default login: `admin@medicore.fr` / `admin123`
+5. Default login: `admin` / `password`
 
 No build, compile, lint, or test commands exist. Development is edit-and-refresh.
 

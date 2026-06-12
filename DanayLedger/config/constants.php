@@ -4,7 +4,29 @@
 // Application
 define('APP_NAME', 'DanayLedger');
 define('APP_VERSION', '2.0.0');
-define('APP_URL', 'http://localhost/DanayLedger');
+
+// APP_URL dynamique : détecte automatiquement HTTP/HTTPS, domaine et port
+$appProtocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ? 'https://' : 'http://';
+$appHost = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
+
+// Calculer le chemin de base depuis la racine du serveur
+// Ex: C:/xampp/htdocs/DanayLedger/config/constants.php → /DanayLedger
+$docRoot = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? 'C:/xampp/htdocs');
+$currentDir = str_replace('\\', '/', __DIR__); // .../DanayLedger/config
+$appRoot = str_replace('\\', '/', dirname(__DIR__)); // .../DanayLedger
+
+// Si __DIR__ commence par DOCUMENT_ROOT, extraire le chemin relatif
+if (stripos($appRoot, $docRoot) === 0) {
+    $appBasePath = substr($appRoot, strlen($docRoot));
+} else {
+    // Fallback : utiliser SCRIPT_NAME
+    $appBasePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+}
+// Nettoyer
+$appBasePath = '/' . trim($appBasePath, '/');
+if ($appBasePath === '/') $appBasePath = '';
+define('APP_URL', $appProtocol . $appHost . $appBasePath);
+define('APP_IS_HTTPS', $appProtocol === 'https://');
 
 // Rôles utilisateurs (slugs - compatibilité)
 define('ROLE_ADMIN', 'admin');

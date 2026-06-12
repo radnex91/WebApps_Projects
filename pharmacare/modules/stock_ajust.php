@@ -72,29 +72,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $qte   = (int)($_POST['quantite'] ?? 0);
     $motif = trim($_POST['motif'] ?? '');
 
-    if ($qte <= 0) {
-        flash('La quantité doit être supérieure à 0.', 'error');
+    $erreur = '';
+    if ($type === 'ajustement') {
+        if ($qte < 0) $erreur = 'La quantité ne peut pas être négative.';
     } else {
+        if ($qte <= 0) $erreur = 'La quantité doit être supérieure à 0.';
+        if ($type === 'sortie' && $qte > $produit['stock']) $erreur = 'Stock insuffisant (disponible : ' . $produit['stock'] . ').';
+    }
+
+    if ($erreur) {
+        flash($erreur, 'error');
+    } else {
+        $ancienStock = (int)$produit['stock'];
         switch ($type) {
-            case 'entrée':     $newStock = $produit['stock'] + $qte;         break;
-            case 'sortie':     $newStock = max(0, $produit['stock'] - $qte); break;
-            case 'ajustement': $newStock = $qte;                              break;
-            default:           $newStock = $produit['stock'];
+            case 'entrée':     $newStock = $ancienStock + $qte;         break;
+            case 'sortie':     $newStock = $ancienStock - $qte;         break;
+            case 'ajustement': $newStock = $qte;                         break;
+            default:           $newStock = $ancienStock;
         }
+        $deltaReel = abs($newStock - $ancienStock);
         try {
             $db->beginTransaction();
             $db->prepare("UPDATE produits SET stock=? WHERE id=?")->execute([$newStock, $id]);
             $db->prepare("INSERT INTO mouvements_stock (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,?,?,?,?)")
-               ->execute([$id, $type, $qte, $motif, currentUser()['id']]);
+               ->execute([$id, $type, $deltaReel, $motif, currentUser()['id']]);
             $pa = (float)$produit['prix_achat'];
-            if ($pa > 0 && $qte > 0) {
-                $valeur = round($pa * $qte, 2);
+            if ($pa > 0 && $deltaReel > 0) {
+                $valeur = round($pa * $deltaReel, 2);
                 $compteStock  = compteFindOrCreate($db, '3111', 'Médicaments en stock', 3, 'debit');
                 $compteVarStk = compteFindOrCreate($db, '6031', 'Variation stocks marchandises', 6, 'debit');
-                if ($type === 'entrée' || ($type === 'ajustement' && $newStock > $produit['stock'])) {
+                if ($type === 'entrée' || ($type === 'ajustement' && $newStock > $ancienStock)) {
                     $lignes = [[$compteStock, $valeur, 0, 'Entrée stock ' . e($produit['nom'])]];
                     $lignes[] = [$compteVarStk, 0, $valeur, 'Variation stock ' . e($produit['nom'])];
-                } elseif ($type === 'sortie' || ($type === 'ajustement' && $newStock < $produit['stock'])) {
+                } elseif ($type === 'sortie' || ($type === 'ajustement' && $newStock < $ancienStock)) {
                     $lignes = [[$compteVarStk, $valeur, 0, 'Sortie stock ' . e($produit['nom'])]];
                     $lignes[] = [$compteStock, 0, $valeur, 'Variation stock ' . e($produit['nom'])];
                 } else {
@@ -105,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             $db->commit();
+            auditLog('stock.adjust', sprintf('%s %s : %d → %d (%s : %s)', ucfirst($type), e($produit['nom']), $ancienStock, $newStock, $type, $motif ?: '—'), $id, $produit['reference'] ?? null);
             flash("Stock mis à jour : $newStock unités.");
             header('Location: ' . APP_URL . '/modules/stock.php'); exit;
         } catch (Exception $e) {
@@ -178,7 +189,7 @@ showFlash();
           </div>
           <div class="form-group">
             <label>Quantité *</label>
-            <input type="number" name="quantite" min="1" required placeholder="0">
+            <input type="number" name="quantite" min="0" required placeholder="0">
           </div>
           <div class="form-group">
             <label>Motif</label>

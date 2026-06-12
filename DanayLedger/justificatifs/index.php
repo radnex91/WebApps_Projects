@@ -64,8 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 ?>
-<div class="main-content">
-    <header class="main-header"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button><h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6></div><div class="header-right"><div class="dropdown"><button class="notif-btn" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
+<div class="main-content" id="main-content" role="main">
+    <header class="main-header" role="banner"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button><span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span></div><div class="header-right"><div class="dropdown"><button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" role="button" tabindex="0" aria-label="Menu utilisateur" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
     <div class="page-content fade-in">
         <?php echo displayFlashMessages(); ?>
         <div class="page-header"><div><h1 class="page-title"><i class="bi bi-paperclip me-2"></i>Pièces Justificatives</h1></div>
@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         </div></div>
 
         <div class="card"><div class="table-container">
-            <table class="table">
+            <table class="table" aria-label="Liste des justificatifs">
                 <thead><tr><th>Fichier</th><th>Type</th><th>ID Entité</th><th>Taille</th><th>Téléversé par</th><th>Date</th><th>Actions</th></tr></thead>
                 <tbody>
                 <?php foreach ($result['data'] as $j): ?>
@@ -94,9 +94,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     <td><?php echo e($j['uploader_name'] ?? '-'); ?></td>
                     <td><?php echo formatDate($j['created_at']); ?></td>
                     <td><div class="action-btns">
-                        <a href="<?php echo APP_URL; ?>/uploads/justificatifs/<?php echo e($j['chemin_fichier']); ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                        <a href="<?php echo APP_URL; ?>/uploads/justificatifs/<?php echo e($j['chemin_fichier']); ?>" target="_blank" class="btn btn-sm btn-outline-primary" aria-label="Voir"><i class="bi bi-eye"></i></a>
                         <a href="<?php echo APP_URL; ?>/uploads/justificatifs/<?php echo e($j['chemin_fichier']); ?>" download class="btn btn-sm btn-outline-success"><i class="bi bi-download"></i></a>
-                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?php echo $j['id']; ?>"><button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Supprimer ce justificatif ?"><i class="bi bi-trash"></i></button></form>
+                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?php echo $j['id']; ?>"><button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer" data-confirm="Supprimer ce justificatif ?"><i class="bi bi-trash"></i></button></form>
                     </div></td>
                 </tr>
                 <?php endforeach; ?>
@@ -109,8 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 </div>
 
 <!-- Upload Modal -->
-<div class="modal fade" id="uploadModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Ajouter un justificatif</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="uploadModalLabel">Ajouter un justificatif</h5><button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="modal"></button></div>
     <form method="POST" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
     <div class="modal-body">
         <div class="mb-3"><label class="form-label">Type d'entité <span class="text-danger">*</span></label>

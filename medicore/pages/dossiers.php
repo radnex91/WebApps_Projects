@@ -46,7 +46,7 @@ $statutBadgeF = ['en_attente'=>'badge-yellow','reglee'=>'badge-green','impayee'=
 
 <!-- Recherche -->
 <form method="GET" style="display:flex;gap:8px;margin-bottom:24px">
-  <input type="text" name="search" value="<?= h($search) ?>" autofocus
+  <input type="text" name="search" value="<?= h($search) ?>" 
     placeholder=" Rechercher patient — nom, prénom, numéro de dossier, téléphone..."
     style="flex:1;padding:12px 16px;background:var(--surface);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;outline:none">
   <button type="submit" class="btn btn-blue" style="padding:12px 20px">Rechercher</button>
@@ -111,7 +111,7 @@ $statutBadgeF = ['en_attente'=>'badge-yellow','reglee'=>'badge-green','impayee'=
     </div>
   </div>
   <?php if ($patient['antecedents']): ?>
-  <div style="padding:14px 24px;border-top:1px solid var(--border);background:rgba(239,68,68,.04)">
+  <div style="padding:14px 24px;border-top:1px solid var(--border);background:rgba(var(--red-rgb),.04)">
     <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Antécédents médicaux</span>
     <p style="margin-top:6px;font-size:13px;color:var(--text2)"><?= h($patient['antecedents']) ?></p>
   </div>
@@ -234,7 +234,7 @@ $recents = db_select(
       $hosp  = !empty($r['dept_nom']);
     ?>
     <a href="dossiers.php?patient_id=<?= (int)$r['id'] ?>" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);text-decoration:none;transition:background .1s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
-      <div style="width:36px;height:36px;border-radius:9px;background:<?= $hosp?'rgba(239,68,68,.15)':'rgba(59,130,246,.12)' ?>;color:<?= $hosp?'var(--red)':'var(--accent2)' ?>;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0"><?= $init ?></div>
+      <div style="width:36px;height:36px;border-radius:9px;background:<?= $hosp?'rgba(var(--red-rgb),.15)':'rgba(var(--accent-rgb),.12)' ?>;color:<?= $hosp?'var(--red)':'var(--accent2)' ?>;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0"><?= $init ?></div>
       <div style="min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= h($r['prenom'].' '.$r['nom']) ?></div>
         <div style="font-size:11px;color:var(--text3)"><?= $age ?> ans  <?= h($r['numero']) ?><?= $hosp?'  '.h($r['dept_nom']):'' ?></div>

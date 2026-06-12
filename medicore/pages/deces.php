@@ -104,10 +104,10 @@ $sortieLabel = ['non'=>'Non','famille'=>'Famille','pompes_funebres'=>'Pompes fun
 
 <!-- Modal certificat deces -->
 <?php if (can('deces.create')): ?>
-<div id="modal-deces" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:600px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
+<div id="modal-deces" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(600px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <h3>🕊️ Etablir un certificat de deces</h3><div onclick="document.getElementById('modal-deces').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div></div>
+      <h3>🕊️ Etablir un certificat de deces</h3><button type="button" class="modal-close" onclick="document.getElementById('modal-deces').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button></div>
     <form method="POST" style="padding:24px"><input type="hidden" name="action" value="certificat"><?= csrf_field() ?>
     <div class="form-grid">
       <div class="form-group form-full"><label>Patient *</label><select name="patient_id" required onchange="chargerHospitalisations(this.value)"><option value="">-- --</option>

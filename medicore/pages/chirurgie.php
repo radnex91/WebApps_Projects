@@ -181,29 +181,29 @@ $patientsHosp = db_select("SELECT p.id, CONCAT(p.prenom,' ',p.nom) AS nom_comple
 
 <!-- Modal nouvelle intervention -->
 <?php if (can('chirurgie.create')): ?>
-<div id="modal-chirurgie" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:600px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
+<div id="modal-chirurgie" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(600px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>Programmer une intervention</h3>
-      <div onclick="document.getElementById('modal-chirurgie').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-chirurgie').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="programmer">
       <?= csrf_field() ?>
       <div class="form-grid">
-        <div class="form-group form-full"><label>Patient *</label>
-          <select name="patient_id" required><option value="">-- Selectionner --</option>
+        <div class="form-group form-full"><label for="inp-patient_id">Patient *</label>
+          <select name="patient_id" id="inp-patient_id" required><option value="">-- Selectionner --</option>
           <?php foreach ($patientsHosp as $ph): ?><option value="<?= (int)$ph['id'] ?>"><?= h($ph['nom_complet'].' - '.$ph['numero'].($ph['dept_nom']?' ['.$ph['dept_nom'].']':'')) ?></option><?php endforeach; ?>
           </select></div>
-        <div class="form-group form-full"><label>Nom de l'intervention *</label><input type="text" name="nom_intervention" required placeholder="Ex: Appendicectomie"></div>
-        <div class="form-group"><label>Chirurgien *</label><select name="chirurgien_id" required><option value="">-- --</option><?php foreach ($chirurgiens as $c): ?><option value="<?= (int)$c['id'] ?>"><?= h($c['nom_complet'].(($c['specialite']??'')?' - '.$c['specialite']:'')) ?></option><?php endforeach; ?></select></div>
-        <div class="form-group"><label>Anesthesiste</label><select name="anesthesiste_id"><option value="">-- --</option><?php foreach ($chirurgiens as $c): ?><option value="<?= (int)$c['id'] ?>"><?= h($c['nom_complet']) ?></option><?php endforeach; ?></select></div>
-        <div class="form-group"><label>Date prevue *</label><input type="datetime-local" name="date_prevue" required></div>
-        <div class="form-group"><label>Duree (min)</label><input type="number" name="duree" value="120" min="15" max="600"></div>
-        <div class="form-group"><label>Salle</label><input type="text" name="salle" placeholder="Ex: Bloc A - Salle 3"></div>
-        <div class="form-group"><label>Type</label><select name="type"><option value="programmee">Programmee</option><option value="urgence">Urgence</option><option value="ambulatoire">Ambulatoire</option></select></div>
-        <div class="form-group form-full"><label>Anesthesie</label><select name="anesthesie"><option value="generale">Generale</option><option value="locoregionale">Locoregionale</option><option value="locale">Locale</option><option value="sedation">Sedation</option></select></div>
-        <div class="form-group form-full"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
+        <div class="form-group form-full"><label for="inp-nom_intervention">Nom de l'intervention *</label><input type="text" name="nom_intervention" id="inp-nom_intervention" required placeholder="Ex: Appendicectomie"></div>
+        <div class="form-group"><label for="inp-chirurgien_id">Chirurgien *</label><select name="chirurgien_id" id="inp-chirurgien_id" required><option value="">-- --</option><?php foreach ($chirurgiens as $c): ?><option value="<?= (int)$c['id'] ?>"><?= h($c['nom_complet'].(($c['specialite']??'')?' - '.$c['specialite']:'')) ?></option><?php endforeach; ?></select></div>
+        <div class="form-group"><label for="inp-anesthesiste_id">Anesthesiste</label><select name="anesthesiste_id" id="inp-anesthesiste_id"><option value="">-- --</option><?php foreach ($chirurgiens as $c): ?><option value="<?= (int)$c['id'] ?>"><?= h($c['nom_complet']) ?></option><?php endforeach; ?></select></div>
+        <div class="form-group"><label for="inp-date_prevue">Date prevue *</label><input type="datetime-local" name="date_prevue" id="inp-date_prevue" required></div>
+        <div class="form-group"><label for="inp-duree">Duree (min)</label><input type="number" name="duree" id="inp-duree" value="120" min="15" max="600"></div>
+        <div class="form-group"><label for="inp-salle">Salle</label><input type="text" name="salle" id="inp-salle" placeholder="Ex: Bloc A - Salle 3"></div>
+        <div class="form-group"><label for="inp-type">Type</label><select name="type" id="inp-type"><option value="programmee">Programmee</option><option value="urgence">Urgence</option><option value="ambulatoire">Ambulatoire</option></select></div>
+        <div class="form-group form-full"><label for="inp-anesthesie">Anesthesie</label><select name="anesthesie" id="inp-anesthesie"><option value="generale">Generale</option><option value="locoregionale">Locoregionale</option><option value="locale">Locale</option><option value="sedation">Sedation</option></select></div>
+        <div class="form-group form-full"><label for="inp-notes">Notes</label><textarea name="notes" id="inp-notes" rows="2"></textarea></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
         <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-chirurgie').style.display='none'">Annuler</button>
@@ -216,17 +216,17 @@ $patientsHosp = db_select("SELECT p.id, CONCAT(p.prenom,' ',p.nom) AS nom_comple
 
 <!-- Modal terminer intervention -->
 <?php if (can('chirurgie.update')): ?>
-<div id="modal-terminer" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:450px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-terminer" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(450px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>Terminer l'intervention</h3>
-      <div onclick="document.getElementById('modal-terminer').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-terminer').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="update_interv">
       <input type="hidden" name="statut" value="terminee">
       <input type="hidden" name="id" id="term-id" value=""><?= csrf_field() ?>
-      <div class="form-group"><label>Complications (si aucune, laisser vide)</label><textarea name="complications" rows="2" placeholder="Decrire les complications eventuelles..."></textarea></div>
+      <div class="form-group"><label for="inp-complications">Complications (si aucune, laisser vide)</label><textarea name="complications" id="inp-complications" rows="2" placeholder="Decrire les complications eventuelles..."></textarea></div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
         <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-terminer').style.display='none'">Annuler</button>
         <button type="submit" class="btn btn-green">Confirmer</button>
@@ -238,11 +238,11 @@ $patientsHosp = db_select("SELECT p.id, CONCAT(p.prenom,' ',p.nom) AS nom_comple
 
 <!-- Modal checklist -->
 <?php if (can('chirurgie.create')): ?>
-<div id="modal-checklist" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:500px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-checklist" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(500px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>📋 Checklist pre-operatorire (OMS)</h3>
-      <div onclick="document.getElementById('modal-checklist').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-checklist').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="checklist">

@@ -13,7 +13,10 @@
       "PowerShell(\\(Get-Content \"C:\\\\xampp\\\\htdocs\\\\pharmacare\\\\includes\\\\dashboard-admin.php\"\\)[165..169] | ForEach-Object { \"$_$\\([char]0x00B6\\)\" })",
       "Bash(php *)",
       "Bash(del *)",
-      "Bash(powershell *)"
+      "Bash(powershell *)",
+      "Bash(xxd \"C:\\\\xampp\\\\htdocs\\\\pharmacare\\\\config\\\\settings.php\")",
+      "Bash(Select-String -Pattern \"0000090|00000a0|00000b0|00000c0\")",
+      "Bash(Select-Object -First 8)"
     ]
   }
 }

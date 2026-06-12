@@ -28,7 +28,6 @@ $kpiCards     = [];
 $recentItems  = [];
 $recentTitle  = '';
 $recentLink   = '';
-$extraSections = [];
 $pendingMissions = 0;
 $roleBanner   = '';
 
@@ -51,26 +50,12 @@ case 'super_admin':
         ['icon'=>'fa-solid fa-shield-halved',   'label'=>'Audits aujourd\'hui', 'value'=>$auditToday,                    'sub'=>'Actions tracées',               'mod'=>'danger'],
     ];
 
-    $recentItems = $seeAudit ? $db->query("SELECT ja.*, CONCAT(u.nom,' ',u.prenom) as user_nom FROM journal_audit ja LEFT JOIN utilisateurs u ON ja.utilisateur_id=u.id ORDER BY ja.created_at DESC LIMIT 10")->fetchAll() : [];
-    $recentTitle = 'Journal d\'audit récent';
-    $recentLink  = BASE_URL.'/modules/audit/index.php';
-
     if ($seeEngagements) {
-        $extraSections[] = [
-            'title'=>'Derniers engagements',
-            'link'=>BASE_URL.'/modules/engagements/index.php',
-            'cols'=>['Numéro','Objet','Statut','Montant','Demandeur'],
-            'data'=>$db->query("SELECT de.numero, de.objet, de.statut, de.montant, de.created_at, CONCAT(u.nom,' ',u.prenom) as demandeur_nom FROM demandes_engagement de JOIN utilisateurs u ON de.demandeur_id=u.id ORDER BY de.created_at DESC LIMIT 5")->fetchAll()
-        ];
+        $recentItems = $db->query("SELECT de.numero, de.objet, de.statut, de.montant, de.created_at, CONCAT(u.nom,' ',u.prenom) as demandeur_nom FROM demandes_engagement de JOIN utilisateurs u ON de.demandeur_id=u.id ORDER BY de.created_at DESC LIMIT 8")->fetchAll();
+        $recentTitle = 'Derniers engagements';
+        $recentLink  = BASE_URL.'/modules/engagements/index.php';
     }
-    if ($seeMissions) {
-        $extraSections[] = [
-            'title'=>'Dernières missions',
-            'link'=>BASE_URL.'/modules/ordre_mission/index.php',
-            'cols'=>['Numéro','Objet','Statut','Montant','Demandeur'],
-            'data'=>$db->query("SELECT om.numero, om.objet, om.statut, om.montant, om.created_at, CONCAT(u.nom,' ',u.prenom) as demandeur_nom FROM ordres_mission om JOIN utilisateurs u ON om.demandeur_id=u.id ORDER BY om.created_at DESC LIMIT 5")->fetchAll()
-        ];
-    }
+
     break;
 
 /* ─── DAF ──────────────────────────────────────────────────── */
@@ -233,7 +218,8 @@ include __DIR__ . '/includes/header.php';
 <?php if (!empty($kpiCards)): ?>
 <div class="stats-grid">
   <?php foreach ($kpiCards as $card): ?>
-  <div class="stat-card <?= $card['mod'] ?>">
+  <div class="stat-card">
+    <div class="stat-indicator <?= $card['mod'] ?: 'default' ?>"></div>
     <div class="stat-icon"><i class="<?= $card['icon'] ?>"></i></div>
     <div class="stat-label"><?= htmlspecialchars($card['label']) ?></div>
     <div class="stat-value"><?= $card['value'] ?></div>
@@ -263,17 +249,17 @@ include __DIR__ . '/includes/header.php';
 
 <?php /* ═══ Cash Flow Chart ═══ */ ?>
 <?php if ($seeCaisse && in_array($role, ['super_admin','daf','comptable','caissier'])): ?>
-<div class="card mb-20" style="overflow:hidden">
-  <div class="card-header" style="border-bottom:1px solid var(--border)">
+<div class="card mb-20 chart-card">
+  <div class="card-header">
     <span class="card-title"><i class="fa-solid fa-chart-bar"></i> Flux de caisse — Chandelier</span>
-    <span style="font-size:11.5px;color:var(--text3);margin-left:auto">6 derniers mois</span>
+    <span class="chart-subtitle">6 derniers mois</span>
   </div>
-  <div id="chart-wrap" style="position:relative;height:360px;cursor:crosshair">
+  <div id="chart-wrap" class="chart-wrap-container">
     <canvas id="chart-flux" style="display:block"></canvas>
-    <div id="chart-crosshair-x" style="display:none;position:absolute;top:0;bottom:0;width:1px;background:rgba(100,116,139,.25);pointer-events:none;z-index:3"></div>
-    <div id="chart-crosshair-y" style="display:none;position:absolute;left:0;right:0;height:1px;background:rgba(100,116,139,.25);pointer-events:none;z-index:3"></div>
-    <div id="chart-price-tag" style="display:none;position:absolute;right:0;padding:2px 8px;font-size:10.5px;font-weight:600;border-radius:3px 0 0 3px;pointer-events:none;z-index:4;transform:translateY(-50%)"></div>
-    <div id="chart-tooltip" style="display:none;position:absolute;pointer-events:none;z-index:10;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.18);min-width:170px"></div>
+    <div id="chart-crosshair-x" class="chart-crosshair-x"></div>
+    <div id="chart-crosshair-y" class="chart-crosshair-y"></div>
+    <div id="chart-price-tag" class="chart-price-tag"></div>
+    <div id="chart-tooltip" class="chart-tooltip"></div>
   </div>
 </div>
 <?php endif; ?>
@@ -317,27 +303,6 @@ include __DIR__ . '/includes/header.php';
     </table>
   </div>
 
-  <?php /* Audit table (super_admin) */ ?>
-  <?php elseif ($role === 'super_admin'): ?>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Date</th><th>Utilisateur</th><th>Action</th><th class="hide-mobile">Module</th><th class="hide-mobile">Table</th></tr>
-      </thead>
-      <tbody>
-        <?php foreach ($recentItems as $a): ?>
-        <tr>
-          <td style="white-space:nowrap"><?= date('d/m H:i', strtotime($a['created_at'])) ?></td>
-          <td><?= htmlspecialchars($a['user_nom'] ?? 'Système') ?></td>
-          <td class="truncate" style="max-width:160px" title="<?= htmlspecialchars($a['action']) ?>"><?= htmlspecialchars($a['action']) ?></td>
-          <td class="hide-mobile"><?= htmlspecialchars($a['module'] ?? '') ?></td>
-          <td class="hide-mobile"><?= htmlspecialchars($a['table_name'] ?? '') ?></td>
-        </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
-  </div>
-
   <?php /* Generic: engagements / missions / mixed */ ?>
   <?php else: ?>
   <div class="table-wrap">
@@ -370,41 +335,6 @@ include __DIR__ . '/includes/header.php';
 </div>
 <?php endif; ?>
 
-<?php /* ═══ Extra sections (super_admin) ═══ */ ?>
-<?php if ($role === 'super_admin' && !empty($extraSections)): ?>
-  <?php foreach ($extraSections as $section): ?>
-  <div class="card mb-20">
-    <div class="card-header">
-      <span class="card-title"><?= $section['title'] ?></span>
-      <a href="<?= $section['link'] ?>" class="btn btn-outline btn-sm ml-auto">Voir tout</a>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <?php foreach ($section['cols'] as $col): ?>
-            <th><?= $col ?></th>
-            <?php endforeach; ?>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ($section['data'] as $row): ?>
-          <tr>
-            <td style="white-space:nowrap"><?= date('d/m H:i', strtotime($row['created_at'])) ?></td>
-            <td style="white-space:nowrap;font-weight:600"><?= htmlspecialchars($row['numero']) ?></td>
-            <td class="truncate" style="max-width:160px" title="<?= htmlspecialchars($row['objet']) ?>"><?= htmlspecialchars($row['objet']) ?></td>
-            <td><span class="badge badge-<?= $badges[$row['statut']] ?? 'gray' ?>"><?= htmlspecialchars($labels[$row['statut']] ?? $row['statut']) ?></span></td>
-            <td class="amount"><?= formatMontant($row['montant'] ?? 0) ?></td>
-            <td class="hide-mobile"><?= htmlspecialchars($row['demandeur_nom'] ?? '') ?></td>
-          </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
-  <?php endforeach; ?>
-<?php endif; ?>
-
 <?php /* ═══ Budget consumption ═══ */ ?>
 <?php if ($seeBudget && !empty($budgetData) && in_array($role, ['super_admin','daf','comptable'])): ?>
 <div class="card mb-20">
@@ -417,13 +347,13 @@ include __DIR__ . '/includes/header.php';
       $pct = $b['montant_prevu'] > 0 ? round(($b['montant_realise']/$b['montant_prevu'])*100) : 0;
       $cls = $pct >= 100 ? 'danger' : ($pct >= $b['seuil_alerte'] ? 'warning' : '');
     ?>
-    <div style="margin-bottom:14px">
+    <div class="budget-item">
       <div class="d-flex justify-between align-center mb-0" style="margin-bottom:4px">
-        <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:8px"><?= htmlspecialchars($b['libelle']) ?></span>
-        <span style="font-size:12px;font-weight:700;flex-shrink:0;color:<?= $cls==='danger'?'var(--danger)':($cls==='warning'?'var(--warning)':'var(--text2)') ?>"><?= $pct ?>%</span>
+        <span class="budget-label"><?= htmlspecialchars($b['libelle']) ?></span>
+        <span class="budget-pct budget-pct-<?= $cls ?>"><?= $pct ?>%</span>
       </div>
       <div class="progress"><div class="progress-bar <?= $cls ?>" style="width:<?= min($pct,100) ?>%"></div></div>
-      <div style="font-size:11.5px;color:var(--text3);margin-top:3px"><?= formatMontant($b['montant_realise']) ?> / <?= formatMontant($b['montant_prevu']) ?></div>
+      <div class="budget-amounts"><?= formatMontant($b['montant_realise']) ?> / <?= formatMontant($b['montant_prevu']) ?></div>
     </div>
     <?php endforeach; ?>
   </div>
@@ -447,11 +377,11 @@ if ($role === 'demandeur' && hasPermission('engagements','creer')) $shortcuts[] 
 <?php if (!empty($shortcuts)): ?>
 <div class="card" style="display:none" id="quick-access">
   <div class="card-header"><span class="card-title">Accès rapide</span></div>
-  <div class="card-body" style="padding:12px">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+  <div class="card-body quick-access-body">
+    <div class="quick-access-grid">
       <?php foreach($shortcuts as [$href,$icon,$label]): ?>
-      <a href="<?= $href ?>" style="display:flex;flex-direction:column;align-items:center;padding:14px 8px;border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--text2);font-size:12px;font-weight:600;gap:6px;transition:background var(--transition),border-color var(--transition)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
-        <span style="font-size:22px;color:var(--primary)"><?= $icon ?></span>
+      <a href="<?= $href ?>" class="quick-access-link">
+        <span class="quick-access-icon"><?= $icon ?></span>
         <?= $label ?>
       </a>
       <?php endforeach; ?>
@@ -484,14 +414,21 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   if (!canvas || !canvas.getContext) return;
 
-  // ── Palette ──
+  // ── Palette (theme-aware) ──
+  var cs = getComputedStyle(document.documentElement);
   var C = {
-    up: '#22c55e', upFill: 'rgba(34,197,94,0.75)', upGlow: 'rgba(34,197,94,0.12)',
-    dn: '#ef4444', dnFill: 'rgba(239,68,68,0.75)', dnGlow: 'rgba(239,68,68,0.12)',
-    wick: '#94a3b8', grid: 'rgba(148,163,184,0.09)', gridStrong: 'rgba(148,163,184,0.18)',
-    label: '#64748b', labelLight: '#94a3b8',
-    volUp: 'rgba(34,197,94,0.18)', volDn: 'rgba(239,68,68,0.18)',
-    sma: '#6366f1', smaBg: 'rgba(99,102,241,0.06)',
+    up: cs.getPropertyValue('--success').trim() || '#1a9e5a',
+    upFill: cs.getPropertyValue('--success-bg').trim() || '#d1f5e4',
+    dn: cs.getPropertyValue('--danger').trim() || '#d63547',
+    dnFill: cs.getPropertyValue('--danger-bg').trim() || '#fde8ea',
+    wick: cs.getPropertyValue('--text3').trim() || '#8892a4',
+    grid: 'rgba(128,128,128,.09)', gridStrong: 'rgba(128,128,128,.18)',
+    label: cs.getPropertyValue('--text2').trim() || '#4b5671',
+    labelLight: cs.getPropertyValue('--text3').trim() || '#8892a4',
+    volUp: cs.getPropertyValue('--success-bg').trim() || '#d1f5e4',
+    volDn: cs.getPropertyValue('--danger-bg').trim() || '#fde8ea',
+    sma: cs.getPropertyValue('--info').trim() || '#1a76c9',
+    smaBg: 'rgba(26,118,201,.06)',
   };
 
   // ── OHLC cumulatif ──
@@ -789,8 +726,8 @@ document.addEventListener('DOMContentLoaded', function() {
         '<div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">Net</span><span style="font-weight:700;color:' + col + '">' + netSign + fmtFCFA(Math.abs(net)) + ' (' + netSign + pctD + '%)</span></div>' +
       '</div>';
     elTooltip.style.display = 'block';
-    elTooltip.style.background = 'rgba(15,23,42,0.92)';
-    elTooltip.style.backdropFilter = 'blur(8px)';
+    elTooltip.style.background = cs.getPropertyValue('--surface').trim() || '#fff';
+    elTooltip.style.border = '1px solid ' + (cs.getPropertyValue('--border').trim() || '#dde2ea');
 
     var tx = mx + 16, ty = my - 40;
     if (tx + 190 > rect.width) tx = mx - 200;

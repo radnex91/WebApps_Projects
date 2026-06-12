@@ -61,37 +61,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         $modePaiement = 'espèces';
     }
 
-    // Client pour credit obligatoire
-    $clientId = null;
-    $clientNom = '';
-    $clientTel = '';
-    if ($modePaiement === 'crédit') {
-        $clientId = !empty($_POST['client_id']) ? (int)$_POST['client_id'] : null;
-        if ($clientId) {
-            $stmtC = $db->prepare("SELECT nom, telephone FROM clients WHERE id = ?");
-            $stmtC->execute([$clientId]);
-            $cData = $stmtC->fetch();
-            if ($cData) {
-                $clientNom = $cData['nom'];
-                $clientTel = $cData['telephone'];
-            }
+    // ── Client : saisie libre ou client existant ──
+    $clientId     = null;
+    $clientNom    = '';
+    $clientTel    = '';
+    $clientMode   = $_POST['client_mode'] ?? 'simple';  // 'simple' | 'existant'
+
+    if ($clientMode === 'existant' && !empty($_POST['client_id'])) {
+        $clientId = (int)$_POST['client_id'];
+        $stmtC = $db->prepare("SELECT nom, telephone FROM clients WHERE id = ?");
+        $stmtC->execute([$clientId]);
+        $cData = $stmtC->fetch();
+        if ($cData) {
+            $clientNom = $cData['nom'];
+            $clientTel = $cData['telephone'];
+        } else {
+            $clientId = null;  // client supprimé entre-temps
         }
-    } else {
-        // Meme pour ventes non-credit, on peut avoir un client selectionne
-        $clientId = !empty($_POST['client_id']) ? (int)$_POST['client_id'] : null;
-        if ($clientId) {
-            $stmtC = $db->prepare("SELECT nom, telephone FROM clients WHERE id = ?");
-            $stmtC->execute([$clientId]);
-            $cData = $stmtC->fetch();
-            if ($cData) {
-                $clientNom = $cData['nom'];
-                $clientTel = $cData['telephone'];
-            }
+    } elseif ($clientMode === 'simple') {
+        $clientNom = trim($_POST['client_nom_saisie'] ?? '');
+        if ($clientNom === '') {
+            flash('Le nom du client est obligatoire en vente libre.', 'error');
+            header('Location: ' . APP_URL . '/modules/vente.php'); exit;
         }
     }
-    // Si credit sans client, on repasse en especes
+
+    // Si crédit sans client enregistré → repasse en espèces
     if ($modePaiement === 'crédit' && !$clientId) {
-        flash('Un client est requis pour une vente à crédit.', 'error');
+        flash('Un client enregistré est requis pour une vente à crédit.', 'error');
         header('Location: ' . APP_URL . '/modules/vente.php'); exit;
     }
 
@@ -255,6 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         }
 
         $db->commit();
+        auditLog('vente.create', sprintf('Vente %s : %d articles, %s %s (%s)', $ref, count($cartRaw), fmtMoney($total), $modePaiement, $clientNom ?: '—'), (int)$vid, $ref);
         header('Location: ' . APP_URL . '/modules/vente.php?receipt=' . urlencode($ref)); exit;
 
     } catch (Exception $e) {
@@ -491,8 +489,8 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
   <!-- ── Panier Pro ── -->
   <div class="cart-panel">
     <div class="card-header">
-      <div class="card-title">Panier</div>
-      <button type="button" class="btn btn-ghost btn-xs" onclick="clearCart()">Vider</button>
+      <div class="card-title">Nouvelle vente</div>
+      <span id="cart-item-count" style="font-size:12px;color:#94a3b8;display:none;">0 article</span>
     </div>
     <?php if ($sessionActive): ?>
     <div style="padding:6px 16px;background:var(--teal-dim);border-bottom:1px solid var(--border2);font-size:12px;display:flex;justify-content:space-between;align-items:center;">
@@ -501,9 +499,48 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
     </div>
     <?php endif; ?>
 
-    <div class="cart-items" id="cart-items">
-      <!-- Rendu par JS -->
+    <!-- ── Écran de choix du mode client (avant panier) ── -->
+    <div id="client-choice-screen" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;gap:20px;">
+      <div style="font-size:15px;font-weight:600;color:#f8fafc;text-align:center;">
+        <?= icon('users',24) ?>
+        <div style="margin-top:8px;">Type de vente</div>
+      </div>
+      <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0;">
+        Choisissez le mode client avant de démarrer
+      </p>
+      <button type="button" onclick="chooseClientMode('simple')"
+              style="width:100%;padding:18px;border-radius:12px;border:2px solid #334155;background:#1e293b;color:#f8fafc;cursor:pointer;transition:all 0.2s;text-align:left;font-size:14px;"
+              onmouseover="this.style.borderColor='#10b981';this.style.background='#0f172a'"
+              onmouseout="this.style.borderColor='#334155';this.style.background='#1e293b'">
+        <div style="font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;">
+          <?= icon('user',18) ?> Vente libre
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">
+          Saisie rapide du nom — client de passage
+        </div>
+      </button>
+      <button type="button" onclick="chooseClientMode('existant')"
+              style="width:100%;padding:18px;border-radius:12px;border:2px solid #334155;background:#1e293b;color:#f8fafc;cursor:pointer;transition:all 0.2s;text-align:left;font-size:14px;"
+              onmouseover="this.style.borderColor='#8b5cf6';this.style.background='#0f172a'"
+              onmouseout="this.style.borderColor='#334155';this.style.background='#1e293b'">
+        <div style="font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;">
+          <?= icon('star',18) ?> Client fidèle
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">
+          Client enregistré — crédit disponible
+        </div>
+      </button>
+      <div style="font-size:10px;color:#475569;text-align:center;margin-top:auto;">
+        Vous pourrez changer en cours de vente
+      </div>
     </div>
+
+    <!-- ── Panier (caché tant que mode non choisi) ── -->
+
+    <div id="cart-body" style="display:none;flex:1;flex-direction:column;">
+      <div class="cart-items" id="cart-items">
+        <!-- Rendu par JS -->
+      </div>
 
     <div class="cart-footer">
       <div class="totals-grid">
@@ -523,9 +560,33 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
 
       <div style="height:12px;"></div>
 
-      <div class="form-group" style="margin-bottom:8px;">
-        <label>Client (optionnel)</label>
-        <select name="client_id" id="client-select" style="width:100%;" onchange="document.getElementById('mode-credit').style.display=this.value?'':'none'">
+      <!-- ── Mode client : saisie libre ou existant ── -->
+      <div class="form-group" style="margin-bottom:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="margin:0;">Client</label>
+          <div style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid #334155;">
+            <button type="button" id="client-mode-simple" class="client-mode-toggle active"
+                    onclick="setClientMode('simple')"
+                    style="padding:4px 12px;font-size:11px;font-weight:600;border:none;cursor:pointer;
+                           background:#334155;color:#f8fafc;transition:all 0.15s;">
+              Libre
+            </button>
+            <button type="button" id="client-mode-existant" class="client-mode-toggle"
+                    onclick="setClientMode('existant')"
+                    style="padding:4px 12px;font-size:11px;font-weight:600;border:none;cursor:pointer;
+                           background:transparent;color:#94a3b8;transition:all 0.15s;">
+              Fidèle
+            </button>
+          </div>
+        </div>
+        <input type="hidden" name="client_mode" id="client-mode-hdn" value="simple">
+        <!-- Saisie libre -->
+        <input type="text" name="client_nom_saisie" id="client-nom-saisie" required
+               placeholder="Nom du client *"
+               style="width:100%;font-family:'DM Mono',monospace;">
+        <!-- Client existant -->
+        <select name="client_id" id="client-select" style="width:100%;display:none;"
+                onchange="onClientSelectChange()">
           <option value="">— Sélectionner —</option>
           <?php
           $allClients = $db->query("SELECT id, nom, telephone FROM clients WHERE actif=1 ORDER BY nom")->fetchAll();
@@ -553,10 +614,11 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
         <span id="monnaie" class="fw-mono c-teal" style="font-size:16px; font-weight:700;">0 <?= e($devSym) ?></span>
       </div>
 
-      <button type="submit" class="btn-validate-pro">
+      <button type="submit" class="btn-validate-pro" id="btn-validate" disabled style="opacity:0.5;cursor:not-allowed;">
         <?= icon('check',18) ?> Valider la vente
       </button>
     </div>
+    </div><!-- /#cart-body -->
   </div>
 
   <!-- ── Catalogue ── -->
@@ -616,7 +678,9 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
               data-ref="<?= e(mb_strtolower($p['reference'] ?? '')) ?>"
               data-pname="<?= e($p['nom']) ?>"
               data-price="<?= (float)$p['prix_vente'] ?>"
-              data-stock="<?= (int)$p['stock'] ?>">
+              data-stock="<?= (int)$p['stock'] ?>"
+              data-stock-orig="<?= (int)$p['stock'] ?>"
+              data-seuil="<?= (int)$p['seuil_alerte'] ?>">
             <td class="td-mono"><?= e($p['reference']) ?></td>
             <td class="td-name"><?= e($p['nom']) ?></td>
             <td><span class="p-cat-tag" style="--cat-color:<?= e($catColor) ?>"><?= e($p['cat'] ?? '—') ?></span></td>
@@ -653,6 +717,8 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
            data-pname="<?= e($p['nom']) ?>"
            data-price="<?= (float)$p['prix_vente'] ?>"
            data-stock="<?= (int)$p['stock'] ?>"
+           data-stock-orig="<?= (int)$p['stock'] ?>"
+           data-seuil="<?= (int)$p['seuil_alerte'] ?>"
            style="--cat-color:<?= e($catColor) ?>">
         <div class="p-cat"><?= e($p['cat'] ?? '—') ?></div>
         <div class="p-name"><?= e($p['nom']) ?></div>
@@ -694,13 +760,13 @@ function showView(isList) {
 gridView.addEventListener('click', function(e) {
   const tile = e.target.closest('.product-tile');
   if (!tile || tile.classList.contains('out')) return;
-  addToCart(parseInt(tile.dataset.id), tile.dataset.pname, parseFloat(tile.dataset.price), parseInt(tile.dataset.stock));
+  addToCart(parseInt(tile.dataset.id), tile.dataset.pname, parseFloat(tile.dataset.price), parseInt(tile.dataset.stockOrig));
 });
 // Lignes (tableau)
 listView.addEventListener('click', function(e) {
   const row = e.target.closest('.product-row');
   if (!row || row.classList.contains('out')) return;
-  addToCart(parseInt(row.dataset.id), row.dataset.pname, parseFloat(row.dataset.price), parseInt(row.dataset.stock));
+  addToCart(parseInt(row.dataset.id), row.dataset.pname, parseFloat(row.dataset.price), parseInt(row.dataset.stockOrig));
   // Flash sur la ligne
   row.style.background = 'var(--teal-dim)';
   setTimeout(function() { row.style.background = ''; }, 350);
@@ -731,7 +797,7 @@ listView.addEventListener('click', function(e) {
       if (found.classList.contains('out')) {
         showNotif('Produit en rupture de stock : ' + found.dataset.pname, 'error');
       } else {
-        addToCart(parseInt(found.dataset.id), found.dataset.pname, parseFloat(found.dataset.price), parseInt(found.dataset.stock));
+        addToCart(parseInt(found.dataset.id), found.dataset.pname, parseFloat(found.dataset.price), parseInt(found.dataset.stockOrig));
         found.style.borderColor = 'var(--teal2)';
         found.style.background = 'var(--teal-dim)';
         setTimeout(function() { found.style.borderColor = ''; found.style.background = ''; }, 400);
@@ -765,6 +831,128 @@ function filterCat(cat) {
 // Afficher la vue liste par défaut (toutes catégories)
 showView(true);
 
+var CLIENT_MODE = null; // 'simple' | 'existant' | null (pas encore choisi)
+
+function chooseClientMode(mode) {
+  CLIENT_MODE = mode;
+  var screen  = document.getElementById('client-choice-screen');
+  var cartBody = document.getElementById('cart-body');
+  var header  = document.querySelector('.cart-panel .card-header .card-title');
+  var count   = document.getElementById('cart-item-count');
+
+  // Cacher l'écran de choix, afficher le panier
+  screen.style.display = 'none';
+  cartBody.style.display = 'flex';
+  count.style.display = '';
+  if (header) header.textContent = 'Panier';
+
+  // Ajouter bouton "vider" dans le header
+  var headerDiv = document.querySelector('.cart-panel .card-header');
+  if (!document.getElementById('btn-clear-cart')) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'btn-clear-cart';
+    btn.className = 'btn btn-ghost btn-xs';
+    btn.textContent = 'Vider';
+    btn.onclick = clearCart;
+    headerDiv.appendChild(btn);
+    
+    // Bouton pour changer de mode
+    var btnMode = document.createElement('button');
+    btnMode.type = 'button';
+    btnMode.id = 'btn-switch-mode';
+    btnMode.className = 'btn btn-ghost btn-xs';
+    btnMode.textContent = mode === 'simple' ? '→ Fidèle' : '→ Libre';
+    btnMode.onclick = function(){ switchClientMode(); };
+    btnMode.style.marginRight = '4px';
+    headerDiv.appendChild(btnMode);
+  }
+
+  // Appliquer le mode
+  setClientMode(mode);
+
+  // Bloquer l'ajout au panier tant que mode non choisi
+  window._cartReady = true;
+
+  // Mettre le focus sur le champ de recherche
+  setTimeout(function(){
+    var barcodeInput = document.getElementById('barcode-input');
+    if (barcodeInput) barcodeInput.focus();
+  }, 100);
+}
+
+function switchClientMode() {
+  var newMode = (CLIENT_MODE === 'simple') ? 'existant' : 'simple';
+  CLIENT_MODE = newMode;
+  setClientMode(newMode);
+  var btnSwitch = document.getElementById('btn-switch-mode');
+  if (btnSwitch) btnSwitch.textContent = newMode === 'simple' ? '→ Fidèle' : '→ Libre';
+}
+
+// Bloquer addToCart tant que le mode n'est pas choisi
+var _originalAddToCart = null;
+var _guardTimer = null;
+function _guardAddToCart() {
+  if (typeof window.addToCart === 'function' && !_originalAddToCart) {
+    _originalAddToCart = window.addToCart;
+    window.addToCart = function(id, name, price, stock) {
+      if (!CLIENT_MODE) {
+        showNotif('Choisissez d\'abord le type de vente : Libre ou Fidèle', 'error');
+        return;
+      }
+      _originalAddToCart(id, name, price, stock);
+    };
+    return;
+  }
+  // Réessayer jusqu'à ce que addToCart soit défini
+  if (!_guardTimer) _guardTimer = setInterval(function() {
+    if (typeof window.addToCart === 'function') {
+      clearInterval(_guardTimer);
+      _guardAddToCart();
+    }
+  }, 100);
+}
+_guardAddToCart();
+
+function setClientMode(mode) {
+  const btnSimple    = document.getElementById('client-mode-simple');
+  const btnExistant  = document.getElementById('client-mode-existant');
+  const inputSimple  = document.getElementById('client-nom-saisie');
+  const selectExist  = document.getElementById('client-select');
+  const creditBlock  = document.getElementById('mode-credit');
+  const creditCb     = document.getElementById('credit-checkbox');
+  const hdnMode      = document.getElementById('client-mode-hdn');
+
+  if (mode === 'simple') {
+    btnSimple.style.background = '#334155'; btnSimple.style.color = '#f8fafc';
+    btnExistant.style.background = 'transparent'; btnExistant.style.color = '#94a3b8';
+    inputSimple.style.display = ''; selectExist.style.display = 'none';
+    hdnMode.value = 'simple';
+    selectExist.value = '';
+    // Cacher le bloc crédit en mode libre
+    if (creditBlock) creditBlock.style.display = 'none';
+    if (creditCb) { creditCb.checked = false; toggleCreditMode(creditCb); }
+  } else {
+    btnExistant.style.background = '#334155'; btnExistant.style.color = '#f8fafc';
+    btnSimple.style.background = 'transparent'; btnSimple.style.color = '#94a3b8';
+    selectExist.style.display = ''; inputSimple.style.display = 'none';
+    hdnMode.value = 'existant';
+    inputSimple.value = '';
+  }
+}
+
+function onClientSelectChange() {
+  const selectExist  = document.getElementById('client-select');
+  const creditBlock  = document.getElementById('mode-credit');
+  const creditCb     = document.getElementById('credit-checkbox');
+  if (selectExist.value) {
+    if (creditBlock) creditBlock.style.display = '';
+  } else {
+    if (creditBlock) creditBlock.style.display = 'none';
+    if (creditCb) { creditCb.checked = false; toggleCreditMode(creditCb); }
+  }
+}
+
 function toggleCreditMode(checkbox) {
   const paymentModeInput = document.getElementById('mode-paiement');
   const recuGroup = document.getElementById('montant-recu-group');
@@ -785,7 +973,7 @@ function toggleCreditMode(checkbox) {
 <?php if ($receiptData): ?>
 <!-- ── Modal Ticket Thermique ── -->
 <div class="modal-overlay open" id="modal-receipt">
-  <div class="modal" style="width:380px;">
+  <div class="modal" style="width:440px;">
     <div class="modal-header">
       <div class="modal-title">Ticket de caisse</div>
       <button class="modal-close" onclick="closeModal('modal-receipt')">✕</button>
@@ -814,9 +1002,12 @@ function toggleCreditMode(checkbox) {
         <?php endif; ?>
         <div style="border-top:1px dashed var(--border2);border-bottom:1px dashed var(--border2);padding:6px 0;margin-bottom:8px;">
           <?php foreach ($receiptData['lignes'] as $l): ?>
-          <div style="display:flex;justify-content:space-between;">
-            <span><?= e($l['produit_nom']) ?> x<?= (int)$l['quantite'] ?></span>
+          <div style="display:flex;justify-content:space-between;margin-bottom:1px;">
+            <span><?= e($l['produit_nom']) ?></span>
             <span><?= fmtMoney((float)$l['total_ligne']) ?></span>
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-bottom:3px;">
+            <?= fmtMoney((float)$l['prix_unitaire']) ?> &times; <?= (int)$l['quantite'] ?>
           </div>
           <?php endforeach; ?>
         </div>
@@ -844,26 +1035,41 @@ function toggleCreditMode(checkbox) {
         </div>
       </div>
     </div>
-    <div class="modal-footer" style="gap:10px;">
+    <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-receipt')">
         Fermer
       </button>
       <a href="<?= APP_URL ?>/modules/ventes_hist.php" class="btn btn-ghost btn-sm">
         <?= icon('history',13) ?> Historique
       </a>
-      <button class="btn btn-primary btn-sm" onclick="printReceipt()">
-        <?= icon('receipt',13) ?> Imprimer
+      <button class="btn btn-outline-teal btn-sm" onclick="printReceipt80()">
+        🧾 Ticket
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="printReceiptA4()">
+        📄 Facture A4
       </button>
     </div>
   </div>
 </div>
+
+<!-- ── Données ticket cachées pour A4 ── -->
+<script id="receipt-a4-data" type="application/json"><?= json_encode($receiptData, JSON_UNESCAPED_UNICODE) ?></script>
+
 <script>
 const modeLabels = <?= json_encode([
     'espèces' => 'Espèces', 'carte' => 'Carte bancaire',
     'chèque' => 'Chèque', 'assurance' => 'Assurance'
 ], JSON_UNESCAPED_UNICODE) ?>;
+const TVA_RATE = <?= (float)$tvaTaux ?>;
+const DEV_SYM  = <?= json_encode($devSym) ?>;
+const PHARM_NAME = <?= json_encode($appNom) ?>;
+const PHARM_ADDR = <?= json_encode($pharmAdresse ?? '') ?>;
+const PHARM_TEL  = <?= json_encode($pharmTel ?? '') ?>;
+const PHARM_NIF  = <?= json_encode($pharmNif ?? '') ?>;
+const TICKET_TITLE = <?= json_encode($ticketSousTitre) ?>;
+const TICKET_FOOT  = <?= json_encode($ticketPied) ?>;
 
-function printReceipt() {
+function printReceipt80() {
   const content = document.getElementById('receipt-content').innerHTML;
   const win = window.open('', '_blank', 'width=320,height=600');
   win.document.write(`<!DOCTYPE html><html><head><title>Ticket</title>
@@ -876,6 +1082,113 @@ function printReceipt() {
   </head><body>${content}<script>window.onload=function(){window.print();}<\/script></body></html>`);
   win.document.close();
 }
+
+function printReceiptA4() {
+  const d = JSON.parse(document.getElementById('receipt-a4-data').textContent);
+  if (!d) return;
+  const fmt = (n) => Number(n).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const modePmt = modeLabels[d.mode_paiement] || d.mode_paiement;
+  
+  let rows = '';
+  d.lignes.forEach(function(l){
+    rows += `
+      <tr>
+        <td style="text-align:left;padding:8px 10px;">${escHtml(l.produit_nom)}</td>
+        <td style="text-align:right;padding:8px 10px;font-family:'DM Mono',monospace;">${fmt(l.prix_unitaire)}</td>
+        <td style="text-align:center;padding:8px 10px;">${l.quantite}</td>
+        <td style="text-align:right;padding:8px 10px;font-family:'DM Mono',monospace;font-weight:600;">${fmt(l.total_ligne)}</td>
+      </tr>`;
+  });
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture ${escHtml(d.reference)}</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;color:#1e293b;padding:40px;max-width:210mm;margin:0 auto;-webkit-print-color-adjust:exact;}
+      @media print{body{padding:15mm;}}
+      .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid #0f172a;}
+      .header h1{font-size:26px;font-weight:700;color:#0f172a;margin:0 0 4px;}
+      .header .sub{font-size:12px;color:#64748b;}
+      .header .infos{text-align:right;font-size:12px;color:#475569;line-height:1.7;}
+      .meta{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:25px;font-size:13px;}
+      .meta-box{padding:14px 18px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;}
+      .meta-box label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;display:block;margin-bottom:4px;}
+      .meta-box strong{font-size:15px;color:#0f172a;}
+      table{width:100%;border-collapse:collapse;margin-bottom:25px;}
+      thead th{background:#0f172a;color:#f8fafc;font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:10px;}
+      thead th:first-child{border-radius:6px 0 0 0;}
+      thead th:last-child{border-radius:0 6px 0 0;}
+      tbody td{border-bottom:1px solid #e2e8f0;}
+      tbody tr:nth-child(even) td{background:#f8fafc;}
+      tbody tr:last-child td{border-bottom:2px solid #0f172a;}
+      .totals{text-align:right;font-size:14px;line-height:2.4;}
+      .totals div{display:flex;justify-content:flex-end;gap:80px;}
+      .totals .grand{font-size:20px;font-weight:700;color:#059669;padding-top:6px;margin-top:6px;border-top:2px solid #0f172a;}
+      .footer{text-align:center;margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;line-height:1.8;}
+      @media print{@page{size:A4;margin:10mm;}}
+    </style>
+  </head><body>
+    <div class="header">
+      <div>
+        <h1>${escHtml(PHARM_NAME)}</h1>
+        <div class="sub">${escHtml(TICKET_TITLE)}</div>
+      </div>
+      <div class="infos">
+        ${PHARM_ADDR ? escHtml(PHARM_ADDR)+'<br>' : ''}
+        ${PHARM_TEL  ? escHtml(PHARM_TEL)+'<br>'  : ''}
+        ${PHARM_NIF  ? escHtml(PHARM_NIF) : ''}
+      </div>
+    </div>
+    <div class="meta">
+      <div class="meta-box">
+        <label>Facture</label>
+        <strong>${escHtml(d.reference)}</strong>
+      </div>
+      <div class="meta-box">
+        <label>Date</label>
+        <strong>${d.created_at ? new Date(d.created_at.replace(' ','T')).toLocaleString('fr-FR') : ''}</strong>
+      </div>
+      ${d.client_nom ? '<div class="meta-box"><label>Client</label><strong>'+escHtml(d.client_nom)+'</strong></div>' : ''}
+      <div class="meta-box">
+        <label>Caissier</label>
+        <strong>${escHtml((d.prenom||'')+' '+(d.u_nom||''))}</strong>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;width:40%;">Produit</th>
+          <th style="text-align:right;width:20%;">Prix unitaire</th>
+          <th style="text-align:center;width:10%;">Qté</th>
+          <th style="text-align:right;width:30%;">Total</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="totals">
+      <div><span>Sous-total HT</span><span style="font-family:'DM Mono',monospace;">${fmt(d.sous_total)} ${DEV_SYM}</span></div>
+      <div><span>TVA (${TVA_RATE}%)</span><span style="font-family:'DM Mono',monospace;">${fmt(d.tva_total)} ${DEV_SYM}</span></div>
+      <div class="grand"><span>TOTAL TTC</span><span>${fmt(d.total)} ${DEV_SYM}</span></div>
+      ${d.mode_paiement==='espèces' && d.montant_recu>0 ? `
+        <div><span>Reçu</span><span style="font-family:'DM Mono',monospace;">${fmt(d.montant_recu)} ${DEV_SYM}</span></div>
+        <div><span>Monnaie</span><span style="font-family:'DM Mono',monospace;">${fmt(d.monnaie)} ${DEV_SYM}</span></div>
+      ` : ''}
+    </div>
+    <div class="footer">
+      Mode : ${escHtml(modePmt)}<br>
+      ${escHtml(TICKET_FOOT)}
+    </div>
+    <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(html);
+  win.document.close();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
 </script>
 <?php endif; ?>
 

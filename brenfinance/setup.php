@@ -26,6 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 'install') {
     if (strlen($pwd) < 6) $errors[] = 'Mot de passe minimum 6 caractères.';
     if ($pwd !== $pwd2)  $errors[] = 'Les deux mots de passe ne correspondent pas.';
 
+    // Générer l'identifiant à partir de l'email (partie avant @)
+    $username = strtolower(explode('@', $email)[0]);
+    $username = preg_replace('/[^a-z0-9_\-]/', '', $username);
+
     if (empty($errors)) {
         // Test connexion
         try {
@@ -41,14 +45,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 'install') {
             $existingUser = $existing->fetch();
 
             if ($existingUser) {
-                // Mettre à jour le mot de passe existant
-                $pdo->prepare("UPDATE utilisateurs SET password_hash = ?, statut = 'actif' WHERE email = ?")
-                    ->execute([$hash, $email]);
+                // Mettre à jour le mot de passe et l'identifiant
+                $pdo->prepare("UPDATE utilisateurs SET password_hash = ?, username = ?, statut = 'actif' WHERE email = ?")
+                    ->execute([$hash, $username, $email]);
                 $action = 'mis à jour';
             } else {
                 // Créer un nouvel admin
-                $pdo->prepare("INSERT INTO utilisateurs (agence_id, service_id, role_id, nom, prenom, matricule, email, password_hash, statut) VALUES (1, 1, 1, 'Administrateur', 'Système', 'ADM001', ?, ?, 'actif')")
-                    ->execute([$email, $hash]);
+                $pdo->prepare("INSERT INTO utilisateurs (agence_id, service_id, role_id, username, nom, prenom, matricule, email, password_hash, statut) VALUES (1, 1, 1, ?, 'Administrateur', 'Système', 'ADM001', ?, ?, 'actif')")
+                    ->execute([$username, $email, $hash]);
                 $action = 'créé';
             }
 
@@ -57,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 'install') {
 
             file_put_contents(__DIR__ . '/config/database.php', $configContent);
 
-            $message = "<i class='fa-solid fa-circle-check'></i> Installation réussie ! Compte administrateur $action avec l'email <strong>$email</strong>. <br>Vous pouvez maintenant <a href='index.php' style='color:#0ea87e;font-weight:700'>vous connecter</a>.<br><br><strong style='color:#d63547'><i class='fa-solid fa-triangle-exclamation'></i> Supprimez le fichier setup.php maintenant !</strong>";
+            $message = "<i class='fa-solid fa-circle-check'></i> Installation réussie ! Compte administrateur $action.<br>Identifiant : <strong>$username</strong> — Email : <strong>$email</strong><br>Vous pouvez maintenant <a href='index.php' style='color:#0ea87e;font-weight:700'>vous connecter</a>.<br><br><strong style='color:#d63547'><i class='fa-solid fa-triangle-exclamation'></i> Supprimez le fichier setup.php maintenant !</strong>";
             $messageType = 'success';
 
         } catch (PDOException $e) {
@@ -111,10 +115,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 'reset_pwd') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BrenFinance — Configuration initiale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0f3060,#1a4f8a 60%,#0ea87e);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+body{font-family:'Manrope',system-ui,sans-serif;background:linear-gradient(135deg,#0f3060,#1a4f8a 60%,#0ea87e);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .card{background:#fff;border-radius:12px;width:100%;max-width:520px;box-shadow:0 8px 32px rgba(0,0,0,.25);overflow:hidden}
 .top{background:#0f3060;padding:28px 32px;text-align:center}
 .logo{font-size:36px;color:#0ea87e;font-weight:900;margin-bottom:6px}
@@ -149,7 +156,7 @@ small{font-size:11.5px;color:#8892a4;display:block;margin-top:4px}
 <div class="card">
   <div class="top">
     <div class="logo">₣</div>
-    <h1>BrenFinance Suite</h1>
+    <h1>BrenFinance Suite Pro</h1>
     <div class="sub">Configuration &amp; Initialisation</div>
   </div>
   <div class="body">
@@ -207,7 +214,7 @@ small{font-size:11.5px;color:#8892a4;display:block;margin-top:4px}
           <label>Confirmer le mot de passe</label>
           <input type="password" name="admin_password2" placeholder="Répétez le mot de passe">
         </div>
-        <button type="submit" class="btn">Installer BrenFinance Suite</button>
+        <button type="submit" class="btn">Installer BrenFinance Suite Pro</button>
       </form>
     </div>
 

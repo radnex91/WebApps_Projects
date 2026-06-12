@@ -266,7 +266,7 @@ if (can('stocks.entry')) {
     <thead><tr><th>Article</th><th>Catégorie</th><th>Quantité</th><th>Seuil</th><th>Valeur unit.</th><th>Valeur totale</th><th>Fournisseur</th><th>Statut</th><th>Modifier qt</th></tr></thead>
     <tbody>
     <?php foreach ($stocks as $s):
-      $rowBg = $s['statut']==='critique'?'background:rgba(239,68,68,.05)':($s['statut']==='bas'?'background:rgba(245,158,11,.04)':'');
+      $rowBg = $s['statut']==='critique'?'background:rgba(var(--red-rgb),.05)':($s['statut']==='bas'?'background:rgba(var(--yellow-rgb),.04)':'');
     ?>
     <tr style="<?= $rowBg ?>">
       <td><strong><?= h($s['nom']) ?></strong></td>
@@ -373,14 +373,14 @@ if (can('stocks.entry')) {
 
 <!-- ════════════════ MODAL ENTRÉE STOCK ════════════════ -->
 <?php if (can('stocks.entry')): ?>
-<div id="modal-entree" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto"
+<div id="modal-entree" class="modal-overlay" style="display:none;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" role="dialog" aria-modal="true"
      onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:720px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);margin:20px auto">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(720px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);margin:20px auto">
 
     <!-- Header -->
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0;z-index:1">
       <h3>📥 Nouvelle entrée stock</h3>
-      <div onclick="document.getElementById('modal-entree').style.display='none'" style="cursor:pointer;color:var(--text2);font-size:18px">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-entree').style.display='none'" aria-label="Fermer">✕</button>
     </div>
 
     <form method="POST" id="form-entree" style="padding:24px">
@@ -392,7 +392,7 @@ if (can('stocks.entry')) {
         <div class="form-group">
           <label>Type d'entrée *</label>
           <div style="display:flex;gap:6px">
-            <label id="lbl-type-stock" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border-radius:7px;cursor:pointer;border:2px solid var(--accent);background:rgba(59,130,246,.1);color:var(--accent2);font-weight:600;font-size:13px;transition:all .15s">
+            <label id="lbl-type-stock" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border-radius:7px;cursor:pointer;border:2px solid var(--accent);background:rgba(var(--accent-rgb),.1);color:var(--accent2);font-weight:600;font-size:13px;transition:all .15s">
               <input type="radio" name="type" value="stock" checked onchange="switchType('stock')" style="display:none">📦 Matériel
             </label>
             <label id="lbl-type-med" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border-radius:7px;cursor:pointer;border:1px solid var(--border2);color:var(--text2);font-weight:600;font-size:13px;transition:all .15s">
@@ -451,11 +451,11 @@ if (can('stocks.entry')) {
 <?php endif; ?>
 
 <!-- MODAL AJOUT ARTICLE -->
-<div id="modal-stock" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:540px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-stock" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(540px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>➕ Ajouter un article</h3>
-      <div onclick="document.getElementById('modal-stock').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-stock').style.display='none'" aria-label="Fermer">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_stock"><?= csrf_field() ?>
@@ -482,8 +482,8 @@ if (can('stocks.entry')) {
 
 <!-- MODAL ÉDITION STOCK -->
 <?php if ($editStock && can('stocks.create')): ?>
-<div id="modal-edit-stock" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)location.href='stocks.php'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:520px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-edit-stock" class="modal-overlay" style="display:flex;z-index:200;align-items:center;justify-content:center;padding:20px" role="dialog" aria-modal="true" onclick="if(event.target===this)location.href='stocks.php'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(520px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>✏️ Modifier — <?= h($editStock['nom']) ?></h3>
       <a href="stocks.php" style="color:var(--text2);text-decoration:none;font-size:18px">✕</a>
@@ -555,14 +555,14 @@ function switchType(type) {
     const lm = document.getElementById('lbl-type-med');
     if (type === 'stock') {
         ls.style.border = '2px solid var(--accent)';
-        ls.style.background = 'rgba(59,130,246,.1)';
+        ls.style.background = 'rgba(var(--accent-rgb),.1)';
         ls.style.color = 'var(--accent2)';
         lm.style.border = '1px solid var(--border2)';
         lm.style.background = 'transparent';
         lm.style.color = 'var(--text2)';
     } else {
         lm.style.border = '2px solid var(--accent)';
-        lm.style.background = 'rgba(59,130,246,.1)';
+        lm.style.background = 'rgba(var(--accent-rgb),.1)';
         lm.style.color = 'var(--accent2)';
         ls.style.border = '1px solid var(--border2)';
         ls.style.background = 'transparent';
@@ -595,7 +595,7 @@ function addEntryLigne() {
       '<input type="number" name="eqty[]" id="eqty-' + idx + '" value="1" min="1" oninput="calcEntryLigne(' + idx + ')" style="' + fs + ';text-align:center">' +
       '<input type="text" id="epu-' + idx + '" readonly style="' + fs + ';background:var(--surface2);border-color:var(--border);color:var(--text2)">' +
       '<input type="text" id="etl-' + idx + '" readonly style="' + fs + ';background:var(--surface2);border-color:var(--border);color:var(--green);font-weight:700">' +
-      '<button type="button" onclick="removeEntryLigne(' + idx + ')" style="width:28px;height:28px;background:rgba(239,68,68,.15);border:none;border-radius:6px;color:#f87171;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>';
+      '<button type="button" onclick="removeEntryLigne(' + idx + ')" style="width:44px;height:44px;background:rgba(var(--red-rgb),.15);border:none;border-radius:6px;color:var(--red);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>';
 
     container.appendChild(div);
     recalcEntryTotal();

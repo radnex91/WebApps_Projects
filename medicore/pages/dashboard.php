@@ -103,9 +103,9 @@ $nbModules  = count(getAccessibleNav());
 
 $icones = ['blue'=>'','green'=>'','red'=>'','yellow'=>'','purple'=>''];
 $colors = [
-    'blue'  =>'rgba(59,130,246,.12)','green'=>'rgba(16,185,129,.12)',
-    'red'   =>'rgba(239,68,68,.12)','yellow'=>'rgba(245,158,11,.12)',
-    'purple'=>'rgba(139,92,246,.12)',
+    'blue'  =>'rgba(var(--accent-rgb),.12)','green'=>'rgba(var(--green-rgb),.12)',
+    'red'   =>'rgba(var(--red-rgb),.12)','yellow'=>'rgba(var(--yellow-rgb),.12)',
+    'purple'=>'rgba(var(--purple-rgb),.12)',
 ];
 $prioColor = ['critique'=>'var(--red)','urgent'=>'var(--yellow)','normal'=>'var(--accent)'];
 $prioBadge = ['critique'=>'badge-red','urgent'=>'badge-yellow','normal'=>'badge-blue'];
@@ -277,7 +277,7 @@ $moisFr = ['01'=>'jan','02'=>'fé','03'=>'mar','04'=>'avr','05'=>'mai','06'=>'ju
         ?>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
           <span style="font-size:10px;color:var(--text2);font-weight:600"><?= $a['nb'] ?></span>
-          <div style="width:100%;border-radius:3px 3px 0 0;min-height:4px;height:<?= max(4,$h2) ?>%;background:<?= $isToday2?'var(--accent)':'rgba(59,130,246,.3)' ?>" title="<?= $a['d'] ?>"></div>
+          <div style="width:100%;border-radius:3px 3px 0 0;min-height:4px;height:<?= max(4,$h2) ?>%;background:<?= $isToday2?'var(--accent)':'rgba(var(--accent-rgb),.3)' ?>" title="<?= $a['d'] ?>"></div>
           <span style="font-size:9px;color:var(--text3)"><?= date('d/m', strtotime($a['d'])) ?></span>
         </div>
         <?php endforeach; ?>
@@ -317,11 +317,11 @@ $moisFr = ['01'=>'jan','02'=>'fé','03'=>'mar','04'=>'avr','05'=>'mai','06'=>'ju
     <div>
     <?php
     $icAct  = ['blue'=>'','green'=>'','red'=>'','yellow'=>'','purple'=>''];
-    $bgAct  = ['blue'=>'rgba(59,130,246,.1)','green'=>'rgba(16,185,129,.1)','red'=>'rgba(239,68,68,.1)','yellow'=>'rgba(245,158,11,.1)','purple'=>'rgba(139,92,246,.1)'];
+    $bgAct  = ['blue'=>'rgba(var(--accent-rgb),.1)','green'=>'rgba(var(--green-rgb),.1)','red'=>'rgba(var(--red-rgb),.1)','yellow'=>'rgba(var(--yellow-rgb),.1)','purple'=>'rgba(var(--purple-rgb),.1)'];
     foreach (array_slice($activite,0,7) as $log):
     ?>
     <div style="display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);align-items:flex-start">
-      <div style="width:22px;height:22px;border-radius:6px;background:<?= $bgAct[$log['couleur']]??'rgba(59,130,246,.1)' ?>;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px"><?= $icAct[$log['couleur']]??'' ?></div>
+      <div style="width:22px;height:22px;border-radius:6px;background:<?= $bgAct[$log['couleur']]??'rgba(var(--accent-rgb),.1)' ?>;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px"><?= $icAct[$log['couleur']]??'' ?></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= h($log['action']) ?></div>
         <div style="font-size:10px;color:var(--text3)"><?= $log['user_nom']?h($log['user_nom']):'Système' ?>  <?= fmt_date($log['date_action'],true) ?></div>

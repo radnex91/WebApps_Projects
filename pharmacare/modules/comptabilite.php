@@ -103,6 +103,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_new') {
     header('Location: ?action=plan'); exit;
 }
 
+// ── POST : Modifier intitulé d'un compte ─────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_update' && isset($_GET['id'])) {
+    verifyCsrf();
+    requirePermission('comptabilite.plan');
+    $editId   = (int)$_GET['id'];
+    $intitule = trim($_POST['intitule'] ?? '');
+    if (!$intitule) {
+        flash('L\'intitulé est requis.', 'error');
+        header('Location: ?action=plan_edit&id=' . $editId); exit;
+    }
+    $db->prepare("UPDATE plan_comptable SET intitule = ? WHERE id = ?")
+       ->execute([$intitule, $editId]);
+    flash('Intitulé mis à jour.', 'success');
+    header('Location: ?action=plan'); exit;
+}
+
 // ── Exercice courant ───────────────────────────────────────
 $exCourant = null;
 $exAll = exercicesAll($db);
@@ -132,7 +148,7 @@ if ($action === 'plan'):
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Compte</th><th>Intitulé</th><th>Classe</th><th>Nature</th></tr></thead>
+      <thead><tr><th>Compte</th><th>Intitulé</th><th>Classe</th><th>Nature</th><th style="width:40px;"></th></tr></thead>
       <tbody>
         <?php foreach ($plan as $c):
           $cl = (int)$c['classe'];
@@ -145,6 +161,9 @@ if ($action === 'plan'):
           <td><?= e($c['intitule']) ?></td>
           <td><span class="badge badge-gray"><?= $classes[$cl] ?? $cl ?></span></td>
           <td><?= $natureLabels[$c['nature']] ?? $c['nature'] ?></td>
+          <td>
+            <a href="?action=plan_edit&id=<?= $c['id'] ?>" class="btn btn-ghost btn-xs" title="Modifier l'intitulé"><?= icon('edit',13) ?></a>
+          </td>
         </tr>
         <?php endforeach; ?>
       </tbody>
@@ -153,54 +172,76 @@ if ($action === 'plan'):
 </div>
 <?php layout_foot(); exit; endif;
 
-// ── Nouveau compte (formulaire) ────────────────────────────
+// ── Nouveau compte / Modifier intitulé ────────────────────
 if ($action === 'plan_edit'):
     requirePermission('comptabilite.plan');
+    $editId  = isset($_GET['id']) ? (int)$_GET['id'] : null;
+    $editCpt = null;
+    if ($editId) {
+        $stmtE = $db->prepare("SELECT * FROM plan_comptable WHERE id = ?");
+        $stmtE->execute([$editId]);
+        $editCpt = $stmtE->fetch();
+        if (!$editCpt) { flash('Compte introuvable.', 'error'); header('Location: ?action=plan'); exit; }
+    }
+    $title  = $editCpt ? 'Modifier le compte' : 'Nouveau compte comptable';
+    $actionUrl = $editCpt ? '?action=plan_update&id=' . $editId : '?action=plan_new';
     $classes = [''=>'—', 1=>'1 - Capitaux', 2=>'2 - Immobilisations', 3=>'3 - Stocks', 4=>'4 - Tiers', 5=>'5 - Trésorerie', 6=>'6 - Charges', 7=>'7 - Produits'];
     $natures = ['debit'=>'Débit (actif/charge)', 'credit'=>'Crédit (passif/produit)'];
-    layout_head('Nouveau compte', 'comptabilite'); showFlash();
+    layout_head($title, 'comptabilite'); showFlash();
 ?>
 <?= $navLinks ?>
 <div class="card" style="max-width:600px;margin:0 auto;">
   <div class="card-header">
-    <div class="card-title">Nouveau compte comptable</div>
+    <div class="card-title"><?= e($title) ?></div>
     <a href="?action=plan" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
   </div>
-  <form method="POST" action="?action=plan_new">
+  <form method="POST" action="<?= $actionUrl ?>">
     <input type="hidden" name="csrf" value="<?= csrf() ?>">
     <div class="form-grid">
       <div class="form-group">
         <label>Code compte *</label>
-        <input type="text" name="compte" required placeholder="ex: 6012" style="font-family:'DM Mono',monospace;">
+        <input type="text" name="compte" required placeholder="ex: 6012"
+               value="<?= e($editCpt['compte'] ?? '') ?>"
+               style="font-family:'DM Mono',monospace;"
+               <?= $editCpt ? 'readonly style="font-family:&quot;DM Mono&quot;,monospace;background:#1e293b;color:#94a3b8;cursor:not-allowed;"' : '' ?>>
       </div>
       <div class="form-group">
         <label>Classe *</label>
-        <select name="classe" required>
+        <select name="classe" required <?= $editCpt ? 'disabled' : '' ?>>
           <?php foreach ($classes as $k => $v): ?>
-          <option value="<?= $k ?>"><?= $v ?></option>
+          <option value="<?= $k ?>" <?= $editCpt && (int)$editCpt['classe'] === $k ? 'selected' : '' ?>><?= $v ?></option>
           <?php endforeach; ?>
         </select>
+        <?php if ($editCpt): ?>
+        <input type="hidden" name="classe" value="<?= (int)$editCpt['classe'] ?>">
+        <?php endif; ?>
       </div>
       <div class="form-group full">
         <label>Intitulé *</label>
-        <input type="text" name="intitule" required placeholder="ex: Achats de fournitures">
+        <input type="text" name="intitule" required placeholder="ex: Achats de fournitures"
+               value="<?= e($editCpt['intitule'] ?? '') ?>">
       </div>
       <div class="form-group">
         <label>Nature</label>
-        <select name="nature">
+        <select name="nature" <?= $editCpt ? 'disabled' : '' ?>>
           <?php foreach ($natures as $k => $v): ?>
-          <option value="<?= $k ?>"><?= $v ?></option>
+          <option value="<?= $k ?>" <?= $editCpt && $editCpt['nature'] === $k ? 'selected' : '' ?>><?= $v ?></option>
           <?php endforeach; ?>
         </select>
+        <?php if ($editCpt): ?>
+        <input type="hidden" name="nature" value="<?= e($editCpt['nature']) ?>">
+        <?php endif; ?>
       </div>
       <div class="form-group">
         <label>Compte parent</label>
-        <input type="text" name="compte_parent" placeholder="ex: 601" style="font-family:'DM Mono',monospace;">
+        <input type="text" name="compte_parent" placeholder="ex: 601" style="font-family:'DM Mono',monospace;"
+               <?= $editCpt ? 'readonly style="font-family:&quot;DM Mono&quot;,monospace;background:#1e293b;color:#94a3b8;cursor:not-allowed;"' : '' ?>
+               value="<?= e($editCpt['compte_parent'] ?? '') ?>">
       </div>
     </div>
     <div class="modal-footer">
       <a href="?action=plan" class="btn btn-ghost">Annuler</a>
-      <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> Créer</button>
+      <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> <?= $editCpt ? 'Enregistrer' : 'Créer' ?></button>
     </div>
   </form>
 </div>

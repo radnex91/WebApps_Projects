@@ -32,7 +32,7 @@ $typeIcon = ['info'=>'📌','alerte'=>'⚠️','critique'=>'🚨','succes'=>'✅
 <div class="card">
   <?php foreach ($notifications as $n): ?>
   <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;
-      <?= !$n['lu']?'background:rgba(59,130,246,0.05);border-left:3px solid var(--accent)':'' ?>">
+      <?= !$n['lu']?'background:rgba(var(--accent-rgb),.05);border-left:3px solid var(--accent)':'' ?>">
     <div style="font-size:20px"><?= $typeIcon[$n['type']]??'📌' ?></div>
     <div style="flex:1">
       <div style="font-weight:<?= $n['lu']?'400':'700' ?>">

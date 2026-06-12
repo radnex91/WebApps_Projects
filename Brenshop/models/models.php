@@ -233,4 +233,8 @@ class Caisse extends BaseModel {
     public function getByStore(int $storeId): array {
         return $this->findAll(['store_id' => $storeId, 'is_active' => 1], 'name ASC');
     }
+
+    public function getAllByStore(int $storeId): array {
+        return $this->findAll(['store_id' => $storeId], 'name ASC');
+    }
 }

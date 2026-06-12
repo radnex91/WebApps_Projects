@@ -277,18 +277,18 @@ $statLabel = ['en_cours'=>'En cours','sorti'=>'Sorti','transfere'=>'Transféré'
 
 <!-- MODAL TRIAGE -->
 <?php if (can('triage.update')): ?>
-<div id="modal-triage" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:201;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:520px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-triage" class="modal-overlay" style="display:none;z-index:201;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(520px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3> Triage du patient</h3>
-      <div onclick="document.getElementById('modal-triage').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">x</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-triage').style.display='none'" aria-label="Fermer">x</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="trier">
       <input type="hidden" name="hospitalisation_id" id="triage-hosp-id">
       <?= csrf_field() ?>
       <div class="form-group">
-        <label>Catégorie de triage *</label>
+        <label for="triage-cat">Catégorie de triage *</label>
         <select name="categorie" id="triage-cat" required style="font-size:14px">
           <option value="1_immediat">1 - Immédiat (Rouge) - Prise en charge immédiate</option>
           <option value="2_tres_urgent">2 - Très urgent (Orange) - < 20 minutes</option>
@@ -298,11 +298,11 @@ $statLabel = ['en_cours'=>'En cours','sorti'=>'Sorti','transfere'=>'Transféré'
         </select>
       </div>
       <div class="form-group">
-        <label>Signes cliniques observés</label>
+        <label for="triage-signes">Signes cliniques observés</label>
         <textarea name="signes" id="triage-signes" rows="2" placeholder="Signes cliniques lors du triage..."></textarea>
       </div>
       <div class="form-group">
-        <label>Notes</label>
+        <label for="triage-notes">Notes</label>
         <textarea name="notes" id="triage-notes" rows="2" placeholder="Notes complémentaires..."></textarea>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
@@ -315,24 +315,24 @@ $statLabel = ['en_cours'=>'En cours','sorti'=>'Sorti','transfere'=>'Transféré'
 <?php endif; ?>
 
 <!-- MODAL UPDATE -->
-<div id="modal-update" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:480px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-update" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3> Mettre à jour l'hospitalisation</h3>
-      <div onclick="document.getElementById('modal-update').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)"></div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-update').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="update_hosp">
       <input type="hidden" name="hosp_id" id="upd-id">
       <?= csrf_field() ?>
-      <div class="form-group" style="margin-bottom:14px"><label>Statut</label>
+      <div class="form-group" style="margin-bottom:14px"><label for="upd-statut">Statut</label>
         <select name="statut" id="upd-statut" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);width:100%;font-family:inherit;font-size:13px;outline:none">
           <option value="en_cours">🏥 En cours</option>
           <option value="sorti">✅ Sorti</option>
           <option value="transfere">Transféré</option>
         </select>
       </div>
-      <div class="form-group" style="margin-bottom:20px"><label>Notes / Observations</label>
+      <div class="form-group" style="margin-bottom:20px"><label for="upd-notes">Notes / Observations</label>
         <textarea name="notes" id="upd-notes" rows="4" style="width:100%;padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical"></textarea>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border)">
@@ -361,19 +361,19 @@ function openTriageModal(hospId, cat, signes, notes) {
 
 <!-- MODAL NOUVELLE ADMISSION -->
 <?php if (can('hospitalisations.create')): ?>
-<div id="modal-admission" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:600px;box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
+<div id="modal-admission" class="modal-overlay" style="display:none;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(600px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">
       <h3> Nouvelle admission</h3>
-      <div onclick="this.closest('[id]').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)"></div>
+      <button type="button" class="modal-close" onclick="this.closest('[id]').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="admettre">
       <?= csrf_field() ?>
       <div class="form-grid">
         <div class="form-group form-full">
-          <label>Patient *</label>
-          <select name="patient_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+          <label for="inp-patient_id">Patient *</label>
+          <select name="patient_id" id="inp-patient_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value=""> Sélectionner un patient </option>
             <?php foreach ($patients_list as $p): ?>
             <option value="<?= (int)$p['id'] ?>"><?= h($p['nom_complet']) ?> (<?= h($p['numero']) ?>)</option>
@@ -381,8 +381,8 @@ function openTriageModal(hospId, cat, signes, notes) {
           </select>
         </div>
         <div class="form-group">
-          <label>Médecin responsable *</label>
-          <select name="medecin_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+          <label for="inp-medecin_id">Médecin responsable *</label>
+          <select name="medecin_id" id="inp-medecin_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value=""> Sélectionner </option>
             <?php foreach ($medecins_list as $m): ?>
             <option value="<?= (int)$m['id'] ?>"><?= h($m['nom_complet']) ?><?= $m['specialite'] ? '  '.h($m['specialite']) : '' ?></option>
@@ -390,16 +390,16 @@ function openTriageModal(hospId, cat, signes, notes) {
           </select>
         </div>
         <div class="form-group">
-          <label>Priorit *</label>
-          <select name="priorite" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+          <label for="inp-priorite">Priorit *</label>
+          <select name="priorite" id="inp-priorite" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value="normal"> Normal</option>
             <option value="urgent"> Urgent</option>
             <option value="critique"> Critique</option>
           </select>
         </div>
         <div class="form-group form-full">
-          <label>Lit d'admission *</label>
-          <select name="lit_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+          <label for="inp-lit_id">Lit d'admission *</label>
+          <select name="lit_id" id="inp-lit_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value=""> Sélectionner un lit libre </option>
             <?php foreach ($lits_libres as $l): ?>
             <option value="<?= (int)$l['id'] ?>">Lit <?= h($l['numero']) ?>  <?= h($l['dept_nom']) ?></option>
@@ -410,8 +410,8 @@ function openTriageModal(hospId, cat, signes, notes) {
           <?php endif; ?>
         </div>
         <div class="form-group form-full">
-          <label>Motif d'admission *</label>
-          <textarea name="motif" rows="3" required maxlength="500" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical" placeholder="Décrire le motif d'admission, symptômes, circonstances..."></textarea>
+          <label for="inp-motif">Motif d'admission *</label>
+          <textarea name="motif" id="inp-motif" rows="3" required maxlength="500" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical" placeholder="Décrire le motif d'admission, symptômes, circonstances..."></textarea>
         </div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">

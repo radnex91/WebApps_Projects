@@ -320,11 +320,11 @@ $typeIcon = [
 
 <!-- Modal : Saisie observation -->
 <?php if ($patient_id > 0 && can('observations.create')): ?>
-<div id="modal-saisie" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:540px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
+<div id="modal-saisie" class="modal-overlay" role="dialog" aria-modal="true" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(540px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>Nouvelle observation - <?= h($patientSelect['prenom'].' '.$patientSelect['nom']) ?></h3>
-      <div onclick="document.getElementById('modal-saisie').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-saisie').style.display='none'" aria-label="Fermer">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="saisir">

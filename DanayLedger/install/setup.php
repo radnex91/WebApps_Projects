@@ -1,6 +1,13 @@
 <?php
 // Script d'installation - DanayLedger v2
 // Crée la base de données, les tables et l'utilisateur admin par défaut
+
+// Bloquer si déjà installé
+$installedFlag = __DIR__ . '/../.installed';
+if (file_exists($installedFlag)) {
+    http_response_code(403);
+    die('<h1>403 Forbidden</h1><p>DanayLedger est déjà installé. Le script d\'installation a été désactivé.</p><p>Pour réinstaller, supprimez le fichier <code>.installed</code> à la racine.</p>');
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">

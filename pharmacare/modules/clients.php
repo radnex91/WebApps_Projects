@@ -442,7 +442,7 @@ $clients = $db->query("
             <?php endif; ?>
             <?php if (hasPermission('clients.supprimer')): ?>
               <?php if ($c['actif']): ?>
-              <a href="<?= APP_URL ?>/modules/clients.php?action=disable&id=<?= $c['id'] ?>&csrf=<?= csrf() ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--red);" title="Désactiver" onclick="return confirm('Désactiver ce client ?')"><?= icon('trash',14) ?></a>
+              <a href="<?= APP_URL ?>/modules/clients.php?action=disable&id=<?= $c['id'] ?>&csrf=<?= csrf() ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--red);" title="Désactiver" onclick="showConfirm('Désactiver ce client ?','Ce client ne pourra plus être sélectionné lors des ventes.',function(){window.location.href=this.href;}.bind(this));return false;"><?= icon('trash',14) ?></a>
               <?php else: ?>
               <a href="<?= APP_URL ?>/modules/clients.php?action=enable&id=<?= $c['id'] ?>&csrf=<?= csrf() ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--teal);" title="Réactiver"><?= icon('refresh',14) ?></a>
               <?php endif; ?>

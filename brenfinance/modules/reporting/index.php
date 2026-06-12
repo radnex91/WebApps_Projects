@@ -131,7 +131,7 @@ const sorties = <?= json_encode($sortiesMois) ?>;
 const depServLabels = <?= json_encode(array_column($depServ,'nom')) ?>;
 const depServData = <?= json_encode(array_column($depServ,'total')) ?>;
 
-Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.family = "'Manrope', system-ui, sans-serif";
 Chart.defaults.font.size = 12;
 Chart.defaults.color = '#4b5671';
 

@@ -28,9 +28,6 @@ define('ALL_PAGES', [
     'rh'           => ['label'=>'Ressources humaines',  'icon'=>'rh',          'section'=>''],
     'stocks'       => ['label'=>'Stocks & Matériel',    'icon'=>'stocks',      'section'=>''],
     'rapports'     => ['label'=>'Rapports',             'icon'=>'rapports',    'section'=>''],
-    'utilisateurs' => ['label'=>'Utilisateurs',         'icon'=>'utilisateurs','section'=>'Système'],
-    'parametres'   => ['label'=>'Paramètres',           'icon'=>'parametres',  'section'=>''],
-    'roles'        => ['label'=>'Roles & Permissions',     'icon'=>'roles',       'section'=>''],
     'observations' => ['label'=>'Signes vitaux',         'icon'=>'observations','section'=>'Clinique'],
     'mar'          => ['label'=>'Admin. médicaments',    'icon'=>'mar',         'section'=>''],
     'notes'        => ['label'=>'Notes cliniques',       'icon'=>'notes',       'section'=>''],
@@ -43,6 +40,9 @@ define('ALL_PAGES', [
     'notifications'=> ['label'=>'Notifications',         'icon'=>'notifications','section'=>''],
     'consentements'=> ['label'=>'Consentements',         'icon'=>'consentements','section'=>''],
     'audit'        => ['label'=>'Audit d\'accès',        'icon'=>'audit',       'section'=>''],
+    'utilisateurs' => ['label'=>'Utilisateurs',         'icon'=>'utilisateurs','section'=>'Système'],
+    'parametres'   => ['label'=>'Paramètres',           'icon'=>'parametres',  'section'=>''],
+    'roles'        => ['label'=>'Roles & Permissions',     'icon'=>'roles',       'section'=>''],
 ]);
 
 define('ALL_ACTIONS', [

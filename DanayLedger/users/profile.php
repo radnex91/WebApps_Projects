@@ -143,15 +143,15 @@ if (mb_strlen($currentUser['full_name']) >= 2) {
 ?>
 
 <!-- Main Content -->
-<div class="main-content">
-    <header class="main-header">
+<div class="main-content" id="main-content" role="main">
+    <header class="main-header" role="banner">
         <div class="header-left">
-            <button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button>
-            <h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6>
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button>
+            <span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span>
         </div>
         <div class="header-right">
             <div class="dropdown">
-                <button class="notif-btn" data-bs-toggle="dropdown">
+                <button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown">
                     <i class="bi bi-bell"></i>
                     <?php if ($unreadNotifs > 0): ?>
                     <span class="notif-badge"><?php echo $unreadNotifs; ?></span>
@@ -175,7 +175,7 @@ if (mb_strlen($currentUser['full_name']) >= 2) {
                 </div>
             </div>
             <div class="dropdown">
-                <div class="header-user" data-bs-toggle="dropdown">
+                <div class="header-user" role="button" tabindex="0" aria-label="Menu utilisateur" data-bs-toggle="dropdown">
                     <div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div>
                     <div class="user-info d-none d-sm-block">
                         <div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div>
@@ -261,14 +261,14 @@ if (mb_strlen($currentUser['full_name']) >= 2) {
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">Identifiant</label>
-                                    <input type="text" class="form-control" value="<?php echo e($currentUser['username']); ?>" disabled>
+                                    <label for="profile_username" class="form-label fw-bold">Identifiant</label>
+                                    <input type="text" class="form-control" id="profile_username" value="<?php echo e($currentUser['username']); ?>" disabled>
                                     <div class="form-text">L'identifiant ne peut pas &ecirc;tre modifi&eacute;.</div>
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">R&ocirc;le</label>
-                                    <input type="text" class="form-control" value="<?php echo e(getRoleLabel($currentUser['role'])); ?>" disabled>
+                                    <label for="profile_role" class="form-label fw-bold">R&ocirc;le</label>
+                                    <input type="text" class="form-control" id="profile_role" value="<?php echo e(getRoleLabel($currentUser['role'])); ?>" disabled>
                                     <div class="form-text">Le r&ocirc;le ne peut pas &ecirc;tre modifi&eacute; depuis le profil.</div>
                                 </div>
                             </div>

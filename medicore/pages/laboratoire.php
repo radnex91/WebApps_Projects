@@ -162,11 +162,11 @@ $statutLabel = ['prescrit'=>'Prescrit','en_cours'=>'🔬 En cours','disponible'=
 </div>
 
 <!-- MODAL PRESCRIRE -->
-<div id="modal-labo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:500px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-labo" class="modal-overlay" role="dialog" aria-modal="true" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(500px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3> Prescrire une analyse</h3>
-      <div onclick="document.getElementById('modal-labo').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)"></div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-labo').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="prescrire"><?= csrf_field() ?>
@@ -203,12 +203,12 @@ $statutLabel = ['prescrit'=>'Prescrit','en_cours'=>'🔬 En cours','disponible'=
   </div>
 </div>
 
-<!-- MODAL RSULTAT -->
-<div id="modal-result" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:540px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<!-- MODAL RESULTAT -->
+<div id="modal-result" class="modal-overlay" role="dialog" aria-modal="true" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(540px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3 id="result-title">Résultat</h3>
-      <div onclick="document.getElementById('modal-result').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)"></div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-result').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="update_statut">

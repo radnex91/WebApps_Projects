@@ -38,6 +38,7 @@ function getPermissionMap(): array {
         'reports'       => ['Rapports',               'Analyse'],
         'stores'        => ['Boutiques',              'Administration'],
         'warehouses'    => ['Magasins',               'Administration'],
+        'caisses'       => ['Caisses',                'Administration'],
         'users'         => ['Utilisateurs',            'Administration'],
         'settings'      => ['Paramètres',             'Administration'],
     ];

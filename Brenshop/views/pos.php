@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../includes/bootstrap.php';
 requirePermission('pos');
 
@@ -167,13 +167,13 @@ require_once __DIR__ . '/layout_top.php';
     <div class="cart-payment" id="cartPayment">
         <div class="payment-row">
             <select id="paymentMethod" onchange="POS.onPaymentMethodChange()">
-                <option value="cash">💵 Espèces</option>
-                <option value="mobile_money">📱 Mobile Money</option>
-                <option value="credit">💳 Crédit</option>
+                <option value="cash">Espèces</option>
+                <option value="mobile_money">Mobile Money</option>
+                <option value="credit">Crédit</option>
             </select>
             <select id="mobileProvider" class="d-none" style="flex:1;font-size:.75rem;padding:5px 6px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:6px;font-weight:600">
-                <option value="orange_money">🟠 Orange Money</option>
-                <option value="momo">🔵 MoMo</option>
+                <option value="orange_money">Orange Money</option>
+                <option value="momo">MoMo</option>
             </select>
         </div>
         <div class="payment-row" id="paidRow">

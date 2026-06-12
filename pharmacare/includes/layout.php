@@ -53,8 +53,8 @@ function layout_head(string $title, string $activePage = ''): void {
 
     $p = getAllParams();
     $theme       = $p['theme']        ?? 'dark-navy';
-    $police      = $p['police']       ?? 'DM Sans';
-    $policeTitre = $p['police_titre'] ?? 'Cormorant Garamond';
+    $police      = $p['police']       ?? 'Manrope';
+    $policeTitre = $p['police_titre'] ?? 'Manrope';
     $appNom      = $p['app_nom']      ?? 'PharmaCare';
     $ticketSousTitre = $p['ticket_sous_titre'] ?? 'Gestion Pharmacie';
     $isLight     = str_starts_with($theme, 'light');
@@ -81,7 +81,7 @@ function layout_head(string $title, string $activePage = ''): void {
     // Google Fonts URL
     $bodyFont  = urlencode($police);
     $titleFont = urlencode($policeTitre);
-    $fontsUrl  = "https://fonts.googleapis.com/css2?family={$bodyFont}:wght@300;400;500;600&family={$titleFont}:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap";
+    $fontsUrl  = "https://fonts.googleapis.com/css2?family={$bodyFont}:wght@300;400;500;600;700;800&family={$titleFont}:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap";
 
     // Alertes stock
     try { $alertes = getDB()->query("SELECT COUNT(*) FROM produits WHERE stock <= seuil_alerte AND actif=1")->fetchColumn(); }
@@ -122,7 +122,7 @@ function layout_head(string $title, string $activePage = ''): void {
   --red-glow:   <?= $dim($c3,.25) ?>;
   --blue-glow:  <?= $dim($c4,.25) ?>;
   --font-body:  '<?= e($police) ?>', sans-serif;
-  --font-title: '<?= e($policeTitre) ?>', serif;
+  --font-title: '<?= e($policeTitre) ?>', sans-serif;
 <?php if ($isLight): ?>
   --glass:     rgba(0,0,0,.04);
   --shadow:    0 8px 32px rgba(0,0,0,.10);

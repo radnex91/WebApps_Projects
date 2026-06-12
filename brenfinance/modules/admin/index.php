@@ -11,11 +11,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'create_user') {
         $hash = password_hash($_POST['password'], PASSWORD_BCRYPT);
         try {
-            $db->prepare("INSERT INTO utilisateurs (agence_id,service_id,role_id,nom,prenom,matricule,email,telephone,password_hash) VALUES (?,?,?,?,?,?,?,?,?)")
-               ->execute([$_POST['agence_id']??1,$_POST['service_id']??null,$_POST['role_id'],$_POST['nom'],$_POST['prenom'],$_POST['matricule']??null,$_POST['email'],$_POST['telephone']??null,$hash]);
+            $db->prepare("INSERT INTO utilisateurs (agence_id,service_id,role_id,username,nom,prenom,matricule,email,telephone,password_hash) VALUES (?,?,?,?,?,?,?,?,?,?)")
+               ->execute([$_POST['agence_id']??1,$_POST['service_id']??null,$_POST['role_id'],$_POST['username'],$_POST['nom'],$_POST['prenom'],$_POST['matricule']??null,$_POST['email'],$_POST['telephone']??null,$hash]);
             flash('success','Utilisateur créé.');
         } catch(PDOException $e) {
-            flash('danger','Email ou matricule déjà utilisé.');
+            flash('danger','Identifiant ou email déjà utilisé.');
         }
         header('Location: index.php'); exit;
     }
@@ -61,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $uid = (int)$_POST['user_id'];
         $nom = trim($_POST['nom']);
         $prenom = trim($_POST['prenom']);
+        $username = trim($_POST['username']);
         $matricule = !empty($_POST['matricule']) ? trim($_POST['matricule']) : null;
         $email = trim($_POST['email']);
         $telephone = !empty($_POST['telephone']) ? trim($_POST['telephone']) : null;
@@ -69,8 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $responsableId = !empty($_POST['responsable_id']) ? (int)$_POST['responsable_id'] : null;
 
         try {
-            $db->prepare("UPDATE utilisateurs SET nom=?, prenom=?, matricule=?, email=?, telephone=?, agence_id=?, service_id=? WHERE id=?")
-               ->execute([$nom, $prenom, $matricule, $email, $telephone, $agenceId, $serviceId, $uid]);
+            $db->prepare("UPDATE utilisateurs SET nom=?, prenom=?, username=?, matricule=?, email=?, telephone=?, agence_id=?, service_id=? WHERE id=?")
+               ->execute([$nom, $prenom, $username, $matricule, $email, $telephone, $agenceId, $serviceId, $uid]);
 
             // Update supérieur hiérarchique on the user's service
             if ($serviceId) {
@@ -87,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             auditLog('update_user','admin','utilisateurs',$uid);
             flash('success','Utilisateur modifié.');
         } catch(PDOException $e) {
-            flash('danger','Email ou matricule déjà utilisé par un autre utilisateur.');
+            flash('danger','Identifiant ou email déjà utilisé par un autre utilisateur.');
         }
         header('Location: index.php?tab=utilisateurs'); exit;
     }
@@ -115,9 +116,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logo = '';
         }
         $theme = $_POST['theme'] ?? 'default';
-        $police = $_POST['police'] ?? 'Segoe UI';
+        $police = 'Manrope';
         $db->prepare("UPDATE entreprises SET nom=?,sigle=?,adresse=?,telephone=?,email=?,registre_commerce=?,numero_contribuable=?,logo=?,theme=?,police=?,devise=?,exercice_courant=? WHERE id=1")
-           ->execute([$_POST['nom'],$_POST['sigle']??'',$_POST['adresse']??'',$_POST['telephone']??'',$_POST['email']??'',$_POST['registre_commerce']??'',$_POST['numero_contribuable']??'',$logo,$theme,$police,$_POST['devise']??'FCFA',$_POST['exercice']]);
+           ->execute([APP_NAME,$_POST['sigle']??'',$_POST['adresse']??'',$_POST['telephone']??'',$_POST['email']??'',$_POST['registre_commerce']??'',$_POST['numero_contribuable']??'',$logo,$theme,$police,$_POST['devise']??'FCFA',$_POST['exercice']]);
         flash('success','Paramètres entreprise mis à jour.');
         header('Location: index.php?tab=entreprise'); exit;
     }
@@ -248,43 +249,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: index.php?tab=agences'); exit;
     }
 
-    // ── RADNEX Config ──
-    if ($action === 'update_radnex_config') {
-        $provider = $_POST['provider'] ?? 'ollama';
-        if (!in_array($provider, ['ollama','openai','openrouter','custom'])) $provider = 'ollama';
-
-        $newConfig = [
-            'provider'          => $provider,
-            'use_ollama'       => $provider === 'ollama',
-            'ollama_url'        => trim($_POST['ollama_url'] ?? 'http://localhost:11434/v1/chat/completions'),
-            'ollama_model'      => trim($_POST['ollama_model'] ?? 'llama3.1:8b'),
-            'openai_key'        => trim($_POST['openai_key'] ?? ''),
-            'openai_model'      => trim($_POST['openai_model'] ?? 'gpt-4o-mini'),
-            'openrouter_key'    => trim($_POST['openrouter_key'] ?? ''),
-            'openrouter_model'  => trim($_POST['openrouter_model'] ?? 'openrouter/free'),
-            'custom_url'        => trim($_POST['custom_url'] ?? ''),
-            'custom_key'        => trim($_POST['custom_key'] ?? ''),
-            'custom_model'      => trim($_POST['custom_model'] ?? ''),
-            'assistant_name'    => trim($_POST['assistant_name'] ?? 'RADNEX') ?: 'RADNEX',
-            'system_prompt'     => trim($_POST['system_prompt'] ?? ''),
-            'language'          => 'fr',
-            'web_search_enabled'=> isset($_POST['web_search']),
-            'timeout'           => max(5, min(120, (int)($_POST['timeout'] ?? 30))),
-        ];
-
-        if (empty($newConfig['system_prompt'])) {
-            $newConfig['system_prompt'] = "Tu es " . $newConfig['assistant_name'] . ", un assistant IA intelligent spécialisé en finance et gestion d'entreprise. Tu as accès à Internet pour rechercher les informations les plus récentes. Sois concis, précis, professionnel et utilise le français. Pour les questions financières, fournis des analyses claires avec des exemples concrets. Cite toujours tes sources quand tu utilises la recherche web.";
-        }
-
-        $configFile = __DIR__ . '/../radnex/config.php';
-        $export = var_export($newConfig, true);
-        file_put_contents($configFile, "<?php\nreturn " . $export . ";\n");
-
-        auditLog('update_radnex_config', 'admin');
-        flash('success', 'Configuration RADNEX enregistrée.');
-        header('Location: index.php?tab=radnex'); exit;
-    }
-
 }
 
 $utilisateurs = $db->query("SELECT u.*, r.nom as role_nom, a.nom as agence_nom, c.libelle as caisse_nom, c.id as caisse_id, s.nom as service_nom, s.responsable_id as service_responsable_id, CONCAT(rh.nom,' ',rh.prenom) as responsable_nom FROM utilisateurs u JOIN roles r ON u.role_id=r.id LEFT JOIN agences a ON u.agence_id=a.id LEFT JOIN caisses c ON c.responsable_id=u.id LEFT JOIN services s ON u.service_id=s.id LEFT JOIN utilisateurs rh ON s.responsable_id=rh.id ORDER BY u.nom")->fetchAll();
@@ -317,12 +281,30 @@ $permModules = [
   'referentiels'      => ['label' => 'Référentiels',       'actions' => ['consulter' => 'Consulter', 'saisir' => 'Saisir']],
 ];
 
+// ── Catégories de permissions (regroupement par rubrique pour les onglets du modal) ──
+$permCategories = [
+  ['key' => 'finance',      'label' => 'Finance & Caisse',  'icon' => 'fa-coins',           'modules' => ['caisse', 'operations_caisse', 'tresorerie']],
+  ['key' => 'engagements',  'label' => 'Engagements',       'icon' => 'fa-file-signature',  'modules' => ['engagements', 'ordre_mission', 'decharge', 'bons_commande']],
+  ['key' => 'comptabilite', 'label' => 'Comptabilité',      'icon' => 'fa-calculator',      'modules' => ['comptabilite', 'compta_analytique', 'cloture']],
+  ['key' => 'budget',       'label' => 'Budget & Reporting','icon' => 'fa-chart-pie',       'modules' => ['budget', 'reporting']],
+  ['key' => 'rh',           'label' => 'Paie & RH',         'icon' => 'fa-users',           'modules' => ['paie', 'rh']],
+  ['key' => 'admin',        'label' => 'Administration',    'icon' => 'fa-shield-halved',   'modules' => ['admin', 'audit', 'referentiels']],
+  ['key' => 'ia',           'label' => 'Intelligence',     'icon' => 'fa-robot',            'modules' => ['radnex']],
+];
+
+// ── Données des rôles pour JS (modal édition) ──
+$rolesJS = [];
+foreach ($roles as $r) {
+    $rolesJS[$r['id']] = [
+        'nom' => $r['nom'],
+        'description' => $r['description'] ?? '',
+        'permissions' => json_decode($r['permissions'] ?? '{}', true) ?: []
+    ];
+}
+
 $activeTab = $_GET['tab'] ?? 'utilisateurs';
-$editRole = isset($_GET['edit_role']) ? (int)$_GET['edit_role'] : null;
 $editAgence = isset($_GET['edit_agence']) ? (int)$_GET['edit_agence'] : null;
 $editService = isset($_GET['edit_service']) ? (int)$_GET['edit_service'] : null;
-$editRoleData = $editRole ? $db->prepare("SELECT * FROM roles WHERE id=?") : null;
-if ($editRoleData) { $editRoleData->execute([$editRole]); $editRoleData = $editRoleData->fetch(); if (!$editRoleData) $editRole = null; }
 $editAgenceData = $editAgence ? $db->prepare("SELECT * FROM agences WHERE id=?") : null;
 if ($editAgenceData) { $editAgenceData->execute([$editAgence]); $editAgenceData = $editAgenceData->fetch(); if (!$editAgenceData) $editAgence = null; }
 $editServiceData = $editService ? $db->prepare("SELECT s.*, a.nom as agence_nom, CONCAT(u.nom,' ',u.prenom) as responsable_nom FROM services s LEFT JOIN agences a ON s.agence_id=a.id LEFT JOIN utilisateurs u ON s.responsable_id=u.id WHERE s.id=?") : null;
@@ -341,7 +323,6 @@ include __DIR__ . '/../../includes/header.php';
     <button class="tab <?= $activeTab==='entreprise'?'active':'' ?>" data-tab="tab-entreprise">Entreprise</button>
     <button class="tab <?= $activeTab==='roles'?'active':'' ?>" data-tab="tab-roles">Rôles</button>
     <button class="tab <?= $activeTab==='agences'?'active':'' ?>" data-tab="tab-agences">Offices & Services</button>
-    <button class="tab <?= $activeTab==='radnex'?'active':'' ?>" data-tab="tab-radnex"><i class="fa-solid fa-robot"></i> IA RADNEX</button>
   </div>
 
   <!-- UTILISATEURS -->
@@ -353,7 +334,7 @@ include __DIR__ . '/../../includes/header.php';
     <div class="card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Nom</th><th>Matricule</th><th>Email</th><th>Rôle</th><th>Service</th><th>Supérieur</th><th>Office</th><th>Statut</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Nom</th><th>Identifiant</th><th>Email</th><th>Rôle</th><th>Service</th><th>Office</th><th>Statut</th><th>Actions</th></tr></thead>
           <tbody>
             <?php foreach($utilisateurs as $u): ?>
             <tr data-id="<?= $u['id'] ?>" data-role="<?= $u['role_id'] ?>" data-caisse="<?= $u['caisse_id']??'' ?>">
@@ -363,15 +344,14 @@ include __DIR__ . '/../../includes/header.php';
                   <div><div style="font-weight:600"><?= sanitize($u['nom'].' '.$u['prenom']) ?></div><div style="font-size:11.5px;color:var(--text3)"><?= sanitize($u['telephone']??'') ?></div></div>
                 </div>
               </td>
-              <td><?= sanitize($u['matricule']??'—') ?></td>
+              <td><code style="font-size:12px;font-weight:600"><?= sanitize($u['username']??'') ?></code></td>
               <td><?= sanitize($u['email']) ?></td>
               <td><span class="badge badge-info" style="font-size:11px"><?= sanitize($u['role_nom']) ?></span></td>
               <td><?= sanitize($u['service_nom']??'—') ?></td>
-              <td><?= sanitize($u['responsable_nom']??'—') ?></td>
               <td><?= sanitize($u['agence_nom']??'—') ?></td>
               <td><span class="badge <?= $u['statut']==='actif'?'badge-success':($u['statut']==='inactif'?'badge-gray':'badge-danger') ?>"><?= ucfirst($u['statut']) ?></span></td>
               <td style="white-space:nowrap">
-                <button class="btn btn-ghost btn-sm" onclick="editUser(<?= $u['id'] ?>, '<?= sanitize(addslashes($u['nom'])) ?>', '<?= sanitize(addslashes($u['prenom'])) ?>', '<?= sanitize(addslashes($u['matricule']??'')) ?>', '<?= sanitize(addslashes($u['email'])) ?>', '<?= sanitize(addslashes($u['telephone']??'')) ?>', <?= $u['agence_id']??'null' ?>, <?= $u['service_id']??'null' ?>, <?= $u['service_responsable_id']??'null' ?>)"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-ghost btn-sm" onclick="editUser(<?= $u['id'] ?>, '<?= sanitize(addslashes($u['nom'])) ?>', '<?= sanitize(addslashes($u['prenom'])) ?>', '<?= sanitize(addslashes($u['username']??'')) ?>', '<?= sanitize(addslashes($u['matricule']??'')) ?>', '<?= sanitize(addslashes($u['email'])) ?>', '<?= sanitize(addslashes($u['telephone']??'')) ?>', <?= $u['agence_id']??'null' ?>, <?= $u['service_id']??'null' ?>, <?= $u['service_responsable_id']??'null' ?>)"><i class="fa-solid fa-pen"></i></button>
                 <button class="btn btn-outline btn-sm" onclick="affecterRole(<?= $u['id'] ?>, <?= $u['role_id'] ?>, <?= $u['caisse_id']??'null' ?>)">Affecter</button>
                 <form method="post" style="display:inline"><input type="hidden" name="action" value="toggle_user"><input type="hidden" name="user_id" value="<?= $u['id'] ?>"><button type="submit" class="btn btn-ghost btn-sm"><?= $u['statut']==='actif'?'Désactiver':'Activer' ?></button></form>
               </td>
@@ -393,8 +373,9 @@ include __DIR__ . '/../../includes/header.php';
         <div class="card-body">
           <div class="form-row-2">
             <div class="form-group">
-              <label class="form-label">Raison sociale <span class="req">*</span></label>
-              <input type="text" name="nom" class="form-control" value="<?= sanitize($entreprise['nom']??'') ?>" required>
+              <label class="form-label">Raison sociale</label>
+              <input type="text" name="nom" class="form-control" value="<?= APP_NAME ?>" readonly disabled style="opacity:.6;cursor:not-allowed">
+              <small style="color:var(--text3);margin-top:4px;display:block">Nom de l'application — non modifiable</small>
             </div>
             <div class="form-group">
               <label class="form-label">Sigle / Abréviation</label>
@@ -487,15 +468,8 @@ include __DIR__ . '/../../includes/header.php';
 
           <div class="form-group">
             <label class="form-label">Police de caractères</label>
-            <select name="police" class="form-control">
-              <?php
-              $fonts = ['Segoe UI'=>'Segoe UI','Roboto'=>'Roboto','Open Sans'=>'Open Sans','Lato'=>'Lato','Poppins'=>'Poppins','Inter'=>'Inter','Arial'=>'Arial','Verdana'=>'Verdana'];
-              $curFont = $entreprise['police'] ?? 'Segoe UI';
-              foreach ($fonts as $val => $label): ?>
-              <option value="<?= $val ?>" <?= $curFont===$val?'selected':'' ?> style="font-family:'<?= $val ?>',sans-serif"><?= $label ?></option>
-              <?php endforeach; ?>
-            </select>
-            <small class="text-muted">Les polices Google Fonts (Roboto, Open Sans, Lato, Poppins, Inter) seront chargées automatiquement.</small>
+            <input type="text" name="police" class="form-control" value="Manrope" readonly disabled style="opacity:.6;cursor:not-allowed">
+            <small style="color:var(--text3);margin-top:4px;display:block">Police de l'application — non modifiable</small>
           </div>
 
           <div class="form-row-2">
@@ -530,119 +504,17 @@ if (selTheme) {
 
   <!-- RÔLES -->
   <div class="tab-content <?= $activeTab==='roles'?'active':'' ?>" id="tab-roles">
-    <?php if ($editRole && $editRoleData): ?>
-    <!-- ── VUE ÉDITION RÔLE ── -->
-    <a href="index.php?tab=roles" class="btn btn-outline btn-sm mb-16" style="text-decoration:none">&larr; Retour à la liste</a>
-    <div class="card" style="max-width:720px">
-      <div class="card-header"><span class="card-title">Modifier le rôle : <?= sanitize($editRoleData['nom']) ?></span></div>
-      <form method="post">
-        <input type="hidden" name="action" value="update_role">
-        <input type="hidden" name="role_id" value="<?= $editRoleData['id'] ?>">
-        <div class="card-body">
-          <div class="form-row-2">
-            <div class="form-group">
-              <label class="form-label">Nom du rôle <span class="req">*</span></label>
-              <input type="text" name="nom" class="form-control" required value="<?= htmlspecialchars($editRoleData['nom']) ?>">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Description</label>
-              <textarea name="description" class="form-control" rows="2"><?= htmlspecialchars($editRoleData['description']??'') ?></textarea>
-            </div>
-          </div>
-          <div class="form-group" style="margin-top:12px">
-            <label class="perm-header">
-              <input type="checkbox" name="perm_all" value="1" id="edit-perm-all" onchange="toggleAllPerms(this, 'edit-perms-grid')" <?= (!empty(json_decode($editRoleData['permissions']??'{}', true)['all'])) ? 'checked' : '' ?>> Accès total (super administrateur)
-            </label>
-          </div>
-          <div id="edit-perms-grid" class="perm-grid">
-            <?php
-            $editPerms = json_decode($editRoleData['permissions']??'{}', true);
-            $editIsAll = !empty($editPerms['all']);
-            foreach($permModules as $modKey => $mod):
-              $modAll = !$editIsAll && !empty($editPerms[$modKey]['all']);
-            ?>
-            <div class="perm-module">
-              <div class="perm-module-header">
-                <label><input type="checkbox" onchange="toggleModulePerms(this, 'edit-')" data-mod="<?= $modKey ?>" <?= $modAll ? 'checked' : '' ?>> <strong><?= $mod['label'] ?></strong></label>
-              </div>
-              <div class="perm-actions">
-                <?php foreach($mod['actions'] as $actKey => $actLabel):
-                  $checked = $editIsAll || $modAll || (!empty($editPerms[$modKey][$actKey]));
-                ?>
-                <label class="perm-check"><input type="checkbox" name="perms[<?= $modKey ?>][<?= $actKey ?>]" value="1" data-mod="<?= $modKey ?>" class="edit-perm-cb" <?= $checked ? 'checked' : '' ?>> <?= $actLabel ?></label>
-                <?php endforeach; ?>
-                <label class="perm-check perm-check-all"><input type="checkbox" name="perms[<?= $modKey ?>][all]" value="1" data-mod="<?= $modKey ?>" class="edit-perm-cb" onchange="toggleModuleAll(this, 'edit-')" <?= $modAll ? 'checked' : '' ?>> Tout le module</label>
-              </div>
-            </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-        <div class="card-footer d-flex gap-8">
-          <a href="index.php?tab=roles" class="btn btn-outline">Annuler</a>
-          <button type="submit" class="btn btn-primary">Enregistrer</button>
-        </div>
-      </form>
-    </div>
-    <?php else: ?>
-    <!-- ── VUE LISTE RÔLES ── -->
     <div class="d-flex justify-between align-center mb-16">
       <span style="font-weight:600"><?= count($roles) ?> rôle(s)</span>
-      <a href="index.php?tab=roles&new_role=1" class="btn btn-primary">+ Nouveau rôle</a>
+      <button class="btn btn-primary" onclick="openRoleModal('create')">+ Nouveau rôle</button>
     </div>
-
-    <?php if (isset($_GET['new_role'])): ?>
-    <!-- ── VUE CREATION RÔLE ── -->
-    <div class="card mb-24">
-      <div class="card-header">
-        <span class="card-title">Nouveau rôle</span>
-        <a href="index.php?tab=roles" class="btn btn-ghost btn-sm" style="margin-left:auto"><i class="fa-solid fa-arrow-left"></i> Retour</a>
-      </div>
-      <form method="post">
-        <input type="hidden" name="action" value="create_role">
-        <div class="card-body">
-          <div class="form-group">
-            <label class="form-label">Nom du rôle <span class="req">*</span></label>
-            <input type="text" name="nom" class="form-control" required placeholder="ex: responsable_caisse" autofocus>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Description</label>
-            <textarea name="description" class="form-control" rows="2" placeholder="Description du rôle et de ses responsabilités"></textarea>
-          </div>
-          <div class="form-group">
-            <label class="perm-header">
-              <input type="checkbox" name="perm_all" value="1" onchange="toggleAllPerms(this, 'new-perms-grid')"> Accès total (super administrateur)
-            </label>
-          </div>
-          <div id="new-perms-grid" class="perm-grid">
-            <?php foreach($permModules as $modKey => $mod): ?>
-            <div class="perm-module">
-              <div class="perm-module-header">
-                <label><input type="checkbox" onchange="toggleModulePerms(this, 'new-')" data-mod="<?= $modKey ?>"> <strong><?= $mod['label'] ?></strong></label>
-              </div>
-              <div class="perm-actions">
-                <?php foreach($mod['actions'] as $actKey => $actLabel): ?>
-                <label class="perm-check"><input type="checkbox" name="perms[<?= $modKey ?>][<?= $actKey ?>]" value="1" data-mod="<?= $modKey ?>" class="new-perm-cb"> <?= $actLabel ?></label>
-                <?php endforeach; ?>
-                <label class="perm-check perm-check-all"><input type="checkbox" name="perms[<?= $modKey ?>][all]" value="1" data-mod="<?= $modKey ?>" class="new-perm-cb" onchange="toggleModuleAll(this, 'new-')"> Tout le module</label>
-              </div>
-            </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-        <div class="card-footer d-flex justify-between">
-          <a href="index.php?tab=roles" class="btn btn-outline">Annuler</a>
-          <button type="submit" class="btn btn-primary">Créer le rôle</button>
-        </div>
-      </form>
-    </div>
-    <?php endif; ?>
 
     <!-- TABLEAU DES RÔLES -->
     <div class="card">
       <div class="card-header"><span class="card-title">Liste des rôles</span></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Nom</th><th>Description</th><th>Permissions</th><th>Nb utilisateurs</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Nom</th><th>Description</th><th>Permissions</th><th>Utilisateurs</th><th>Actions</th></tr></thead>
           <tbody>
             <?php foreach($roles as $r):
               $nb = $db->prepare("SELECT COUNT(*) as n FROM utilisateurs WHERE role_id=?");
@@ -665,7 +537,7 @@ if (selTheme) {
               <td style="max-width:220px"><?= implode(' ', $permLabels) ?: '<span style="color:var(--text3);font-size:12px">Aucune</span>' ?></td>
               <td><?= $nb ?></td>
               <td>
-                <a href="index.php?tab=roles&edit_role=<?= $r['id'] ?>" class="btn btn-ghost btn-sm">Modifier</a>
+                <button class="btn btn-ghost btn-sm" onclick="openRoleModal('edit', <?= $r['id'] ?>)">Modifier</button>
               </td>
             </tr>
             <?php endforeach; ?>
@@ -726,7 +598,6 @@ if (selTheme) {
         </div>
       </div>
     </details>
-    <?php endif; ?>
   </div>
 
   <!-- AGENCES & SERVICES -->
@@ -892,195 +763,6 @@ if (selTheme) {
     <?php endif; ?>
   </div>
 
-  <!-- RADNEX AI Config -->
-  <?php
-  $radnexConfigFile = __DIR__ . '/../radnex/config.php';
-  $radnexCfg = file_exists($radnexConfigFile) ? require $radnexConfigFile : [];
-  $rProvider    = $radnexCfg['provider'] ?? ($radnexCfg['use_ollama'] ?? false ? 'ollama' : 'openrouter');
-  $rOllamaUrl   = $radnexCfg['ollama_url'] ?? 'http://localhost:11434/v1/chat/completions';
-  $rOllamaModel = $radnexCfg['ollama_model'] ?? 'llama3.1:8b';
-  $rOpenaiKey   = $radnexCfg['openai_key'] ?? '';
-  $rOpenaiModel = $radnexCfg['openai_model'] ?? 'gpt-4o-mini';
-  $rOrKey       = $radnexCfg['openrouter_key'] ?? '';
-  $rOrModel     = $radnexCfg['openrouter_model'] ?? 'openrouter/free';
-  $rCustomUrl   = $radnexCfg['custom_url'] ?? '';
-  $rCustomKey   = $radnexCfg['custom_key'] ?? '';
-  $rCustomModel = $radnexCfg['custom_model'] ?? '';
-  $rName        = $radnexCfg['assistant_name'] ?? 'RADNEX';
-  $rPrompt      = $radnexCfg['system_prompt'] ?? '';
-  $rWebSearch   = $radnexCfg['web_search_enabled'] ?? true;
-  $rTimeout     = $radnexCfg['timeout'] ?? 30;
-
-  // Test connection
-  $radnexTest = '';
-  if (isset($_GET['radnex_test'])) {
-      $testProvider = $rProvider;
-      $testUrl = ''; $testKey = ''; $testModel = '';
-      switch ($testProvider) {
-          case 'ollama': $testUrl = $rOllamaUrl; $testModel = $rOllamaModel; break;
-          case 'openai': $testUrl = 'https://api.openai.com/v1/chat/completions'; $testKey = $rOpenaiKey; $testModel = $rOpenaiModel; break;
-          case 'openrouter': $testUrl = 'https://openrouter.ai/api/v1/chat/completions'; $testKey = $rOrKey; $testModel = $rOrModel; break;
-          case 'custom': $testUrl = $rCustomUrl; $testKey = $rCustomKey; $testModel = $rCustomModel; break;
-      }
-      if ($testUrl) {
-          $testPayload = json_encode(['model'=>$testModel,'messages'=>[['role'=>'user','content'=>'Dis bonjour en 5 mots max']],'max_tokens'=>50]);
-          $testHeaders = ['Content-Type: application/json'];
-          if ($testKey) $testHeaders[] = 'Authorization: Bearer '.$testKey;
-          if ($testProvider === 'openrouter') { $testHeaders[] = 'HTTP-Referer: '.BASE_URL; $testHeaders[] = 'X-Title: BrenFinance'; }
-          $testCh = curl_init($testUrl);
-          curl_setopt_array($testCh, [CURLOPT_RETURNTRANSFER=>1,CURLOPT_POST=>1,CURLOPT_HTTPHEADER=>$testHeaders,CURLOPT_POSTFIELDS=>$testPayload,CURLOPT_TIMEOUT=>60]);
-          $testRes = curl_exec($testCh); $testErr = curl_error($testCh); curl_close($testCh);
-          if ($testErr) {
-              $radnexTest = '<div class="toast toast-danger" style="display:block;position:static;margin-bottom:16px"><span class="toast-msg">Erreur de connexion : '.sanitize($testErr).'</span></div>';
-          } else {
-              $tj = json_decode($testRes, true);
-              if (isset($tj['choices'][0]['message']['content'])) {
-                  $radnexTest = '<div class="toast toast-success" style="display:block;position:static;margin-bottom:16px"><span class="toast-msg">Test réussi ! Réponse : '.sanitize($tj['choices'][0]['message']['content']).'</span></div>';
-              } elseif (isset($tj['error'])) {
-                  $errMsg = is_array($tj['error']) ? sanitize($tj['error']['message'] ?? json_encode($tj['error'])) : sanitize($tj['error']);
-                  $radnexTest = '<div class="toast toast-danger" style="display:block;position:static;margin-bottom:16px"><span class="toast-msg">Erreur API : '.$errMsg.'</span></div>';
-              } else {
-                  $radnexTest = '<div class="toast toast-danger" style="display:block;position:static;margin-bottom:16px"><span class="toast-msg">Réponse inattendue : '.sanitize(mb_substr($testRes,0,200)).'</span></div>';
-              }
-          }
-      }
-  }
-  ?>
-  <div class="tab-content <?= $activeTab==='radnex'?'active':'' ?>" id="tab-radnex">
-    <?= $radnexTest ?>
-
-    <form method="post">
-      <input type="hidden" name="action" value="update_radnex_config">
-
-      <div class="card mb-16">
-        <div class="card-header"><span class="card-title"><i class="fa-solid fa-robot" style="color:var(--primary)"></i> Fournisseur IA</span></div>
-        <div class="card-body">
-          <div class="form-group">
-            <label class="form-label">Fournisseur <span class="req">*</span></label>
-            <select name="provider" id="radnex-provider" class="form-control" onchange="toggleRadnexFields()">
-              <option value="ollama" <?= $rProvider==='ollama'?'selected':'' ?>>Ollama (Local, gratuit)</option>
-              <option value="openai" <?= $rProvider==='openai'?'selected':'' ?>>OpenAI (GPT-4, GPT-4o-mini...)</option>
-              <option value="openrouter" <?= $rProvider==='openrouter'?'selected':'' ?>>OpenRouter (Cloud, modèles gratuits)</option>
-              <option value="custom" <?= $rProvider==='custom'?'selected':'' ?>>Personnalisé (endpoint compatible OpenAI)</option>
-            </select>
-          </div>
-
-          <!-- Ollama fields -->
-          <div class="radnex-fields" id="radnex-ollama" style="<?= $rProvider!=='ollama'?'display:none':'' ?>">
-            <div style="padding:12px;background:var(--surface);border-radius:var(--radius);margin-bottom:12px;font-size:13px;color:var(--text3)">
-              <strong>Ollama</strong> permet d'utiliser l'IA gratuitement en local.
-              <a href="https://ollama.com/download" target="_blank">Télécharger Ollama</a> ·
-              Après installation, lancez <code>ollama pull llama3.1:8b</code>
-            </div>
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">URL API Ollama</label>
-                <input type="text" name="ollama_url" class="form-control" value="<?= sanitize($rOllamaUrl) ?>" placeholder="http://localhost:11434/v1/chat/completions">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Modèle</label>
-                <input type="text" name="ollama_model" class="form-control" value="<?= sanitize($rOllamaModel) ?>" placeholder="llama3.1:8b">
-              </div>
-            </div>
-          </div>
-
-          <!-- OpenAI fields -->
-          <div class="radnex-fields" id="radnex-openai" style="<?= $rProvider!=='openai'?'display:none':'' ?>">
-            <div style="padding:12px;background:var(--surface);border-radius:var(--radius);margin-bottom:12px;font-size:13px;color:var(--text3)">
-              <strong>OpenAI</strong> — Créez une clé sur <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Clé API OpenAI <span class="req">*</span></label>
-              <input type="password" name="openai_key" class="form-control" value="<?= sanitize($rOpenaiKey) ?>" placeholder="sk-...">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Modèle</label>
-              <select name="openai_model" class="form-control">
-                <option value="gpt-4o-mini" <?= $rOpenaiModel==='gpt-4o-mini'?'selected':'' ?>>gpt-4o-mini (rapide, économique)</option>
-                <option value="gpt-4o" <?= $rOpenaiModel==='gpt-4o'?'selected':'' ?>>gpt-4o (équilibré)</option>
-                <option value="gpt-4.1-mini" <?= $rOpenaiModel==='gpt-4.1-mini'?'selected':'' ?>>gpt-4.1-mini</option>
-                <option value="gpt-4.1" <?= $rOpenaiModel==='gpt-4.1'?'selected':'' ?>>gpt-4.1</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- OpenRouter fields -->
-          <div class="radnex-fields" id="radnex-openrouter" style="<?= $rProvider!=='openrouter'?'display:none':'' ?>">
-            <div style="padding:12px;background:var(--surface);border-radius:var(--radius);margin-bottom:12px;font-size:13px;color:var(--text3)">
-              <strong>OpenRouter</strong> — Accédez à des centaines de modèles avec une seule clé.
-              <a href="https://openrouter.ai/keys" target="_blank">Créer une clé</a>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Clé API OpenRouter <span class="req">*</span></label>
-              <input type="password" name="openrouter_key" class="form-control" value="<?= sanitize($rOrKey) ?>" placeholder="sk-or-v1-...">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Modèle</label>
-              <select name="openrouter_model" class="form-control">
-                <option value="openrouter/free" <?= $rOrModel==='openrouter/free'?'selected':'' ?>>openrouter/free (auto, gratuit)</option>
-                <option value="deepseek/deepseek-r1-0528:free" <?= $rOrModel==='deepseek/deepseek-r1-0528:free'?'selected':'' ?>>deepseek-r1 (gratuit)</option>
-                <option value="meta-llama/llama-4-maverick:free" <?= $rOrModel==='meta-llama/llama-4-maverick:free'?'selected':'' ?>>llama-4-maverick (gratuit)</option>
-                <option value="google/gemma-3-27b-it:free" <?= $rOrModel==='google/gemma-3-27b-it:free'?'selected':'' ?>>gemma-3-27b (gratuit)</option>
-                <option value="mistralai/mistral-small-3.1-24b-instruct:free" <?= $rOrModel==='mistralai/mistral-small-3.1-24b-instruct:free'?'selected':'' ?>>mistral-small-3.1 (gratuit)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Custom fields -->
-          <div class="radnex-fields" id="radnex-custom" style="<?= $rProvider!=='custom'?'display:none':'' ?>">
-            <div style="padding:12px;background:var(--surface);border-radius:var(--radius);margin-bottom:12px;font-size:13px;color:var(--text3)">
-              <strong>Personnalisé</strong> — Tout endpoint compatible avec l'API OpenAI Chat Completions.
-            </div>
-            <div class="form-group">
-              <label class="form-label">URL API <span class="req">*</span></label>
-              <input type="text" name="custom_url" class="form-control" value="<?= sanitize($rCustomUrl) ?>" placeholder="https://api.example.com/v1/chat/completions">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Clé API</label>
-              <input type="password" name="custom_key" class="form-control" value="<?= sanitize($rCustomKey) ?>" placeholder="Laisser vide si pas nécessaire">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Modèle <span class="req">*</span></label>
-              <input type="text" name="custom_model" class="form-control" value="<?= sanitize($rCustomModel) ?>" placeholder="my-model-name">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card mb-16">
-        <div class="card-header"><span class="card-title"><i class="fa-solid fa-sliders" style="color:var(--primary)"></i> Paramètres de l'assistant</span></div>
-        <div class="card-body">
-          <div class="form-row-2">
-            <div class="form-group">
-              <label class="form-label">Nom de l'assistant</label>
-              <input type="text" name="assistant_name" class="form-control" value="<?= sanitize($rName) ?>" placeholder="RADNEX">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Timeout (secondes)</label>
-              <input type="number" name="timeout" class="form-control" value="<?= (int)$rTimeout ?>" min="5" max="120">
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Prompt système</label>
-            <textarea name="system_prompt" class="form-control" rows="4" placeholder="Instructions pour l'assistant IA..."><?= sanitize($rPrompt) ?></textarea>
-            <small style="color:var(--text3)">Définit le comportement et la personnalité de l'assistant. Laisser vide pour le prompt par défaut.</small>
-          </div>
-          <div class="form-group">
-            <label style="display:flex;align-items:center;gap:8px">
-              <input type="checkbox" name="web_search" <?= $rWebSearch?'checked':'' ?>>
-              Activer la recherche web
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="d-flex gap-8">
-        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Enregistrer</button>
-        <a href="?tab=radnex&radnex_test=1" class="btn btn-outline"><i class="fa-solid fa-vial"></i> Tester la connexion</a>
-      </div>
-    </form>
-  </div>
-</div>
 
 <!-- REFERENTIELS SUPPRIMÉ -->
 
@@ -1106,6 +788,17 @@ if (selTheme) {
         </div>
         <div class="form-row-2">
           <div class="form-group">
+            <label class="form-label">Identifiant <span class="req">*</span></label>
+            <input type="text" name="username" class="form-control" required placeholder="ex: jdoe">
+            <small class="text-muted">Identifiant unique de connexion.</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email <span class="req">*</span></label>
+            <input type="email" name="email" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
             <label class="form-label">Matricule</label>
             <input type="text" name="matricule" class="form-control">
           </div>
@@ -1113,10 +806,6 @@ if (selTheme) {
             <label class="form-label">Téléphone</label>
             <input type="text" name="telephone" class="form-control">
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email <span class="req">*</span></label>
-          <input type="email" name="email" class="form-control" required>
         </div>
         <div class="form-row-3">
           <div class="form-group">
@@ -1182,6 +871,16 @@ if (selTheme) {
         </div>
         <div class="form-row-2">
           <div class="form-group">
+            <label class="form-label">Identifiant <span class="req">*</span></label>
+            <input type="text" name="username" id="edit-user-username" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email <span class="req">*</span></label>
+            <input type="email" name="email" id="edit-user-email" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
             <label class="form-label">Matricule</label>
             <input type="text" name="matricule" id="edit-user-matricule" class="form-control">
           </div>
@@ -1189,10 +888,6 @@ if (selTheme) {
             <label class="form-label">Téléphone</label>
             <input type="text" name="telephone" id="edit-user-telephone" class="form-control">
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email <span class="req">*</span></label>
-          <input type="email" name="email" id="edit-user-email" class="form-control" required>
         </div>
         <div class="form-row-2">
           <div class="form-group">
@@ -1371,6 +1066,73 @@ if (selTheme) {
 
 <!-- REFERENTIELS MODALS SUPPRIMÉS -->
 
+<!-- Modal: Créer / Modifier un rôle -->
+<div class="modal-overlay" id="modal-role">
+  <div class="modal" style="max-width:740px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-role-title">Nouveau rôle</div>
+      <button class="modal-close" onclick="closeModal('modal-role')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form method="post" id="role-form">
+      <input type="hidden" name="action" id="role-action" value="create_role">
+      <input type="hidden" name="role_id" id="role-id" value="">
+      <div class="modal-body">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Nom du rôle <span class="req">*</span></label>
+            <input type="text" name="nom" id="role-nom" class="form-control" required placeholder="ex: responsable_caisse">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea name="description" id="role-description" class="form-control" rows="2" placeholder="Description du rôle et de ses responsabilités"></textarea>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:8px">
+          <label class="perm-header">
+            <input type="checkbox" name="perm_all" value="1" id="role-perm-all" onchange="toggleAllPerms(this, 'role-perms-grid')"> Accès total (super administrateur)
+          </label>
+        </div>
+
+        <div id="role-perms-grid">
+          <!-- Onglets de catégories -->
+          <div class="perm-tabs">
+            <?php foreach($permCategories as $cat): ?>
+            <button type="button" class="perm-tab <?= $cat['key'] === 'finance' ? 'active' : '' ?>" data-category="<?= $cat['key'] ?>" onclick="switchPermTab('<?= $cat['key'] ?>')">
+              <i class="fa-solid <?= $cat['icon'] ?>"></i> <?= $cat['label'] ?>
+            </button>
+            <?php endforeach; ?>
+          </div>
+
+          <!-- Panneaux de permissions par catégorie -->
+          <?php foreach($permCategories as $cat): ?>
+          <div class="perm-panel <?= $cat['key'] === 'finance' ? 'active' : '' ?>" id="perm-panel-<?= $cat['key'] ?>">
+            <?php foreach($cat['modules'] as $modKey): ?>
+            <?php $mod = $permModules[$modKey]; ?>
+            <div class="perm-module">
+              <div class="perm-module-header">
+                <label><input type="checkbox" onchange="toggleModulePerms(this, 'role-')" data-mod="<?= $modKey ?>"> <strong><?= $mod['label'] ?></strong></label>
+              </div>
+              <div class="perm-actions">
+                <?php foreach($mod['actions'] as $actKey => $actLabel): ?>
+                <label class="perm-check"><input type="checkbox" name="perms[<?= $modKey ?>][<?= $actKey ?>]" value="1" data-mod="<?= $modKey ?>" class="role-perm-cb"> <?= $actLabel ?></label>
+                <?php endforeach; ?>
+                <label class="perm-check perm-check-all"><input type="checkbox" name="perms[<?= $modKey ?>][all]" value="1" data-mod="<?= $modKey ?>" class="role-perm-cb" onchange="toggleModuleAll(this, 'role-')"> Tout le module</label>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-role')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="role-submit-btn">Créer le rôle</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 // Activate tab based on URL
 const urlTab = new URLSearchParams(location.search).get('tab');
@@ -1384,6 +1146,8 @@ if (urlTab) {
 }
 
 /* ─── PERMISSIONS MANAGEMENT ─────────────────────────────────── */
+const rolesData = <?= json_encode($rolesJS) ?>;
+
 function toggleAllPerms(checkbox, gridId) {
   const grid = document.getElementById(gridId);
   grid.querySelectorAll('input[type=checkbox]').forEach(cb => {
@@ -1406,12 +1170,130 @@ function toggleModuleAll(checkbox, prefix) {
   cbs.forEach(cb => { if (cb !== checkbox) cb.checked = checkbox.checked; });
 }
 
+// Update module-level "select all" checkboxes based on individual action checkboxes
+function updateModuleCheckboxes() {
+  document.querySelectorAll('#role-perms-grid .perm-module').forEach(modDiv => {
+    const headerCb = modDiv.querySelector('.perm-module-header input[type=checkbox]');
+    if (!headerCb) return;
+    const mod = headerCb.dataset.mod;
+    const cbs = modDiv.querySelectorAll('.role-perm-cb[data-mod="' + mod + '"]');
+    const allCb = modDiv.querySelector('.perm-check-all input[type=checkbox]');
+    let allChecked = true;
+    let anyChecked = false;
+    cbs.forEach(cb => {
+      if (cb !== allCb) {
+        if (cb.checked) anyChecked = true;
+        else allChecked = false;
+      }
+    });
+    // "All module" checkbox state
+    if (allCb) {
+      allCb.checked = allChecked && anyChecked;
+    }
+    // Module header checkbox: checked when "all" is checked, indeterminate when some
+    if (anyChecked && !allChecked) {
+      headerCb.checked = false;
+      headerCb.indeterminate = true;
+    } else {
+      headerCb.checked = anyChecked;
+      headerCb.indeterminate = false;
+    }
+  });
+}
+
+// Switch permission category tab
+function switchPermTab(category) {
+  document.querySelectorAll('.perm-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.category === category);
+  });
+  document.querySelectorAll('.perm-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'perm-panel-' + category);
+  });
+}
+
+// Open role modal (create or edit mode)
+function openRoleModal(mode, roleId) {
+  const title = document.getElementById('modal-role-title');
+  const action = document.getElementById('role-action');
+  const idField = document.getElementById('role-id');
+  const nomField = document.getElementById('role-nom');
+  const descField = document.getElementById('role-description');
+  const permAllCb = document.getElementById('role-perm-all');
+  const submitBtn = document.getElementById('role-submit-btn');
+  const grid = document.getElementById('role-perms-grid');
+
+  // Reset all checkboxes
+  grid.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.disabled = false;
+  });
+  grid.style.opacity = '1';
+  grid.style.pointerEvents = '';
+
+  // Reset module header checkboxes
+  grid.querySelectorAll('.perm-module-header input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.indeterminate = false;
+  });
+
+  // Reset to first tab
+  switchPermTab('finance');
+
+  if (mode === 'create') {
+    title.textContent = 'Nouveau rôle';
+    action.value = 'create_role';
+    idField.value = '';
+    nomField.value = '';
+    descField.value = '';
+    permAllCb.checked = false;
+    submitBtn.textContent = 'Créer le rôle';
+  } else if (mode === 'edit') {
+    title.textContent = 'Modifier le rôle';
+    action.value = 'update_role';
+    idField.value = roleId;
+    submitBtn.textContent = 'Enregistrer';
+
+    // Load role data
+    const roleData = rolesData[roleId];
+    if (roleData) {
+      nomField.value = roleData.nom;
+      descField.value = roleData.description || '';
+
+      const perms = roleData.permissions;
+      const isAll = perms.all === true;
+      permAllCb.checked = isAll;
+
+      if (isAll) {
+        grid.querySelectorAll('input[type=checkbox]').forEach(cb => {
+          cb.checked = true;
+          cb.disabled = true;
+        });
+        grid.style.opacity = '.4';
+        grid.style.pointerEvents = 'none';
+      } else {
+        // Set individual permissions
+        document.querySelectorAll('.role-perm-cb').forEach(cb => {
+          const name = cb.name;
+          const match = name.match(/perms\[(\w+)\]\[(\w+)\]/);
+          if (match) {
+            const modKey = match[1];
+            const actKey = match[2];
+            const modAll = perms[modKey] && perms[modKey]['all'];
+            const hasAct = perms[modKey] && perms[modKey][actKey];
+            cb.checked = !!(modAll || hasAct);
+          }
+        });
+        updateModuleCheckboxes();
+      }
+    }
+  }
+
+  openModal('modal-role');
+}
+
 // Initialize super-admin checkbox state on page load
 document.addEventListener('DOMContentLoaded', () => {
-  const editAllCb = document.getElementById('edit-perm-all');
-  if (editAllCb && editAllCb.checked) {
-    toggleAllPerms(editAllCb, 'edit-perms-grid');
-  }
+  // No-op: modals start empty, populated on open
 });
 
 /* ─── ROLE AFFECTATION ──────────────────────────────────────── */
@@ -1438,10 +1320,11 @@ function editTypeOperation(id, code, libelle, sens, categorie) {
   openModal('modal-edit-type-operation');
 }
 
-function editUser(userId, nom, prenom, matricule, email, telephone, agenceId, serviceId, responsableId) {
+function editUser(userId, nom, prenom, username, matricule, email, telephone, agenceId, serviceId, responsableId) {
   document.getElementById('edit-user-id').value = userId;
   document.getElementById('edit-user-nom').value = nom;
   document.getElementById('edit-user-prenom').value = prenom;
+  document.getElementById('edit-user-username').value = username;
   document.getElementById('edit-user-matricule').value = matricule;
   document.getElementById('edit-user-email').value = email;
   document.getElementById('edit-user-telephone').value = telephone;
@@ -1494,12 +1377,5 @@ function toggleCaisseSelect() {
   }
 }
 
-/* ─── RADNEX CONFIG TOGGLE ───────────────────────────────────── */
-function toggleRadnexFields() {
-  const provider = document.getElementById('radnex-provider').value;
-  document.querySelectorAll('.radnex-fields').forEach(el => el.style.display = 'none');
-  const target = document.getElementById('radnex-' + provider);
-  if (target) target.style.display = '';
-}
 </script>
 <?php include __DIR__ . '/../../includes/footer.php'; ?>

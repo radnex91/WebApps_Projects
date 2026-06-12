@@ -470,9 +470,13 @@ const POS = (() => {
         if (!data.success || !data.data || !data.data.length) {
           container.innerHTML = '<div class="col-12 text-center py-3" style="color:var(--text-muted)"><i class="bi bi-exclamation-circle" style="font-size:1.5rem;opacity:.3;display:block;margin-bottom:.4rem"></i>Aucune caisse disponible.</div>';
         } else {
-          container.innerHTML = data.data.map(c => {
+          var caisseIcons = ['bi-cash-register','bi-safe','bi-safe2','bi-wallet2','bi-piggy-bank','bi-bank','bi-shop','bi-building'];
+          container.innerHTML = data.data.map(function(c, i) {
+            var icon = caisseIcons[i % caisseIcons.length];
+            var colors = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
+            var clr = colors[i % colors.length];
             return '<div class="col-6"><div class="caisse-card" data-caisse-id="' + c.id + '" data-caisse-name="' + escHtml(c.name) + '" onclick="POS.selectCaisse(' + c.id + ', \'' + escHtml(c.name).replace(/'/g, "\\'") + '\')">' +
-              '<div class="caisse-card-icon"><i class="bi bi-cash-register"></i></div>' +
+              '<div class="caisse-card-icon" style="border-color:' + clr + '33;background:' + clr + '18"><i class="bi ' + icon + '" style="color:' + clr + '"></i></div>' +
               '<div style="font-weight:800;font-size:.85rem;color:var(--text)">' + escHtml(c.name) + '</div>' +
             '</div></div>';
           }).join('');

@@ -29,11 +29,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Message de session expirée
+if (isset($_GET['timeout']) && $_GET['timeout'] === '1') {
+    $error = 'Votre session a expiré. Veuillez vous reconnecter.';
+}
+
 $appNom = getParam('app_nom', 'PharmaCare');
 $ticketSousTitre = getParam('ticket_sous_titre', 'Gestion Pharmacie');
 $theme  = getParam('theme', 'dark-navy');
-$police = getParam('police', 'DM Sans');
-$policeTitre = getParam('police_titre', 'Cormorant Garamond');
+$police = getParam('police', 'Manrope');
+$policeTitre = getParam('police_titre', 'Manrope');
 $fontUrl = 'https://fonts.googleapis.com/css2?family=' . urlencode($police) . ':wght@300;400;500;600;700&family=' . urlencode($policeTitre) . ':wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap';
 
 $pharmaPrimary = '#0D9488';

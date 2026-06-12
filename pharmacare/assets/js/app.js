@@ -15,7 +15,38 @@ document.addEventListener('click', (e) => {
 
 // ── Confirm delete ─────────────────────────────────────────
 function confirmDelete(url, msg) {
-  if (confirm(msg || 'Confirmer la suppression ?')) window.location.href = url;
+  showConfirm('Confirmer la suppression', msg || 'Cette action est irréversible.', function() {
+    window.location.href = url;
+  });
+}
+
+// ── Confirm modal ──────────────────────────────────────────
+function showConfirm(title, message, onConfirm) {
+  let overlay = document.getElementById('confirm-overlay');
+  if (overlay) overlay.remove();
+
+  overlay = document.createElement('div');
+  overlay.id = 'confirm-overlay';
+  overlay.className = 'modal-overlay open';
+  overlay.innerHTML = `
+    <div class="modal" style="width:400px;">
+      <div class="modal-header">
+        <div class="modal-title">${title}</div>
+      </div>
+      <div class="card-pad" style="padding:20px;color:var(--text2);font-size:14px;line-height:1.6;">
+        ${message}
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm" id="confirm-cancel">Annuler</button>
+        <button class="btn btn-danger btn-sm" id="confirm-ok">Confirmer</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  document.getElementById('confirm-cancel').onclick = function() { overlay.remove(); };
+  document.getElementById('confirm-ok').onclick = function() { overlay.remove(); onConfirm(); };
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
 }
 
 // ── Devise (injectée depuis PHP via vente.php) ─────────────
@@ -40,8 +71,14 @@ function loadCart() {
     const saved = localStorage.getItem(CART_KEY);
     if (saved) {
       cart = JSON.parse(saved);
-      if (cart && typeof cart === 'object') renderCart();
-      else cart = {};
+      if (cart && typeof cart === 'object') {
+        for (var k in cart) {
+          if (!cart[k].stockOrig) cart[k].stockOrig = cart[k].stock || 0;
+        }
+        renderCart();
+      } else {
+        cart = {};
+      }
     }
   } catch(e) { cart = {}; }
 }
@@ -50,28 +87,29 @@ function getTvaRate() {
   return (typeof POS_TVA_RATE !== 'undefined') ? POS_TVA_RATE : 0.1925;
 }
 
-function addToCart(id, name, price, stock) {
-  id    = parseInt(id);
-  price = parseFloat(price);
-  stock = parseInt(stock);
+function addToCart(id, name, price, stockOrig) {
+  id       = parseInt(id);
+  price    = parseFloat(price);
+  stockOrig = parseInt(stockOrig);
 
-  if (stock <= 0) return;
+  if (stockOrig <= 0) return;
+
+  const alreadyInCart = cart[id] ? cart[id].qty : 0;
+  if (alreadyInCart >= stockOrig) {
+    showNotif('Stock maximum atteint pour ce produit.', 'error');
+    return;
+  }
 
   if (cart[id]) {
-    if (cart[id].qty >= stock) {
-      showNotif('Stock insuffisant pour ce produit.', 'error');
-      return;
-    }
     cart[id].qty++;
     cart[id]._order = Date.now();
   } else {
-    cart[id] = { id, name, price, stock, qty: 1, _order: Date.now() };
+    cart[id] = { id, name, price, stockOrig, qty: 1, _order: Date.now() };
   }
 
   renderCart();
   saveCart();
 
-  // Flash visuel sur la tuile
   const tile = document.querySelector('[data-id="' + id + '"]');
   if (tile) {
     tile.style.borderColor = 'var(--teal2)';
@@ -86,12 +124,21 @@ function addToCart(id, name, price, stock) {
 function changeQty(id, delta) {
   id = parseInt(id);
   if (!cart[id]) return;
-  cart[id].qty += delta;
-  if (cart[id].qty <= 0) {
+  const item = cart[id];
+  if (delta > 0 && item.qty >= (item.stockOrig || 0)) {
+    showNotif('Stock maximum atteint pour ce produit.', 'error');
+    return;
+  }
+  item.qty += delta;
+  if (item.qty <= 0) {
     delete cart[id];
   }
   renderCart();
   saveCart();
+}
+
+function inCartQty(id) {
+  return (cart[id] && cart[id].qty) ? cart[id].qty : 0;
 }
 
 function removeItem(id) {
@@ -102,10 +149,11 @@ function removeItem(id) {
 
 function clearCart() {
   if (Object.keys(cart).length === 0) return;
-  if (!confirm('Vider le panier ?')) return;
-  cart = {};
-  renderCart();
-  saveCart();
+  showConfirm('Vider le panier ?', 'Tous les articles seront retirés du panier.', function() {
+    cart = {};
+    renderCart();
+    saveCart();
+  });
 }
 
 function renderCart() {
@@ -155,8 +203,71 @@ function renderCart() {
   const cartInput = document.getElementById('cart-data');
   if (cartInput) cartInput.value = JSON.stringify(cart);
 
+  // Activer/désactiver le bouton de validation
+  const btn = document.getElementById('btn-validate');
+  if (btn) {
+    const hasItems = items.length > 0;
+    btn.disabled = !hasItems;
+    btn.style.opacity = hasItems ? '1' : '0.5';
+    btn.style.cursor  = hasItems ? 'pointer' : 'not-allowed';
+  }
+
   // Recalcul monnaie
   calcMonnaie();
+
+  // Mise a jour temps reel du stock affiche
+  refreshStockDisplay();
+}
+
+function refreshStockDisplay() {
+  const tiles = document.querySelectorAll('.product-row, .product-tile');
+  tiles.forEach(el => {
+    const id = parseInt(el.dataset.id);
+    const stockOrig = parseInt(el.dataset.stockOrig) || 0;
+    const seuil = parseInt(el.dataset.seuil) || 0;
+    const inCart = inCartQty(id);
+    const reste = Math.max(0, stockOrig - inCart);
+
+    el.dataset.stock = reste;
+
+    if (reste <= 0) {
+      el.classList.add('out');
+    } else {
+      el.classList.remove('out');
+    }
+
+    // Colonne stock dans la vue tableau (5e td)
+    const tdStock = el.querySelector('td:nth-child(5)');
+    if (tdStock) {
+      updateStockCell(tdStock, reste, seuil);
+    }
+
+    // Bloc stock dans la vue tuiles
+    const pStock = el.querySelector('.p-stock');
+    if (pStock) {
+      updateStockBlock(pStock, reste, seuil);
+    }
+  });
+}
+
+function updateStockCell(cell, reste, seuil) {
+  let badge = '';
+  if (reste <= 0) {
+    badge = '<span class="badge badge-red">Rupture</span>';
+  } else if (reste <= seuil) {
+    badge = '<span class="badge badge-gold" style="font-size:9px;">Bas</span>';
+  }
+  cell.innerHTML = badge ? reste + ' ' + badge : '' + reste;
+}
+
+function updateStockBlock(block, reste, seuil) {
+  if (reste <= 0) {
+    block.innerHTML = '<span class="badge badge-red">Rupture</span>';
+  } else if (reste <= seuil) {
+    block.innerHTML = 'Stk <strong>' + reste + '</strong> <span class="badge badge-gold" style="font-size:9px;">Bas</span>';
+  } else {
+    block.innerHTML = 'Stk <strong>' + reste + '</strong>';
+  }
 }
 
 function calcMonnaie() {

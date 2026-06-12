@@ -462,8 +462,8 @@ INSERT INTO parametres (cle, valeur, label, groupe) VALUES
 ('tva',           '19.25',                'Taux TVA (%)',         'général'),
 ('app_nom',       'PharmaCare',           'Nom de la pharmacie',  'général'),
 ('theme',         'dark-cyan',            'Thème couleur',        'apparence'),
-('police',        'DM Sans',              'Police principale',    'apparence'),
-('police_titre',  'Cormorant Garamond',   'Police titres',        'apparence'),
+('police',        'Manrope',              'Police principale',    'apparence'),
+('police_titre',  'Manrope',              'Police titres',        'apparence'),
 ('caisse_fermeture_mode', 'manuel',       'Mode fermeture caisse','caisse'),
 ('caisse_heure_fermeture','22:00',        'Heure fermeture auto', 'caisse');
 
@@ -596,3 +596,26 @@ INSERT INTO vente_lignes (vente_id, produit_id, produit_nom, quantite, prix_unit
 (2, 11, 'Doliprane 500mg',    1, 60.00,  19.25, 60.00),
 (2, 14, 'Aspirine 500mg',     1, 45.00,  19.25, 45.00),
 (3, 7,  'Metformine 500mg',   1, 130.00, 19.25, 130.00);
+
+
+
+-- ════════════════════════════════════════════════════════════
+-- TABLE D'AUDIT
+-- ════════════════════════════════════════════════════════════
+
+CREATE TABLE audit_log (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    utilisateur_id INT          DEFAULT NULL,
+    action         VARCHAR(80)  NOT NULL,
+    details        VARCHAR(500) DEFAULT '',
+    ip             VARCHAR(45)  DEFAULT '0.0.0.0',
+    target_id      INT          DEFAULT NULL,
+    reference      VARCHAR(80)  DEFAULT NULL,
+    created_at     DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    
+    INDEX idx_audit_action (action),
+    INDEX idx_audit_user   (utilisateur_id),
+    INDEX idx_audit_date   (created_at),
+    INDEX idx_audit_ref    (reference),
+    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

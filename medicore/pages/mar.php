@@ -120,7 +120,7 @@ foreach ($patientsMar as $pm) {
 <!-- Stats header -->
 <div class="stats-grid" style="margin-bottom:16px">
   <div class="stat-card">
-    <div class="stat-icon" style="background:rgba(59,130,246,0.15)">💉</div>
+    <div class="stat-icon" style="background:rgba(var(--accent-rgb),.15)">💉</div>
     <div class="stat-info"><div class="stat-value"><?= $nbAdmin ?></div><div class="stat-label">Total planifié</div></div>
   </div>
   <div class="stat-card">
@@ -132,7 +132,7 @@ foreach ($patientsMar as $pm) {
     <div class="stat-info"><div class="stat-value" style="color:var(--yellow)"><?= $nbRestant ?></div><div class="stat-label">En attente</div></div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="background:rgba(239,68,68,0.15)">⚠️</div>
+    <div class="stat-icon" style="background:rgba(var(--red-rgb),.15)">⚠️</div>
     <div class="stat-info"><div class="stat-value" style="color:var(--red)"><?= $nbNonAdmin ?></div><div class="stat-label">Non administré</div></div>
   </div>
 </div>
@@ -226,11 +226,11 @@ foreach ($patientsMar as $pm) {
 
 <!-- Modal : Non administration -->
 <?php if (can('mar.administer')): ?>
-<div id="modal-non-admin" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:480px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-non-admin" class="modal-overlay" role="dialog" aria-modal="true" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>Medicament non administré</h3>
-      <div onclick="document.getElementById('modal-non-admin').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-non-admin').style.display='none'" aria-label="Fermer">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="administer">

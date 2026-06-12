@@ -104,6 +104,18 @@ function post_email(string $key): ?string {
 }
 
 /**
+ * Récupère un nom d'utilisateur validé ou null
+ * Format: a-z0-9_. uniquement, 3-50 caractères, forcé en minuscule
+ */
+function post_username(string $key): ?string {
+    $val = filter_input(INPUT_POST, $key, FILTER_DEFAULT);
+    if (!$val) return null;
+    $val = trim(strip_tags($val));
+    if (!preg_match('/^[a-z0-9_\.]{3,50}$/', strtolower($val))) return null;
+    return strtolower($val);
+}
+
+/**
  * Valide une date au format YYYY-MM-DD
  */
 function validate_date(string $date): bool {
@@ -284,6 +296,13 @@ class Validator {
     public function email(string $key, string $label): self {
         $val = post_email($key);
         if ($val === null) $this->errors[$key] = "$label doit tre un email valide.";
+        else $this->data[$key] = $val;
+        return $this;
+    }
+
+    public function username(string $key, string $label): self {
+        $val = post_username($key);
+        if ($val === null) $this->errors[$key] = "$label doit contenir 3  50 caractres (a-z, 0-9, _ ou .).";
         else $this->data[$key] = $val;
         return $this;
     }

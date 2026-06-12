@@ -36,11 +36,12 @@ $currentPage = $page;
 // Actions POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCSRFToken($_POST['csrf_token'] ?? '')) {
     $action = $_POST['action'] ?? '';
+    rateLimit('versements_' . ($action ?: 'crud'));
 
     if ($action === 'create' && hasPermission('versements_create')) {
         $dateversement = cleanInput($_POST['dateversement'] ?? '');
         $refversement = cleanInput($_POST['refversement'] ?? '');
-        $sommeverse = (float)($_POST['sommeverse'] ?? 0);
+        $sommeverse = (float)str_replace([' ', "\u{00A0}", "\u{202F}"], '', $_POST['sommeverse'] ?? '0');
         $agenceverse_id = (int)($_POST['agenceverse_id'] ?? 0) ?: null;
         $bank_id = (int)($_POST['bank_id'] ?? 0) ?: null;
         $nomoperateur = $_SESSION['full_name'] ?? '';
@@ -79,11 +80,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCSRFToken($_POST['csrf_token'
         $versement = $stmt->fetch();
         if (!$versement || $versement['statut'] !== 'en_attente') {
             setFlash('error', 'Versement introuvable ou déjà traité.');
+        } elseif (!hasPermission('admin') && (int)$versement['created_by'] !== (int)$_SESSION['user_id']) {
+            setFlash('error', 'Vous n\'êtes pas autorisé à modifier ce versement.');
         } else {
             $oldValues = $versement;
             $dateversement = cleanInput($_POST['dateversement'] ?? '');
             $refversement = cleanInput($_POST['refversement'] ?? '');
-            $sommeverse = (float)($_POST['sommeverse'] ?? 0);
+            $sommeverse = (float)str_replace([' ', "\u{00A0}", "\u{202F}"], '', $_POST['sommeverse'] ?? '0');
             $agenceverse_id = (int)($_POST['agenceverse_id'] ?? 0) ?: null;
             $bank_id = (int)($_POST['bank_id'] ?? 0) ?: null;
             $nomediteur = $_SESSION['full_name'] ?? '';
@@ -120,7 +123,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCSRFToken($_POST['csrf_token'
         $id = (int)($_POST['id'] ?? 0);
         $db->prepare("UPDATE versement SET statut='annulee', validated_by=? WHERE id=? AND statut='en_attente'")->execute([$_SESSION['user_id'], $id]);
         addAuditLog('cancel', 'versement', $id);
-        setFlash('warning', 'Versement annulé.');
+        setFlash('warning', 'Versement annulÃ©.');
+    } elseif ($action === 'delete' && hasPermission('versements_delete')) {
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = $db->prepare("SELECT * FROM versement WHERE id = ?");
+        $stmt->execute([$id]);
+        $oldRecord = $stmt->fetch();
+        if ($oldRecord) {
+            if (!empty($oldRecord['justificatif_path'])) {
+                $filePath = UPLOAD_DIR . $oldRecord['justificatif_path'];
+                if (file_exists($filePath)) @unlink($filePath);
+            }
+            $db->prepare("DELETE FROM versement WHERE id = ?")->execute([$id]);
+            addAuditLog('delete', 'versement', $id, [], $oldRecord);
+            setFlash('success', 'Versement supprimÃ©.');
+        } else {
+            setFlash('error', 'Versement introuvable.');
+        }
     }
     header('Location: ' . $_SERVER['PHP_SELF'] . '?' . http_build_query($_GET));
     exit;
@@ -138,10 +157,10 @@ $result = paginate($db, $query, $params, $page);
 $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
 ?>
 
-<div class="main-content">
-    <header class="main-header">
-        <div class="header-left"><button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button><h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6></div>
-        <div class="header-right"><div class="dropdown"><button class="notif-btn" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div>
+<div class="main-content" id="main-content" role="main">
+    <header class="main-header" role="banner">
+        <div class="header-left"><button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button><span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span></div>
+        <div class="header-right"><div class="dropdown"><button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" role="button" tabindex="0" aria-label="Menu utilisateur" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div>
     </header>
     <div class="page-content fade-in">
         <?php echo displayFlashMessages(); ?>
@@ -154,11 +173,11 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
 
         <div class="card mb-3"><div class="card-body">
             <form method="GET" class="row g-2 align-items-end">
-                <div class="col-md-2"><label class="form-label">Du</label><input type="date" name="date_from" value="<?php echo e($filterDateFrom); ?>" class="form-control"></div>
-                <div class="col-md-2"><label class="form-label">Au</label><input type="date" name="date_to" value="<?php echo e($filterDateTo); ?>" class="form-control"></div>
-                <div class="col-md-2"><label class="form-label">Agence</label><select name="agence_id" class="form-select"><option value="">Toutes</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>" <?php echo $filterAgence == $a['id'] ? 'selected' : ''; ?>><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
-                <div class="col-md-2"><label class="form-label">Statut</label><select name="statut" class="form-select"><option value="">Tous</option><?php foreach(STATUSES as $k=>$l): ?><option value="<?php echo $k; ?>" <?php echo $filterStatut===$k?'selected':''; ?>><?php echo e($l); ?></option><?php endforeach; ?></select></div>
-                <div class="col-md-3"><label class="form-label">Recherche</label><input type="text" name="search" value="<?php echo e($filterSearch); ?>" class="form-control" placeholder="Réf, opérateur..."></div>
+                <div class="col-md-2"><label for="date_from" class="form-label">Du</label><input type="date" name="date_from" id="date_from" value="<?php echo e($filterDateFrom); ?>" class="form-control"></div>
+                <div class="col-md-2"><label for="date_to" class="form-label">Au</label><input type="date" name="date_to" id="date_to" value="<?php echo e($filterDateTo); ?>" class="form-control"></div>
+                <div class="col-md-2"><label for="filter_agence_id" class="form-label">Agence</label><select name="agence_id" id="filter_agence_id" class="form-select"><option value="">Toutes</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>" <?php echo $filterAgence == $a['id'] ? 'selected' : ''; ?>><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
+                <div class="col-md-2"><label for="filter_statut" class="form-label">Statut</label><select name="statut" id="filter_statut" class="form-select"><option value="">Tous</option><?php foreach(STATUSES as $k=>$l): ?><option value="<?php echo $k; ?>" <?php echo $filterStatut===$k?'selected':''; ?>><?php echo e($l); ?></option><?php endforeach; ?></select></div>
+                <div class="col-md-3"><label for="filter_search" class="form-label">Recherche</label><input type="text" name="search" id="filter_search" value="<?php echo e($filterSearch); ?>" class="form-control" placeholder="Réf, opérateur..."></div>
                 <div class="col-md-1"><button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-search"></i></button></div>
             </form>
         </div></div>
@@ -169,7 +188,7 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
         </div>
 
         <div class="card"><div class="table-container">
-            <table class="table">
+            <table class="table" aria-label="Liste des versements">
                 <thead><tr><th>Référence</th><th>Date</th><th>Banque</th><th>Montant versé</th><th>Agence</th><th>Opérateur</th><th>Écart</th><th>Statut</th><th>Actions</th></tr></thead>
                 <tbody>
                 <?php foreach ($result['data'] as $v): ?>
@@ -200,8 +219,11 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
                         </button>
                         <?php endif; ?>
                         <?php if ($v['statut']==='en_attente' && hasPermission('versements_validate')): ?>
-                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="id" value="<?php echo $v['id']; ?>"><input type="hidden" name="action" value="validate"><button type="submit" class="btn btn-sm btn-outline-success" data-confirm="Valider ?"><i class="bi bi-check-lg"></i></button></form>
-                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="id" value="<?php echo $v['id']; ?>"><input type="hidden" name="action" value="cancel"><button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Annuler ?"><i class="bi bi-x-lg"></i></button></form>
+                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="id" value="<?php echo $v['id']; ?>"><input type="hidden" name="action" value="validate"><button type="submit" class="btn btn-sm btn-outline-success" aria-label="Valider" data-confirm="Valider ?"><i class="bi bi-check-lg"></i></button></form>
+                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="id" value="<?php echo $v['id']; ?>"><input type="hidden" name="action" value="cancel"><button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer" data-confirm="Annuler ?"><i class="bi bi-x-lg"></i></button></form>
+                        <?php endif; ?>
+                        <?php if (hasPermission('versements_delete')): ?>
+                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="id" value="<?php echo $v['id']; ?>"><input type="hidden" name="action" value="delete"><button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer" data-confirm="Supprimer ce versement ?" title="Supprimer"><i class="bi bi-trash"></i></button></form>
                         <?php endif; ?>
                     </div></td>
                 </tr>
@@ -215,8 +237,8 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
 </div>
 
 <!-- Modal Créer Versement -->
-<div class="modal fade" id="addModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-bank2 me-2"></i>Nouveau Versement</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="addModalLabel"><i class="bi bi-bank2 me-2"></i>Nouveau Versement</h5><button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="modal"></button></div>
     <form method="POST" enctype="multipart/form-data" data-validate id="createForm">
         <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
         <input type="hidden" name="action" value="create">
@@ -232,8 +254,7 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
                     <input type="number" name="sommeverse" id="create_sommeverse" class="form-control" min="0" step="1" required placeholder="0">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Réf. versement</label>
-                    <input type="text" name="refversement" id="create_refversement" class="form-control" placeholder="Référence optionnelle">
+                    <label for="create_refversement" class="form-label">Réf. versement</label><input type="text" name="refversement" id="create_refversement" class="form-control" placeholder="Référence optionnelle">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Agence <span class="text-danger">*</span></label>
@@ -245,8 +266,7 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Banque</label>
-                    <select name="bank_id" id="create_bank_id" class="form-select">
+                    <label for="create_bank_id" class="form-label">Banque</label><select              <select name="bank_id" id="create_bank_id" class="form-select">
                         <option value="">-- Sélectionner --</option>
                         <?php foreach($banks as $b): ?>
                         <option value="<?php echo $b['id']; ?>"><?php echo e($b['nombank']); ?></option>
@@ -254,27 +274,22 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
                     </select>
                 </div>
                 <div class="col-md-4" style="display:none;">
-                    <label class="form-label">Opérateur de saisie</label>
-                    <input type="text" name="nomoperateur" class="form-control" value="<?php echo e($_SESSION['full_name'] ?? ''); ?>" readonly style="background-color:#e9ecef;">
+                    <label for="create_nomoperateur" class="form-label">Opérateur de saisie</label><input type="text" name="nomoperateur" id="create_nomoperateur" class="form-control" readonly style="background-color:var(--surface-alt);">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Recette journée agence (FCFA)</label>
-                    <input type="text" id="create_recettejourneeagence" class="form-control" readonly style="background-color:#e9ecef;" placeholder="Sélectionnez une agence et une date">
+                    <label for="create_recettejourneeagence" class="form-label">Recette journée agence (FCFA)</label><input type="text" id="create_recettejourneeagence" class="form-control" readonly style="background-color:var(--surface-alt);" placeholder="Sélectionnez une agence et une date">
                     <input type="hidden" name="recettejourneeagence" id="create_recettejourneeagence_hidden" value="">
                     <small class="text-muted">Calculée automatiquement selon l'agence et la date</small>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Écart (FCFA)</label>
-                    <input type="text" id="create_ecart" class="form-control" readonly style="background-color:#e9ecef;" placeholder="-">
+                    <label for="create_ecart" class="form-label">Écart (FCFA)</label><input type="text" id="create_ecart" class="form-control" readonly style="background-color:var(--surface-alt);" placeholder="-">
                     <small class="text-muted">Calculé automatiquement</small>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Justificatif</label>
-                    <input type="file" name="justificatif" id="create_justificatif" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                    <label for="create_justificatif" class="form-label">Justificatif</label><input type="file" name="justificatif" id="create_justificatif" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
                 </div>
                 <div class="col-12">
-                    <label class="form-label">Observation</label>
-                    <textarea name="description" id="create_description" class="form-control" rows="3" placeholder="Observation sur le versement..."></textarea>
+                    <label for="create_description" class="form-label">Observation</label><textarea            <textarea name="description" id="create_description" class="form-control" rows="3" placeholder="Observation sur le versement..."></textarea>
                 </div>
             </div>
         </div>
@@ -286,8 +301,8 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
 </div></div></div>
 
 <!-- Modal Modifier Versement -->
-<div class="modal fade" id="editModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier Versement</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="editModalLabel"><i class="bi bi-pencil me-2"></i>Modifier Versement</h5><button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="modal"></button></div>
     <form method="POST" enctype="multipart/form-data" data-validate>
         <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
         <input type="hidden" name="action" value="update">
@@ -303,8 +318,7 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
                     <input type="number" name="sommeverse" id="edit_sommeverse" class="form-control" min="0" step="1" required>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Réf. versement</label>
-                    <input type="text" name="refversement" id="edit_refversement" class="form-control">
+                    <label for="edit_refversement" class="form-label">Réf. versement</label><input type="text" name="refversement" id="edit_refversement" class="form-control">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Agence <span class="text-danger">*</span></label>
@@ -316,8 +330,7 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Banque</label>
-                    <select name="bank_id" id="edit_bank_id" class="form-select">
+                    <label for="edit_bank_id" class="form-label">Banque</label><select              <select name="bank_id" id="edit_bank_id" class="form-select">
                         <option value="">-- Sélectionner --</option>
                         <?php foreach($banks as $b): ?>
                         <option value="<?php echo $b['id']; ?>"><?php echo e($b['nombank']); ?></option>
@@ -325,38 +338,34 @@ $totalMontant = array_sum(array_column($result['data'], 'sommeverse'));
                     </select>
                 </div>
                 <div class="col-md-4" style="display:none;">
-                    <label class="form-label">Opérateur de saisie</label>
-                    <input type="text" id="edit_nomoperateur" class="form-control" readonly style="background-color:#e9ecef;">
+                    <label for="edit_nomoperateur" class="form-label">Opérateur de saisie</label><input type="text" id="edit_nomoperateur" class="form-control" readonly style="background-color:var(--surface-alt);">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Éditeur</label>
-                    <input type="text" class="form-control" value="<?php echo e($_SESSION['full_name'] ?? ''); ?>" readonly style="background-color:#e9ecef;">
+                    <label for="edit_recettejourneeagence" class="form-label">Éditeur</label>
+                    <input type="text" class="form-control" value="<?php echo e($_SESSION['full_name'] ?? ''); ?>" readonly style="background-color:var(--surface-alt);">
                     <small class="text-muted">Renseigné automatiquement</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Date édition</label>
-                    <input type="text" class="form-control" value="<?php echo date('d/m/Y'); ?>" readonly style="background-color:#e9ecef;">
+                    <input type="text" class="form-control" value="<?php echo date('d/m/Y'); ?>" readonly style="background-color:var(--surface-alt);">
                     <small class="text-muted">Renseignée automatiquement</small>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Recette journée agence (FCFA)</label>
-                    <input type="text" id="edit_recettejourneeagence" class="form-control" readonly style="background-color:#e9ecef;" placeholder="Sélectionnez une agence et une date">
+                    <label class="form-label">Recette journée agence (FCFA)</label><input type="text" id="edit_recettejourneeagence" class="form-control" readonly style="background-color:var(--surface-alt);" placeholder="Sélectionnez une agence et une date">
                     <input type="hidden" name="recettejourneeagence" id="edit_recettejourneeagence_hidden" value="">
                     <small class="text-muted">Calculée automatiquement selon l'agence et la date</small>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Écart (FCFA)</label>
-                    <input type="text" id="edit_ecart" class="form-control" readonly style="background-color:#e9ecef;" placeholder="-">
+                    <label for="edit_ecart" class="form-label">Écart (FCFA)</label><input type="text" id="edit_ecart" class="form-control" readonly style="background-color:var(--surface-alt);" placeholder="-">
                     <small class="text-muted">Calculé automatiquement</small>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Nouveau justificatif</label>
+                    <label for="edit_description" class="form-label">Nouveau justificatif</label>
                     <input type="file" name="justificatif" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
                     <small class="text-muted" id="edit_justificatif_info"></small>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">Observation</label>
-                    <textarea name="description" id="edit_description" class="form-control" rows="3"></textarea>
+                    <label class="form-label">Observation</label><textarea            <textarea name="description" id="edit_description" class="form-control" rows="3"></textarea>
                 </div>
             </div>
         </div>
@@ -479,7 +488,7 @@ document.getElementById('createForm')?.addEventListener('submit', function(e) {
         var hasSuccess = html.indexOf('alert-success') !== -1 || html.indexOf('succ') !== -1;
         if (hasSuccess) {
             alertDiv.className = 'alert alert-success alert-dismissible fade show';
-            alertDiv.innerHTML = '<i class="bi bi-check-circle me-2"></i>Versement enregistré ! Saisissez un nouveau versement ci-dessous.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+            alertDiv.innerHTML = '<i class="bi bi-check-circle me-2"></i>Versement enregistré ! Saisissez un nouveau versement ci-dessous.<button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="alert"></button>';
             alertDiv.style.display = 'block';
             // Update CSRF token
             var parser = new DOMParser();
@@ -492,7 +501,7 @@ document.getElementById('createForm')?.addEventListener('submit', function(e) {
             setTimeout(function() { window.location.reload(); }, 3000);
         } else {
             alertDiv.className = 'alert alert-danger alert-dismissible fade show';
-            alertDiv.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Erreur lors de l\'enregistrement. Vérifiez les champs obligatoires.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+            alertDiv.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Erreur lors de l\'enregistrement. Vérifiez les champs obligatoires.<button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="alert"></button>';
             alertDiv.style.display = 'block';
         }
         btn.disabled = false;
@@ -500,7 +509,7 @@ document.getElementById('createForm')?.addEventListener('submit', function(e) {
     })
     .catch(function() {
         alertDiv.className = 'alert alert-danger alert-dismissible fade show';
-        alertDiv.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Erreur réseau. Réessayez.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+        alertDiv.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Erreur réseau. Réessayez.<button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="alert"></button>';
         alertDiv.style.display = 'block';
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Enregistrer & Nouveau';

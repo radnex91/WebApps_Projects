@@ -145,7 +145,7 @@ $moisAbrev = ['01'=>'Jan','02'=>'Fév','03'=>'Mar','04'=>'Avr','05'=>'Mai','06'=
           $isCurrent = $ev['mois'] === date('Y-m');
         ?>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
-          <div style="width:100%;border-radius:3px 3px 0 0;height:<?= max(4,$h) ?>%;background:<?= $isCurrent?'var(--accent)':'rgba(59,130,246,.35)' ?>" title="<?= fmt_money((float)$ev['ca']) ?>"></div>
+          <div style="width:100%;border-radius:3px 3px 0 0;height:<?= max(4,$h) ?>%;background:<?= $isCurrent?'var(--accent)':'rgba(var(--accent-rgb),.35)' ?>" title="<?= fmt_money((float)$ev['ca']) ?>"></div>
           <span style="font-size:9px;color:var(--text3)"><?= ($moisAbrev[$mo]??$mo).substr($yr,2) ?></span>
         </div>
         <?php endforeach; ?>
@@ -225,11 +225,11 @@ $moisAbrev = ['01'=>'Jan','02'=>'Fév','03'=>'Mar','04'=>'Avr','05'=>'Mai','06'=
 
 <!-- MODAL CREER FACTURE -->
 <?php if (can('factures.create')): ?>
-<div id="modal-facture" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-facture" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(560px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface)">
       <h3>Nouvelle facture</h3>
-      <div onclick="document.getElementById('modal-facture').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">X</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-facture').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">X</button>
     </div>
     <form method="POST" style="padding:24px" onsubmit="calcPatient()">
       <input type="hidden" name="action" value="create_facture"><?= csrf_field() ?>

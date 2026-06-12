@@ -16,6 +16,8 @@ function getDB(): PDO {
         ];
         try {
             $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+            // Synchroniser le fuseau horaire MySQL avec PHP (Africa/Douala = UTC+1)
+            $pdo->exec("SET time_zone = '+01:00'");
         } catch (PDOException $e) {
             die(json_encode(['error' => 'Connexion base de données impossible: ' . $e->getMessage()]));
         }
