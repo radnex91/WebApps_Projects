@@ -36,6 +36,42 @@ if (can('consultations.reorienter') && $_SERVER['REQUEST_METHOD'] === 'POST' && 
     }
 }
 
+// --- POST : Résultat de consultation (entretien médecin) ---
+if (can('consultations.resultat') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'resultat') {
+    csrf_verify();
+    $arrivee_id = post_int('arrivee_id');
+    if ($arrivee_id <= 0) {
+        $flash = ['red', 'Arrivée requise.'];
+    } else {
+        // IDOR : vérifier que l'arrivée appartient bien au médecin connecté.
+        $owner = (int) db_scalar("SELECT medecin_id FROM arrivees_patients WHERE id = ? AND statut = 'en_consultation'", [$arrivee_id]);
+        if ($owner !== $me) {
+            $flash = ['red', 'Arrivée introuvable ou non attribuée à vous.'];
+        } else {
+            $motif      = post_str('motif');
+            $histoire   = post_str('histoire');
+            $examen     = post_str('examen');
+            $diagnostic = post_str('diagnostic');
+            $conduite   = post_str('conduite');
+            if (trim($motif) === '' && trim($histoire) === '' && trim($examen) === '' && trim($diagnostic) === '' && trim($conduite) === '') {
+                $flash = ['red', 'Saisissez au moins un champ du résultat.'];
+            } else {
+                $patient_id = (int) db_scalar("SELECT patient_id FROM arrivees_patients WHERE id = ?", [$arrivee_id]);
+                $rid = save_resultat_consultation($arrivee_id, $patient_id, $me, [
+                    'motif' => $motif, 'histoire' => $histoire, 'examen' => $examen,
+                    'diagnostic' => $diagnostic, 'conduite' => $conduite,
+                ]);
+                if ($rid > 0) {
+                    logActivity('Résultat de consultation saisi (arrivée ' . $arrivee_id . ')', 'blue', 'notes_cliniques', $rid);
+                    $flash = ['green', 'Résultat de consultation enregistré.'];
+                } else {
+                    $flash = ['red', 'Échec de l\'enregistrement.'];
+                }
+            }
+        }
+    }
+}
+
 // --- POST : Terminer la consultation ---
 if (can('consultations.terminer') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'terminer') {
     csrf_verify();
@@ -47,11 +83,17 @@ if (can('consultations.terminer') && $_SERVER['REQUEST_METHOD'] === 'POST' && po
         $owner = (int) db_scalar("SELECT medecin_id FROM arrivees_patients WHERE id = ? AND statut = 'en_consultation'", [$arrivee_id]);
         if ($owner !== $me) {
             $flash = ['red', 'Arrivée introuvable ou non attribuée à vous.'];
-        } elseif (terminer_arrivee($arrivee_id)) {
-            logActivity('Consultation terminée (arrivée ' . $arrivee_id . ')', 'green', 'rendez_vous', $arrivee_id);
-            $flash = ['green', 'Consultation terminée.'];
         } else {
-            $flash = ['red', 'Échec de la clôture.'];
+            // Gating strict (tamper-proof) : un résultat de consultation doit avoir été saisi.
+            $aResultat = (int) db_scalar("SELECT COUNT(*) FROM notes_cliniques WHERE arrivee_id = ? AND type_note = 'consultation'", [$arrivee_id]);
+            if ($aResultat === 0) {
+                $flash = ['red', 'Saisissez d\'abord le résultat de la consultation.'];
+            } elseif (terminer_arrivee($arrivee_id)) {
+                logActivity('Consultation terminée (arrivée ' . $arrivee_id . ')', 'green', 'rendez_vous', $arrivee_id);
+                $flash = ['green', 'Consultation terminée.'];
+            } else {
+                $flash = ['red', 'Échec de la clôture.'];
+            }
         }
     }
 }
@@ -62,6 +104,15 @@ requirePageAccess('consultations');
 // --- Chargement ---
 $consultations = get_mes_consultations($me);
 $confreres = db_select("SELECT id, CONCAT(prenom,' ',nom) AS nom_complet, specialite FROM utilisateurs WHERE role='medecin' AND statut='actif' AND id<>? ORDER BY nom", [$me]);
+
+// Résultats de consultation déjà saisis pour les arrivées visibles (pré-remplissage modal).
+$resultats = [];
+foreach ($consultations as $a) {
+    $r = get_resultat_consultation((int)$a['id']);
+    if ($r) {
+        $resultats[(int)$a['id']] = $r;
+    }
+}
 
 // Helper local : libellé courte d'un type de constante.
 $constLabels = [
@@ -122,12 +173,15 @@ $constLabels = [
           <?php if (can('consultations.reorienter') && !empty($confreres)): ?>
           <button class="btn btn-sm btn-ghost" data-reorienter="<?= (int)$a['id'] ?>" data-nom="<?= h($a['prenom'].' '.$a['nom']) ?>">↺ Réorienter</button>
           <?php endif; ?>
+          <?php if (can('consultations.resultat')): ?>
+          <button class="btn btn-sm btn-ghost" data-resultat="<?= (int)$a['id'] ?>" data-nom="<?= h($a['prenom'].' '.$a['nom']) ?>">📝 Résultat<?php if (!empty($a['a_resultat'])): ?> ✓<?php endif; ?></button>
+          <?php endif; ?>
           <?php if (can('consultations.terminer')): ?>
           <form method="POST" style="display:inline" onsubmit="return confirm('Terminer la consultation de ce patient ?')">
             <input type="hidden" name="action" value="terminer">
             <input type="hidden" name="arrivee_id" value="<?= (int)$a['id'] ?>">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn-sm btn-green" style="font-size:11px">✓</button>
+            <button type="submit" class="btn btn-sm btn-green" style="font-size:11px"<?php if (empty($a['a_resultat'])): ?> disabled title="Saisissez d'abord le résultat de consultation"<?php else: ?> title="Terminer la consultation"<?php endif; ?>>✓</button>
           </form>
           <?php endif; ?>
         </div></td>
@@ -177,5 +231,55 @@ document.querySelectorAll('[data-reorienter]').forEach(function(btn){
   });
 });
 </script>
+
+<?php if (can('consultations.resultat')): ?>
+<div id="modal-resultat" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(560px,95vw);max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between">
+      <h3 style="margin:0;font-size:16px">Résultat de la consultation</h3>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-resultat').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button>
+    </div>
+    <form method="POST" style="padding:20px">
+      <input type="hidden" name="action" value="resultat"><?= csrf_field() ?>
+      <input type="hidden" name="arrivee_id" id="res-arrivee_id" value="0">
+      <p style="margin:0 0 12px;font-size:13px;color:var(--text2)">Patient : <strong id="res-nom" style="color:var(--text)">—</strong></p>
+      <label style="font-size:12px;color:var(--text2)">Motif de consultation</label>
+      <input type="text" name="motif" id="res-motif" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;margin:6px 0 12px">
+      <label style="font-size:12px;color:var(--text2)">Histoire de la maladie</label>
+      <textarea name="histoire" id="res-histoire" rows="2" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;margin:6px 0 12px;resize:vertical"></textarea>
+      <label style="font-size:12px;color:var(--text2)">Examen clinique</label>
+      <textarea name="examen" id="res-examen" rows="2" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;margin:6px 0 12px;resize:vertical"></textarea>
+      <label style="font-size:12px;color:var(--text2)">Diagnostic</label>
+      <textarea name="diagnostic" id="res-diagnostic" rows="2" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;margin:6px 0 12px;resize:vertical"></textarea>
+      <label style="font-size:12px;color:var(--text2)">Conduite à tenir</label>
+      <textarea name="conduite" id="res-conduite" rows="2" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;margin:6px 0 12px;resize:vertical"></textarea>
+      <div style="margin-top:18px;display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-resultat').style.display='none'">Annuler</button>
+        <button type="submit" class="btn btn-blue">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  var RES = <?= json_encode($resultats ?: (object)[]) ?>;
+  var COLS = {motif:'titre', histoire:'subjective', examen:'objective', diagnostic:'analyse', conduite:'plan'};
+  document.querySelectorAll('[data-resultat]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var m = document.getElementById('modal-resultat'); if(!m) return;
+      var id = btn.getAttribute('data-resultat');
+      document.getElementById('res-arrivee_id').value = id;
+      document.getElementById('res-nom').textContent = btn.getAttribute('data-nom');
+      var r = RES[id] || null;
+      ['motif','histoire','examen','diagnostic','conduite'].forEach(function(k){
+        var el = document.getElementById('res-'+k);
+        if(el) el.value = r ? (r[COLS[k]] || '') : '';
+      });
+      m.style.display = 'flex';
+    });
+  });
+})();
+</script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php';

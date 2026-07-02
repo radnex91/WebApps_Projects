@@ -37,7 +37,7 @@ $MATRIX = [
         'actions' => [
             'patients.create','patients.edit',
             'appointments.create','appointments.edit_statut','appointments.delete',
-            'consultations.prescrire','consultations.reorienter','consultations.terminer',
+            'consultations.prescrire','consultations.reorienter','consultations.terminer','consultations.resultat',
             'hospitalisations.create','hospitalisations.update','hospitalisations.sortie',
             'lits.update_statut',
             'analyses.create','analyses.update_resultat',

@@ -192,7 +192,8 @@ function get_mes_consultations(int $medecin_id): array {
             "SELECT a.id, a.patient_id, a.date_arrivee, a.date_prise_en_charge, a.motif, a.notes,
                     p.nom, p.prenom, p.numero, p.date_naissance, p.sexe,
                     EXISTS(SELECT 1 FROM dossiers_medicaux dm WHERE dm.patient_id = a.patient_id) AS a_dossier,
-                    EXISTS(SELECT 1 FROM caisse_ventes cv WHERE cv.patient_id = a.patient_id AND cv.type_vente = 'consultation' AND cv.statut = 'paye') AS a_consultation
+                    EXISTS(SELECT 1 FROM caisse_ventes cv WHERE cv.patient_id = a.patient_id AND cv.type_vente = 'consultation' AND cv.statut = 'paye') AS a_consultation,
+                    EXISTS(SELECT 1 FROM notes_cliniques n WHERE n.arrivee_id = a.id AND n.type_note = 'consultation') AS a_resultat
              FROM arrivees_patients a
              JOIN patients p ON p.id = a.patient_id
              WHERE a.medecin_id = ? AND a.statut = 'en_consultation' AND DATE(a.date_arrivee) = CURDATE()
@@ -244,5 +245,67 @@ function reorienter_vers(int $arrivee_id, int $new_medecin_id): bool {
     } catch (Throwable $e) {
         _log_error('ACCUEIL', 'Échec reorienter_vers', __FILE__, __LINE__, $e);
         return false;
+    }
+}
+
+/**
+ * Récupère le résultat de consultation (note clinique type 'consultation')
+ * lié à une arrivée, s'il existe — pour pré-remplir le modal en édition.
+ * Retourne ['id','titre','subjective','objective','analyse','plan'] ou null.
+ */
+function get_resultat_consultation(int $arrivee_id): ?array {
+    if ($arrivee_id <= 0) return null;
+    try {
+        return db_row(
+            "SELECT id, titre, subjective, objective, analyse, plan
+             FROM notes_cliniques
+             WHERE arrivee_id = ? AND type_note = 'consultation'
+             ORDER BY date_creation DESC LIMIT 1",
+            [$arrivee_id]
+        );
+    } catch (Throwable $e) {
+        _log_error('CONSULT', 'Échec get_resultat_consultation', __FILE__, __LINE__, $e);
+        return null;
+    }
+}
+
+/**
+ * Enregistre (upsert) le résultat de consultation d'une arrivée.
+ * $f = ['motif'=>..., 'histoire'=>..., 'examen'=>..., 'diagnostic'=>..., 'conduite'=>...]
+ * (chaînes déjà nettoyées via post_str côté page). Mapping colonnes :
+ *   motif→titre, histoire→subjective, examen→objective, diagnostic→analyse, conduite→plan.
+ * Retourne l'id de la ligne (>0) ou 0 en cas d'échec.
+ */
+function save_resultat_consultation(int $arrivee_id, int $patient_id, int $medecin_id, array $f): int {
+    if ($arrivee_id <= 0 || $patient_id <= 0 || $medecin_id <= 0) return 0;
+    try {
+        $existant = db_row(
+            "SELECT id FROM notes_cliniques
+             WHERE arrivee_id = ? AND type_note = 'consultation'
+             ORDER BY date_creation DESC LIMIT 1",
+            [$arrivee_id]
+        );
+        if (!empty($existant['id'])) {
+            db_exec(
+                "UPDATE notes_cliniques
+                 SET titre = ?, subjective = ?, objective = ?, analyse = ?, plan = ?,
+                     utilisateur_id = ?, date_note = NOW()
+                 WHERE id = ?",
+                [$f['motif'], $f['histoire'], $f['examen'], $f['diagnostic'], $f['conduite'],
+                 $medecin_id, (int)$existant['id']]
+            );
+            return (int)$existant['id'];
+        }
+        return (int) db_exec(
+            "INSERT INTO notes_cliniques
+                (patient_id, utilisateur_id, type_note, titre, subjective, objective, analyse, plan, date_note, arrivee_id)
+             VALUES (?,?,?,?,?,?,?,?,NOW(),?)",
+            [$patient_id, $medecin_id, 'consultation',
+             $f['motif'], $f['histoire'], $f['examen'], $f['diagnostic'], $f['conduite'],
+             $arrivee_id]
+        );
+    } catch (Throwable $e) {
+        _log_error('CONSULT', 'Échec save_resultat_consultation', __FILE__, __LINE__, $e);
+        return 0;
     }
 }

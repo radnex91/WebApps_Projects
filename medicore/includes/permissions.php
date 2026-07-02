@@ -61,6 +61,7 @@ define('ALL_ACTIONS', [
     'consultations.prescrire'  => ['label'=>'Prescrire une ordonnance depuis une consultation', 'module'=>'Consultations'],
     'consultations.reorienter' => ['label'=>'Réorienter un patient vers un confrère',           'module'=>'Consultations'],
     'consultations.terminer'   => ['label'=>'Terminer une consultation',                        'module'=>'Consultations'],
+    'consultations.resultat'   => ['label'=>'Saisir le résultat d\'une consultation',            'module'=>'Consultations'],
     'hospitalisations.create'  => ['label'=>'Admettre un patient',        'module'=>'Urgences'],
     'hospitalisations.update'  => ['label'=>'Modifier hospitalisation',   'module'=>'Urgences'],
     'hospitalisations.sortie'  => ['label'=>'Valider sortie patient',     'module'=>'Urgences'],
