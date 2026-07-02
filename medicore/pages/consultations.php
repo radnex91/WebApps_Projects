@@ -15,12 +15,24 @@ if (can('consultations.reorienter') && $_SERVER['REQUEST_METHOD'] === 'POST' && 
     $new_medecin_id = post_int('new_medecin_id');
     if ($arrivee_id <= 0 || $new_medecin_id <= 0) {
         $flash = ['red', 'Arrivée et médecin cible requis.'];
-    } elseif (reorienter_vers($arrivee_id, $new_medecin_id)) {
-        $nomCible = db_scalar("SELECT CONCAT(prenom,' ',nom) FROM utilisateurs WHERE id=?", [$new_medecin_id]);
-        logActivity('Consultation : patient réorienté vers Dr ' . ($nomCible ?: '#' . $new_medecin_id) . ' (arrivée ' . $arrivee_id . ')', 'purple', 'rendez_vous', $arrivee_id);
-        $flash = ['green', 'Patient réorienté vers Dr ' . ($nomCible ?: 'confrère') . '.'];
     } else {
-        $flash = ['red', 'Échec de la réorientation.'];
+        // IDOR : vérifier que l'arrivée appartient bien au médecin connecté.
+        $owner = (int) db_scalar("SELECT medecin_id FROM arrivees_patients WHERE id = ? AND statut = 'en_consultation'", [$arrivee_id]);
+        if ($owner !== $me) {
+            $flash = ['red', 'Arrivée introuvable ou non attribuée à vous.'];
+        } else {
+            // Cible : médecin actif, confrère (pas soi-même).
+            $okCible = (int) db_scalar("SELECT COUNT(*) FROM utilisateurs WHERE id = ? AND role = 'medecin' AND statut = 'actif' AND id <> ?", [$new_medecin_id, $me]);
+            if ($okCible === 0) {
+                $flash = ['red', 'Médecin cible invalide.'];
+            } elseif (reorienter_vers($arrivee_id, $new_medecin_id)) {
+                $nomCible = db_scalar("SELECT CONCAT(prenom,' ',nom) FROM utilisateurs WHERE id=?", [$new_medecin_id]);
+                logActivity('Consultation : patient réorienté vers Dr ' . ($nomCible ?: '#' . $new_medecin_id) . ' (arrivée ' . $arrivee_id . ')', 'purple', 'rendez_vous', $arrivee_id);
+                $flash = ['green', 'Patient réorienté vers Dr ' . ($nomCible ?: 'confrère') . '.'];
+            } else {
+                $flash = ['red', 'Échec de la réorientation.'];
+            }
+        }
     }
 }
 
@@ -30,11 +42,17 @@ if (can('consultations.terminer') && $_SERVER['REQUEST_METHOD'] === 'POST' && po
     $arrivee_id = post_int('arrivee_id');
     if ($arrivee_id <= 0) {
         $flash = ['red', 'Arrivée requise.'];
-    } elseif (terminer_arrivee($arrivee_id)) {
-        logActivity('Consultation terminée (arrivée ' . $arrivee_id . ')', 'green', 'rendez_vous', $arrivee_id);
-        $flash = ['green', 'Consultation terminée.'];
     } else {
-        $flash = ['red', 'Échec de la clôture.'];
+        // IDOR : vérifier que l'arrivée appartient bien au médecin connecté.
+        $owner = (int) db_scalar("SELECT medecin_id FROM arrivees_patients WHERE id = ? AND statut = 'en_consultation'", [$arrivee_id]);
+        if ($owner !== $me) {
+            $flash = ['red', 'Arrivée introuvable ou non attribuée à vous.'];
+        } elseif (terminer_arrivee($arrivee_id)) {
+            logActivity('Consultation terminée (arrivée ' . $arrivee_id . ')', 'green', 'rendez_vous', $arrivee_id);
+            $flash = ['green', 'Consultation terminée.'];
+        } else {
+            $flash = ['red', 'Échec de la clôture.'];
+        }
     }
 }
 
@@ -101,7 +119,7 @@ $constLabels = [
           <?php if (can('consultations.prescrire')): ?>
           <a class="btn btn-sm btn-ghost" href="<?= h($prescUrl) ?>">💊 Prescrire</a>
           <?php endif; ?>
-          <?php if (can('consultations.reorienter')): ?>
+          <?php if (can('consultations.reorienter') && !empty($confreres)): ?>
           <button class="btn btn-sm btn-ghost" data-reorienter="<?= (int)$a['id'] ?>" data-nom="<?= h($a['prenom'].' '.$a['nom']) ?>">↺ Réorienter</button>
           <?php endif; ?>
           <?php if (can('consultations.terminer')): ?>
@@ -151,9 +169,11 @@ $constLabels = [
 <script>
 document.querySelectorAll('[data-reorienter]').forEach(function(btn){
   btn.addEventListener('click', function(){
+    var m = document.getElementById('modal-reorienter');
+    if(!m) return;
     document.getElementById('or-arrivee_id').value = btn.getAttribute('data-reorienter');
     document.getElementById('or-nom').textContent = btn.getAttribute('data-nom');
-    var m = document.getElementById('modal-reorienter'); m.style.display='flex';
+    m.style.display='flex';
   });
 });
 </script>

@@ -170,11 +170,11 @@ function orienter_arrivee(int $arrivee_id, int $medecin_id): bool {
 function terminer_arrivee(int $arrivee_id): bool {
     if ($arrivee_id <= 0) return false;
     try {
-        db_exec(
+        $rows = db_exec(
             "UPDATE arrivees_patients SET statut = 'termine', date_fin = NOW() WHERE id = ?",
             [$arrivee_id]
         );
-        return true;
+        return $rows > 0;
     } catch (Throwable $e) {
         _log_error('ACCUEIL', 'Échec terminer_arrivee', __FILE__, __LINE__, $e);
         return false;
@@ -236,11 +236,11 @@ function get_dernieres_constantes(int $patient_id): array {
 function reorienter_vers(int $arrivee_id, int $new_medecin_id): bool {
     if ($arrivee_id <= 0 || $new_medecin_id <= 0) return false;
     try {
-        db_exec(
+        $rows = db_exec(
             "UPDATE arrivees_patients SET medecin_id = ?, date_prise_en_charge = NOW() WHERE id = ? AND statut = 'en_consultation'",
             [$new_medecin_id, $arrivee_id]
         );
-        return true;
+        return $rows > 0;
     } catch (Throwable $e) {
         _log_error('ACCUEIL', 'Échec reorienter_vers', __FILE__, __LINE__, $e);
         return false;
