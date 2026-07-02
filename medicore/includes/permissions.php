@@ -14,7 +14,7 @@ define('ROLE_LABELS', [
 
 define('ALL_PAGES', [
     'dashboard'    => ['label'=>"Vue d'ensemble",      'icon'=>'dashboard',   'section'=>'Tableau de bord'],
-    'analytics'    => ['label'=>'Analytiques',          'icon'=>'analytics',   'section'=>''],
+    'accueil'      => ['label'=>'Accueil',               'icon'=>'accueil',     'section'=>'Clinique'],
     'patients'     => ['label'=>'Patients',             'icon'=>'patients',    'section'=>''],
     'appointments' => ['label'=>'Rendez-vous',          'icon'=>'appointments','section'=>''],
     'urgences'     => ['label'=>'Urgences',             'icon'=>'urgences',    'section'=>''],
@@ -49,6 +49,10 @@ define('ALL_ACTIONS', [
     'patients.create'          => ['label'=>'Créer un patient',          'module'=>'Patients'],
     'patients.edit'            => ['label'=>'Modifier un patient',        'module'=>'Patients'],
     'patients.delete'          => ['label'=>'Supprimer un patient',       'module'=>'Patients'],
+    'patients.portail'         => ['label'=>'Gérer le compte portail patient', 'module'=>'Patients'],
+    'accueil.checkin'          => ['label'=>'Enregistrer / check-in patient à l\'accueil', 'module'=>'Accueil'],
+    'accueil.vitals'           => ['label'=>'Prendre les constantes d\'arrivée',           'module'=>'Accueil'],
+    'accueil.orienter'         => ['label'=>'Orienter un patient vers un médecin',         'module'=>'Accueil'],
     'appointments.create'      => ['label'=>'Créer un RDV',               'module'=>'Rendez-vous'],
     'appointments.edit_statut' => ['label'=>'Modifier statut RDV',        'module'=>'Rendez-vous'],
     'appointments.delete'      => ['label'=>'Supprimer un RDV',           'module'=>'Rendez-vous'],
@@ -64,6 +68,9 @@ define('ALL_ACTIONS', [
     'ordonnances.encaisser'    => ['label'=>'Encaisser une ordonnance',   'module'=>'Pharmacie'],
     'caisse.create_vente'      => ['label'=>'Créer une vente caisse',     'module'=>'Caisse'],
     'caisse.annuler'           => ['label'=>'Annuler un ticket caisse',   'module'=>'Caisse'],
+    'caisse.session_ouvrir'   => ['label'=>'Ouvrir une session de caisse', 'module'=>'Caisse'],
+    'caisse.session_fermer'   => ['label'=>'Fermer une session de caisse', 'module'=>'Caisse'],
+    'caisse.ticket_service'   => ['label'=>'Émettre un ticket de service (dossier/consultation)', 'module'=>'Caisse'],
     'stocks.create'            => ['label'=>'Ajouter article au stock',   'module'=>'Stocks'],
     'stocks.update_qte'        => ['label'=>'Modifier quantité stock',    'module'=>'Stocks'],
     'stocks.entry'             => ['label'=>'Enregistrer une entrée stock','module'=>'Stocks'],
@@ -109,7 +116,7 @@ function _load_permissions(): void {
         $_SESSION['_perm_actions'] = $am;
         $_SESSION['_perm_loaded']  = true;
     } catch (Exception $e) {
-        _log_error('PERMISSIONS', 'Echec chargement permissions BDD', __FILE__, __LINE__, $e);
+        _log_error('PERMISSIONS', 'Échec chargement permissions BDD', __FILE__, __LINE__, $e);
         $_SESSION['_perm_pages'] = $_SESSION['_perm_actions'] = [];
         $_SESSION['_perm_loaded'] = true;
     }
@@ -165,7 +172,7 @@ function getAccessibleNav(): array {
         if ($nb_crit > 0) $badges['urgences']    = $nb_crit;
         if ($nb_labo > 0) $badges['laboratoire'] = $nb_labo;
         if ($nb_ord  > 0) $badges['pharmacie']   = $nb_ord;
-    } catch (Exception $e) { _log_error('NAV_BADGES', 'Echec compteurs badges nav', __FILE__, __LINE__, $e); }
+    } catch (Exception $e) { _log_error('NAV_BADGES', 'Échec compteurs badges nav', __FILE__, __LINE__, $e); }
 
     $nav = [];
     foreach (ALL_PAGES as $page => $info) {
@@ -183,7 +190,7 @@ function getAccessibleNav(): array {
 
 function getRolesConfig(): array {
     try { return db_select("SELECT * FROM roles_config WHERE actif=1 ORDER BY id ASC"); }
-    catch (Exception $e) { _log_error('ROLES', 'Echec lecture roles_config', __FILE__, __LINE__, $e); return []; }
+    catch (Exception $e) { _log_error('ROLES', 'Échec lecture roles_config', __FILE__, __LINE__, $e); return []; }
 }
 
 function getFullPermissionsMatrix(): array {
@@ -195,5 +202,5 @@ function getFullPermissionsMatrix(): array {
         foreach ($pages   as $p) $m['pages'][$p['role']][$p['page']]     = (bool)$p['allowed'];
         foreach ($actions as $a) $m['actions'][$a['role']][$a['action']] = (bool)$a['allowed'];
         return $m;
-    } catch (Exception $e) { _log_error('PERMISSIONS', 'Echec lecture matrice permissions', __FILE__, __LINE__, $e); return ['pages'=>[], 'actions'=>[]]; }
+    } catch (Exception $e) { _log_error('PERMISSIONS', 'Échec lecture matrice permissions', __FILE__, __LINE__, $e); return ['pages'=>[], 'actions'=>[]]; }
 }
