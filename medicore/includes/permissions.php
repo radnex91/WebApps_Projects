@@ -10,6 +10,7 @@ define('ROLE_LABELS', [
     'infirmier'  => 'Infirmier(ère)',
     'pharmacien' => 'Pharmacien',
     'comptable'  => 'Comptable',
+    'caissier'   => 'Caissier(ère)',
 ]);
 
 define('ALL_PAGES', [
