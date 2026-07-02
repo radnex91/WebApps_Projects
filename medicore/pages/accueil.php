@@ -8,7 +8,32 @@ requireLogin();
 
 $flash = null;
 
-// Les POST handlers seront ajoutés en Task 5-8.
+// --- POST : Enregistrer un nouveau patient + check-in ---
+if (can('accueil.checkin') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'create_and_checkin') {
+    csrf_verify();
+    $v = (new Validator())
+        ->required('prenom', 'Prénom')
+        ->required('nom', 'Nom')
+        ->date('date_naissance', 'Date de naissance')
+        ->whitelist('sexe', ['M', 'F', 'Autre'], 'Sexe')
+        ->whitelist('assurance', ['CPAM', 'Mutuelle', 'Non assuré', 'Étranger'], 'Assurance')
+        ->whitelist('groupe_sanguin', ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', ''], 'Groupe sanguin');
+    if (!$v->passes()) {
+        $flash = ['red', $v->first_error()];
+    } else {
+        $num = 'P-' . date('Y') . '-' . str_pad(mt_rand(1, 99999), 5, '0', STR_PAD_LEFT);
+        $pid = db_exec(
+            "INSERT INTO patients (numero,nom,prenom,date_naissance,sexe,adresse,telephone,email,num_secu,groupe_sanguin,allergies,antecedents,contact_urgence_nom,contact_urgence_tel,assurance) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            [$num, $v->get('nom'), $v->get('prenom'), $v->get('date_naissance'), $v->get('sexe'), post_str('adresse'), post_str('telephone'), post_email('email') ?? '', post_str('num_secu'), $v->get('groupe_sanguin'), post_str('allergies'), post_str('antecedents'), post_str('contact_urgence_nom'), post_str('contact_urgence_tel'), $v->get('assurance')]
+        );
+        $motif = post_str('motif');
+        $aid = checkin_patient((int)$pid, (int)currentUser()['id'], $motif);
+        logActivity('Accueil : nouveau patient ' . $num . ' (arrivée ' . $aid . ')', 'green', 'patient', (int)$pid);
+        $flash = ['green', 'Patient enregistré (' . $num . ') et ajouté à la file d\'attente.'];
+    }
+}
+
+// Les autres POST handlers seront ajoutés en Task 6-8.
 
 require_once __DIR__ . '/../includes/layout.php';
 requirePageAccess('accueil');
@@ -131,5 +156,50 @@ $statutBadge = [
     </tbody>
   </table>
 </div>
+
+<!-- MODAL ENREGISTRER + CHECK-IN -->
+<?php if (can('accueil.checkin')): ?>
+<div id="modal-enregistrer" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(620px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
+    <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">
+      <h3>＋ Enregistrer un patient à l'accueil</h3>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-enregistrer').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button>
+    </div>
+    <form method="POST" style="padding:24px">
+      <input type="hidden" name="action" value="create_and_checkin"><?= csrf_field() ?>
+      <div class="form-grid">
+        <div class="form-group"><label for="acc-nom">Nom *</label><input type="text" name="nom" id="acc-nom" required maxlength="100"></div>
+        <div class="form-group"><label for="acc-prenom">Prénom *</label><input type="text" name="prenom" id="acc-prenom" required maxlength="100"></div>
+        <div class="form-group"><label for="acc-naissance">Date de naissance *</label><input type="date" name="date_naissance" id="acc-naissance" required></div>
+        <div class="form-group"><label for="acc-sexe">Sexe *</label>
+          <select name="sexe" id="acc-sexe" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+            <option value="">--</option><option value="M">Masculin</option><option value="F">Féminin</option><option value="Autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group"><label for="acc-tel">Téléphone</label><input type="text" name="telephone" id="acc-tel" maxlength="20"></div>
+        <div class="form-group"><label for="acc-groupe">Groupe sanguin</label>
+          <select name="groupe_sanguin" id="acc-groupe" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+            <option value="">Inconnu</option>
+            <?php foreach (['A+','A-','B+','B-','AB+','AB-','O+','O-'] as $gs): ?><option value="<?= $gs ?>"><?= $gs ?></option><?php endforeach; ?>
+          </select>
+        </div>
+        <div class="form-group"><label for="acc-assurance">Assurance</label>
+          <select name="assurance" id="acc-assurance" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+            <?php foreach (['CPAM'=>'CPAM','Mutuelle'=>'Mutuelle','Non assuré'=>'Non assuré','Étranger'=>'Étranger'] as $av=>$al): ?><option value="<?= $av ?>"><?= $al ?></option><?php endforeach; ?>
+          </select>
+        </div>
+        <div class="form-group form-full"><label for="acc-motif">Motif de l'arrivée *</label><input type="text" name="motif" id="acc-motif" required maxlength="255" placeholder="ex : Consultation, Douleur, Suivi..."></div>
+        <div class="form-group form-full"><label for="acc-allergies">Allergies connues</label><input type="text" name="allergies" id="acc-allergies" maxlength="255" placeholder="ex : Pénicilline"></div>
+        <div class="form-group form-full"><label for="acc-antecedents">Antécédents</label><input type="text" name="antecedents" id="acc-antecedents" maxlength="255"></div>
+        <div class="form-group form-full"><label for="acc-adresse">Adresse</label><input type="text" name="adresse" id="acc-adresse"></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-enregistrer').style.display='none'">Annuler</button>
+        <button type="submit" class="btn btn-blue">Enregistrer &amp; ajouter à la file</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php';
