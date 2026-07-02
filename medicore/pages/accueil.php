@@ -97,7 +97,34 @@ if (can('accueil.vitals') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str('
     }
 }
 
-// Les autres POST handlers seront ajoutés en Task 8.
+// --- POST : Orienter vers un médecin ---
+if (can('accueil.orienter') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'orienter') {
+    csrf_verify();
+    $arrivee_id = post_int('arrivee_id');
+    $medecin_id = post_int('medecin_id');
+    if ($arrivee_id <= 0 || $medecin_id <= 0) {
+        $flash = ['red', 'Arrivée et médecin requis.'];
+    } elseif (orienter_arrivee((int)$arrivee_id, (int)$medecin_id)) {
+        logActivity('Accueil : patient orienté (arrivée ' . $arrivee_id . ', médecin ' . $medecin_id . ')', 'purple', 'rendez_vous', (int)$arrivee_id);
+        $flash = ['green', 'Patient orienté vers le médecin.'];
+    } else {
+        $flash = ['red', 'Échec de l\'orientation.'];
+    }
+}
+
+// --- POST : Terminer la prise en charge ---
+if (can('accueil.orienter') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'terminer') {
+    csrf_verify();
+    $arrivee_id = post_int('arrivee_id');
+    if ($arrivee_id <= 0) {
+        $flash = ['red', 'Arrivée requise.'];
+    } elseif (terminer_arrivee((int)$arrivee_id)) {
+        logActivity('Accueil : prise en charge terminée (arrivée ' . $arrivee_id . ')', 'green', 'rendez_vous', (int)$arrivee_id);
+        $flash = ['green', 'Prise en charge terminée.'];
+    } else {
+        $flash = ['red', 'Échec.'];
+    }
+}
 
 require_once __DIR__ . '/../includes/layout.php';
 requirePageAccess('accueil');
@@ -357,6 +384,48 @@ function accBmi(){
       document.querySelectorAll('#modal-constantes input[type=number]').forEach(function(i){i.value='';i.style.borderColor='';});
       document.getElementById('ct-bmi').value='';document.getElementById('ct-alert').style.display='none';
       document.getElementById('modal-constantes').style.display='flex';
+    });
+  });
+})();
+</script>
+<?php endif; ?>
+
+<!-- MODAL ORIENTATION -->
+<?php if (can('accueil.orienter')): ?>
+<div id="modal-orienter" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
+    <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <h3>🩺 Orienter — <span id="or-nom"></span></h3>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-orienter').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button>
+    </div>
+    <form method="POST" style="padding:24px">
+      <input type="hidden" name="action" value="orienter"><?= csrf_field() ?>
+      <input type="hidden" name="arrivee_id" id="or-arrivee_id">
+      <a id="or-rdv" href="#" target="_blank" style="display:block;margin-bottom:12px;font-size:12px;color:var(--accent2);text-decoration:underline">📅 Créer un RDV pour ce patient →</a>
+      <div class="form-group form-full" style="margin-bottom:16px">
+        <label for="or-medecin">Médecin *</label>
+        <select name="medecin_id" id="or-medecin" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+          <option value="">-- Sélectionner --</option>
+          <?php foreach ($medecins as $m): ?><option value="<?= (int)$m['id'] ?>">Dr. <?= h($m['nom_complet']) ?><?= $m['specialite'] ? ' - ' . h($m['specialite']) : '' ?></option><?php endforeach; ?>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border)">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-orienter').style.display='none'">Annuler</button>
+        <button type="submit" class="btn btn-blue">Orienter</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  document.querySelectorAll('[data-orienter]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.getElementById('or-arrivee_id').value=btn.getAttribute('data-orienter');
+      document.getElementById('or-nom').textContent=btn.getAttribute('data-nom');
+      var pid=btn.getAttribute('data-pid');
+      document.getElementById('or-rdv').href='appointments.php?date='+encodeURIComponent(new Date().toISOString().slice(0,10))+(pid?'&patient_id='+pid:'');
+      document.getElementById('or-medecin').value='';
+      document.getElementById('modal-orienter').style.display='flex';
     });
   });
 })();
