@@ -29,7 +29,7 @@ $MATRIX = [
     ],
     'medecin' => [
         'pages' => [
-            'dashboard','accueil','patients','appointments','urgences','dossiers',
+            'dashboard','accueil','patients','appointments','consultations','urgences','dossiers',
             'medecins','lits','pharmacie','laboratoire','rapports','observations',
             'mar','notes','chirurgie','imagerie','maternite','deces','assurances',
             'notifications','consentements',
@@ -37,6 +37,7 @@ $MATRIX = [
         'actions' => [
             'patients.create','patients.edit',
             'appointments.create','appointments.edit_statut','appointments.delete',
+            'consultations.prescrire','consultations.reorienter','consultations.terminer',
             'hospitalisations.create','hospitalisations.update','hospitalisations.sortie',
             'lits.update_statut',
             'analyses.create','analyses.update_resultat',

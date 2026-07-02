@@ -11,6 +11,7 @@ define('ICON_NAV', [
     'patients'     => '<i class="bi bi-people-fill"></i>',
     'accueil'      => '<i class="bi bi-door-open-fill"></i>',
     'appointments' => '<i class="bi bi-calendar-event-fill"></i>',
+    'consultations' => '<i class="bi bi-clipboard2-pulse-fill"></i>',
     'urgences'     => '<i class="bi bi-exclamation-triangle-fill"></i>',
     'dossiers'     => '<i class="bi bi-folder-fill"></i>',
     'medecins'     => '<i class="bi bi-person-badge-fill"></i>',
