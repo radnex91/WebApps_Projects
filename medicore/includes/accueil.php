@@ -170,13 +170,79 @@ function orienter_arrivee(int $arrivee_id, int $medecin_id): bool {
 function terminer_arrivee(int $arrivee_id): bool {
     if ($arrivee_id <= 0) return false;
     try {
-        db_exec(
+        $rows = db_exec(
             "UPDATE arrivees_patients SET statut = 'termine', date_fin = NOW() WHERE id = ?",
             [$arrivee_id]
         );
-        return true;
+        return $rows > 0;
     } catch (Throwable $e) {
         _log_error('ACCUEIL', 'Échec terminer_arrivee', __FILE__, __LINE__, $e);
+        return false;
+    }
+}
+
+/**
+ * Arrivées en consultation assignées au médecin connecté aujourd'hui.
+ * Triées par heure de prise en charge asc. Joint patient + flags dossier/consultation.
+ */
+function get_mes_consultations(int $medecin_id): array {
+    if ($medecin_id <= 0) return [];
+    try {
+        return db_select(
+            "SELECT a.id, a.patient_id, a.date_arrivee, a.date_prise_en_charge, a.motif, a.notes,
+                    p.nom, p.prenom, p.numero, p.date_naissance, p.sexe,
+                    EXISTS(SELECT 1 FROM dossiers_medicaux dm WHERE dm.patient_id = a.patient_id) AS a_dossier,
+                    EXISTS(SELECT 1 FROM caisse_ventes cv WHERE cv.patient_id = a.patient_id AND cv.type_vente = 'consultation' AND cv.statut = 'paye') AS a_consultation
+             FROM arrivees_patients a
+             JOIN patients p ON p.id = a.patient_id
+             WHERE a.medecin_id = ? AND a.statut = 'en_consultation' AND DATE(a.date_arrivee) = CURDATE()
+             ORDER BY a.date_prise_en_charge ASC",
+            [$medecin_id]
+        );
+    } catch (Throwable $e) {
+        _log_error('ACCUEIL', 'Échec get_mes_consultations', __FILE__, __LINE__, $e);
+        return [];
+    }
+}
+
+/**
+ * Dernières constantes d'un patient : une valeur (la plus récente) par type_observation.
+ * Retourne ['temperature'=>['v'=>36.5,'u'=>'°C'], ...].
+ */
+function get_dernieres_constantes(int $patient_id): array {
+    $out = [];
+    if ($patient_id <= 0) return $out;
+    try {
+        $rows = db_select(
+            "SELECT type_observation, valeur, unite FROM observations_infirmieres WHERE patient_id = ? ORDER BY date_observation DESC",
+            [$patient_id]
+        );
+        foreach ($rows as $r) {
+            if (!array_key_exists($r['type_observation'], $out)) {
+                $out[$r['type_observation']] = ['v' => $r['valeur'], 'u' => $r['unite']];
+            }
+        }
+    } catch (Throwable $e) {
+        _log_error('ACCUEIL', 'Échec get_dernieres_constantes', __FILE__, __LINE__, $e);
+    }
+    return $out;
+}
+
+/**
+ * Réoriente une arrivée vers un autre médecin : réassigne medecin_id et remet
+ * date_prise_en_charge. Garde le statut 'en_consultation' (le patient reste en
+ * consultation, dans la file du nouveau médecin).
+ */
+function reorienter_vers(int $arrivee_id, int $new_medecin_id): bool {
+    if ($arrivee_id <= 0 || $new_medecin_id <= 0) return false;
+    try {
+        $rows = db_exec(
+            "UPDATE arrivees_patients SET medecin_id = ?, date_prise_en_charge = NOW() WHERE id = ? AND statut = 'en_consultation'",
+            [$new_medecin_id, $arrivee_id]
+        );
+        return $rows > 0;
+    } catch (Throwable $e) {
+        _log_error('ACCUEIL', 'Échec reorienter_vers', __FILE__, __LINE__, $e);
         return false;
     }
 }

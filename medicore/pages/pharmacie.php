@@ -523,4 +523,17 @@ document.addEventListener('DOMContentLoaded', addOrdLigne);
   </div>
 </div>
 <?php endif; ?>
+<?php // --- Pré-remplissage ordonnance depuis une consultation (GET ?patient_id=&medecin_id=&new_ord=1) ---
+$pfPatient = get_int('patient_id'); $pfMedecin = get_int('medecin_id'); $pfNew = get_int('new_ord');
+if ($pfNew === 1 && $pfPatient > 0 && can('ordonnances.create')): ?>
+<script>
+(function(){
+  var m = document.getElementById('modal-ordonnance'); if(!m) return;
+  m.style.display = 'flex';
+  function sel(id, val){ var s = document.getElementById(id); if(!s||!val) return; for(var i=0;i<s.options.length;i++){ if(String(s.options[i].value)===String(val)){ s.selectedIndex=i; break; } } }
+  sel('inp-patient_id', <?= (int)$pfPatient ?>);
+  sel('inp-medecin_id', <?= (int)$pfMedecin ?>);
+})();
+</script>
+<?php endif; ?>
 <?php require_once __DIR__ . '/../includes/footer.php';
