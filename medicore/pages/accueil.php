@@ -60,7 +60,44 @@ if (can('accueil.checkin') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str(
     }
 }
 
-// Les autres POST handlers seront ajoutés en Task 7-8.
+// --- POST : Prendre les constantes d'arrivée ---
+if (can('accueil.vitals') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'prendre_constantes') {
+    csrf_verify();
+    $arrivee_id = post_int('arrivee_id');
+    $patient_id = post_int('patient_id');
+    if ($arrivee_id <= 0 || $patient_id <= 0) {
+        $flash = ['red', 'Arrivée / patient requis.'];
+    } else {
+        $constantes = [
+            'temperature'       => post_float('temperature'),
+            'poids'             => post_float('poids'),
+            'taille'            => post_float('taille'),
+            'ta_systolique'     => post_float('ta_systolique'),
+            'ta_diastolique'    => post_float('ta_diastolique'),
+            'pouls'             => post_float('pouls'),
+            'freq_respiratoire' => post_float('freq_respiratoire'),
+            'spo2'              => post_float('spo2'),
+            'glycemie'          => post_float('glycemie'),
+        ];
+        // Retirer les valeurs vides/nulles.
+        $constantes = array_filter($constantes, fn($v) => $v !== null && (float)$v > 0);
+        if (empty($constantes)) {
+            $flash = ['red', 'Saisir au moins une constante.'];
+        } else {
+            $alertes = prendre_constantes((int)$arrivee_id, (int)$patient_id, (int)currentUser()['id'], $constantes);
+            logActivity('Accueil : constantes prises (patient ' . $patient_id . ', ' . count($constantes) . ' mesures)', 'blue', 'observation', (int)$patient_id);
+            if (!empty($alertes)) {
+                $labels = ['temperature'=>'Température','ta_systolique'=>'TA Systolique','ta_diastolique'=>'TA Diastolique','pouls'=>'Pouls','spo2'=>'SpO2','glycemie'=>'Glycémie','freq_respiratoire'=>'Freq. Resp.'];
+                $noms = array_map(fn($t) => $labels[$t] ?? $t, $alertes);
+                $flash = ['red', 'Constantes enregistrées. ⚠️ Hors normes : ' . implode(', ', $noms) . '.'];
+            } else {
+                $flash = ['green', 'Constantes enregistrées. Toutes dans les normes.'];
+            }
+        }
+    }
+}
+
+// Les autres POST handlers seront ajoutés en Task 8.
 
 require_once __DIR__ . '/../includes/layout.php';
 requirePageAccess('accueil');
@@ -261,6 +298,69 @@ $statutBadge = [
     </form>
   </div>
 </div>
+<?php endif; ?>
+
+<!-- MODAL CONSTANTES D'ARRIVÉE -->
+<?php if (can('accueil.vitals')): ?>
+<div id="modal-constantes" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(640px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
+    <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">
+      <h3>🌡️ Constantes d'arrivée — <span id="ct-nom"></span></h3>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-constantes').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button>
+    </div>
+    <form method="POST" style="padding:24px">
+      <input type="hidden" name="action" value="prendre_constantes"><?= csrf_field() ?>
+      <input type="hidden" name="arrivee_id" id="ct-arrivee_id">
+      <input type="hidden" name="patient_id" id="ct-patient_id">
+      <div class="form-grid">
+        <div class="form-group"><label>Température (°C) <small style="color:var(--text3)">36-38</small></label><input type="number" name="temperature" step="0.1" min="30" max="45" oninput="accSeuil(this,36,38)"></div>
+        <div class="form-group"><label>Tension syst. (mmHg) <small style="color:var(--text3)">90-140</small></label><input type="number" name="ta_systolique" step="1" min="40" max="250" oninput="accSeuil(this,90,140)"></div>
+        <div class="form-group"><label>Tension diast. (mmHg) <small style="color:var(--text3)">60-90</small></label><input type="number" name="ta_diastolique" step="1" min="30" max="150" oninput="accSeuil(this,60,90)"></div>
+        <div class="form-group"><label>Pouls (bpm) <small style="color:var(--text3)">60-100</small></label><input type="number" name="pouls" step="1" min="20" max="220" oninput="accSeuil(this,60,100)"></div>
+        <div class="form-group"><label>FR (/min) <small style="color:var(--text3)">12-20</small></label><input type="number" name="freq_respiratoire" step="1" min="5" max="60" oninput="accSeuil(this,12,20)"></div>
+        <div class="form-group"><label>SpO₂ (%) <small style="color:var(--text3)">95-100</small></label><input type="number" name="spo2" step="1" min="50" max="100" oninput="accSeuil(this,95,100)"></div>
+        <div class="form-group"><label>Glycémie (mg/dL) <small style="color:var(--text3)">70-110</small></label><input type="number" name="glycemie" step="1" min="20" max="600" oninput="accSeuil(this,70,110)"></div>
+        <div class="form-group"><label>Poids (kg)</label><input type="number" name="poids" step="0.1" min="0" max="500" oninput="accBmi()"></div>
+        <div class="form-group"><label>Taille (cm)</label><input type="number" name="taille" step="1" min="20" max="250" oninput="accBmi()"></div>
+        <div class="form-group"><label>IMC (auto)</label><input type="text" id="ct-bmi" readonly placeholder="kg/m²" style="background:var(--surface2)"></div>
+      </div>
+      <div id="ct-alert" style="display:none;margin-top:12px;padding:9px 12px;border-radius:7px;background:rgba(255,100,100,.12);border:1px solid rgba(255,100,100,.4);font-size:12px;color:var(--text2)"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-constantes').style.display='none'">Annuler</button>
+        <button type="submit" class="btn btn-blue">Enregistrer les constantes</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function accSeuil(inp,min,max){
+  var v=parseFloat(inp.value);var box=document.getElementById('ct-alert');
+  if(isNaN(v))return;
+  if(v<min||v>max){
+    inp.style.borderColor='var(--red)';
+    box.textContent='⚠️ '+inp.previousElementSibling.textContent.replace(/[0-9].*$/,'').trim()+' = '+v+' (norme '+min+'-'+max+')';
+    box.style.display='block';
+  }else{inp.style.borderColor='';box.style.display='none';}
+}
+function accBmi(){
+  var p=parseFloat(document.querySelector('[name=poids]').value),
+      t=parseFloat(document.querySelector('[name=taille]').value);
+  var b=document.getElementById('ct-bmi');
+  if(p>0&&t>0){b.value=(p/Math.pow(t/100,2)).toFixed(1);}else{b.value='';}
+}
+(function(){
+  document.querySelectorAll('[data-vitals]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.getElementById('ct-arrivee_id').value=btn.getAttribute('data-vitals');
+      document.getElementById('ct-patient_id').value=btn.getAttribute('data-pid');
+      document.getElementById('ct-nom').textContent=btn.getAttribute('data-nom');
+      document.querySelectorAll('#modal-constantes input[type=number]').forEach(function(i){i.value='';i.style.borderColor='';});
+      document.getElementById('ct-bmi').value='';document.getElementById('ct-alert').style.display='none';
+      document.getElementById('modal-constantes').style.display='flex';
+    });
+  });
+})();
+</script>
 <?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php';
