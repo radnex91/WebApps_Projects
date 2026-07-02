@@ -199,7 +199,7 @@ $statutBadge = [
 <!-- File d'attente -->
 <div class="card">
   <div class="card-header"><h3>File d'attente du jour</h3><span style="font-size:12px;color:var(--text2)"><?= count($arrivees) ?> patient(s)</span></div>
-  <table>
+  <table class="tbl-actions">
     <thead><tr><th>Patient</th><th>Arrivée</th><th>Statut</th><th>Constantes</th><th>Médecin</th><th>Accès aux soins</th><th class="col-actions">Actions</th></tr></thead>
     <tbody>
     <?php foreach ($arrivees as $a):
