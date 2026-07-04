@@ -20,6 +20,7 @@ define('ICON_NAV', [
     'caisse'       => '<i class="bi bi-receipt"></i>',
     'laboratoire'  => '<i class="bi bi-droplet-half"></i>',
     'facturation'  => '<i class="bi bi-cash-stack"></i>',
+    'comptabilite' => '<i class="bi bi-journal-text"></i>',
     'rh'           => '<i class="bi bi-person-vcard-fill"></i>',
     'stocks'       => '<i class="bi bi-box-seam"></i>',
     'rapports'     => '<i class="bi bi-journal-text"></i>',
