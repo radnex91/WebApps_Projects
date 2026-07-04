@@ -2,6 +2,7 @@
 $currentPage = 'stocks';
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/comptabilite.php';
 requireLogin();
 
 // ── Créer un article stock ──
@@ -133,6 +134,8 @@ if (can('stocks.entry') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str('ac
             }
         }
         db_exec("UPDATE stock_entries SET statut='validee' WHERE id=?", [$id]);
+        //  Comptabilité : achat (débit stock / crédit fournisseur)
+        compta_on_achat_stock($entry);
         logActivity("Entrée stock validée: {$entry['reference']}", 'green', 'stock_entry', $id);
         header('Location: '.APP_URL.'/stocks.php?entry_validated=1'); exit;
     }
@@ -167,8 +170,26 @@ $params = [];
 if ($filtre) { $where.=' AND statut=?'; $params[]=$filtre; }
 if ($search) { $like="%$search%"; $where.=' AND (nom LIKE ? OR categorie LIKE ? OR fournisseur LIKE ?)'; $params=array_merge($params,[$like,$like,$like]); }
 
-$stocks = db_select("SELECT * FROM stocks WHERE $where ORDER BY statut DESC,nom", $params);
-$total_val = array_sum(array_map(fn($s)=>$s['quantite']*$s['valeur_unitaire'],$stocks));
+$_stockPager = new Paginator([
+    'sql'        => "SELECT * FROM stocks WHERE $where",
+    'count_sql'  => "SELECT COUNT(*) FROM stocks WHERE $where",
+    'params'     => $params,
+    'sort_cols'  => [
+        'nom'          => 'nom',
+        'categorie'    => 'categorie',
+        'quantite'     => 'quantite',
+        'seuil'        => 'seuil_alerte',
+        'valeur_unit'  => 'valeur_unitaire',
+        'valeur_totale'=> 'quantite * valeur_unitaire',
+        'fournisseur'  => 'fournisseur',
+        'statut'       => 'statut',
+    ],
+    'default_sort' => 'nom',
+    'default_dir'  => 'asc',
+    'per_page'   => 25,
+]);
+$stocks = $_stockPager->load();
+$total_val = (float)db_scalar("SELECT COALESCE(SUM(quantite * valeur_unitaire),0) FROM stocks WHERE $where", $params);
 
 $stats = [
     'total'    => (int)db_scalar("SELECT COUNT(*) FROM stocks"),
@@ -261,9 +282,9 @@ if (can('stocks.entry')) {
 </div>
 
 <div class="card">
-  <div class="card-header"><h3>Inventaire</h3><span style="font-size:12px;color:var(--text2)"><?= count($stocks) ?> articles</span></div>
+  <div class="card-header"><h3>Inventaire</h3><span style="font-size:12px;color:var(--text2)"><?= $_stockPager->total ?> articles</span></div>
   <table>
-    <thead><tr><th>Article</th><th>Catégorie</th><th>Quantité</th><th>Seuil</th><th>Valeur unit.</th><th>Valeur totale</th><th>Fournisseur</th><th>Statut</th><th>Modifier qt</th></tr></thead>
+    <thead><tr><th><?= $_stockPager->th('nom','Article') ?></th><th><?= $_stockPager->th('categorie','Catégorie') ?></th><th><?= $_stockPager->th('quantite','Quantité') ?></th><th><?= $_stockPager->th('seuil','Seuil') ?></th><th><?= $_stockPager->th('valeur_unit','Valeur unit.') ?></th><th><?= $_stockPager->th('valeur_totale','Valeur totale') ?></th><th><?= $_stockPager->th('fournisseur','Fournisseur') ?></th><th><?= $_stockPager->th('statut','Statut') ?></th><th>Modifier qt</th></tr></thead>
     <tbody>
     <?php foreach ($stocks as $s):
       $rowBg = $s['statut']==='critique'?'background:rgba(var(--red-rgb),.05)':($s['statut']==='bas'?'background:rgba(var(--yellow-rgb),.04)':'');
@@ -308,6 +329,7 @@ if (can('stocks.entry')) {
     <?php if (empty($stocks)): ?><tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text3)">Aucun article trouvé</td></tr><?php endif; ?>
     </tbody>
   </table>
+  <?= $_stockPager->renderPagination() ?>
 </div>
 
 <!-- ════════════════ HISTORIQUE DES ENTRÉES ════════════════ -->
@@ -317,8 +339,8 @@ if (can('stocks.entry')) {
     <h3>📥 Historique des entrées</h3>
     <span style="font-size:12px;color:var(--text2)"><?= count($recent_entries) ?> entrée(s)</span>
   </div>
-  <table>
-    <thead><tr><th>Référence</th><th>Type</th><th>Date</th><th>Fournisseur</th><th>Montant</th><th>Statut</th><th>Par</th><th>Actions</th></tr></thead>
+  <table class="tbl-actions">
+    <thead><tr><th>Référence</th><th>Type</th><th>Date</th><th>Fournisseur</th><th>Montant</th><th>Statut</th><th>Par</th><th class="col-actions">Actions</th></tr></thead>
     <tbody>
     <?php foreach ($recent_entries as $e):
       $eBadge = ['en_attente'=>'badge-yellow','validee'=>'badge-green','annulee'=>'badge-red'];
@@ -332,18 +354,21 @@ if (can('stocks.entry')) {
       <td><strong style="color:var(--green)"><?= fmt_money((float)$e['montant_total']) ?></strong></td>
       <td><span class="badge <?= $eBadge[$e['statut']]??'badge-gray' ?>"><?= $eLabel[$e['statut']]??$e['statut'] ?></span></td>
       <td style="font-size:12px;color:var(--text2)"><?= h($e['utilisateur_nom']??'-') ?></td>
-      <td style="display:flex;gap:4px;align-items:center">
-        <button type="button" class="btn btn-sm btn-ghost" onclick="toggleEntryLignes(<?= (int)$e['id'] ?>)">🧾</button>
-        <?php if ($e['statut'] === 'en_attente'): ?>
-        <form method="POST" style="display:inline">
-          <input type="hidden" name="action" value="validate_entry">
-          <input type="hidden" name="entry_id" value="<?= (int)$e['id'] ?>">
-          <?= csrf_field() ?>
-          <button type="submit" class="btn btn-sm btn-green" onclick="return confirm('Valider cette entrée ? Les stocks seront mis à jour.')">✓</button>
-        </form>
-        <a href="stocks.php?action=annuler_entry&id=<?= (int)$e['id'] ?>&tok=<?= url_sign((int)$e['id'], 'stock_entry') ?>"
-           class="btn btn-sm btn-red" data-confirm="Annuler cette entrée ?">✕</a>
-        <?php endif; ?>
+      <td>
+        <div class="row-actions row-actions--icons">
+          <span class="row-hint" aria-hidden="true">⋯</span>
+          <button type="button" class="btn btn-sm btn-ghost" onclick="toggleEntryLignes(<?= (int)$e['id'] ?>)">🧾</button>
+          <?php if ($e['statut'] === 'en_attente'): ?>
+          <form method="POST" style="display:inline">
+            <input type="hidden" name="action" value="validate_entry">
+            <input type="hidden" name="entry_id" value="<?= (int)$e['id'] ?>">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-sm btn-green" onclick="return confirm('Valider cette entrée ? Les stocks seront mis à jour.')">✓</button>
+          </form>
+          <a href="stocks.php?action=annuler_entry&id=<?= (int)$e['id'] ?>&tok=<?= url_sign((int)$e['id'], 'stock_entry') ?>"
+             class="btn btn-sm btn-red" data-confirm="Annuler cette entrée ?">✕</a>
+          <?php endif; ?>
+        </div>
       </td>
     </tr>
     <tr id="entry-lignes-<?= (int)$e['id'] ?>" style="display:none">

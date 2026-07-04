@@ -2,6 +2,7 @@
 $currentPage = 'facturation';
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/comptabilite.php';
 requireLogin();
 
 //  CREER FACTURE 
@@ -17,11 +18,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && can('factures.create') && post_str(
         $flash = ['red', 'Patient et montant obligatoires.'];
     } else {
         $num = 'FAC-' . date('Y') . '-' . str_pad((int)db_scalar("SELECT COUNT(*)+1 FROM factures"), 5, '0', STR_PAD_LEFT);
-        db_exec(
+        $facture_id = db_exec(
             "INSERT INTO factures (numero,patient_id,montant_total,montant_assurance,montant_patient,assurance_type,statut,notes)
              VALUES (?,?,?,?,?,?,'en_attente',?)",
             [$num, $patient_id, $montant, $assurance, $patient_p, $type_ass, $notes]
         );
+        //  Comptabilité : reconnaissance revenu + créances
+        compta_on_facture([
+            'id' => (int)$facture_id, 'numero' => $num, 'patient_id' => $patient_id,
+            'montant_total' => $montant, 'montant_assurance' => $assurance,
+            'montant_patient' => $patient_p, 'date_emission' => date('Y-m-d H:i:s'),
+            'created_by' => $_SESSION['user_id'],
+        ], 'creation');
         logActivity("Facture $num créée", 'green', 'facture');
         $flash = ['green', "Facture $num créée avec succès."];
     }
@@ -34,6 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && can('factures.create') && post_str(
     $statut = in_whitelist(post_str('statut'), ['en_attente','réglée','partielle','impayée','annulee'], 'en_attente');
     $date_r = ($statut === 'réglée') ? date('Y-m-d H:i:s') : null;
     db_exec("UPDATE factures SET statut=?, date_reglement=? WHERE id=?", [$statut, $date_r, $id]);
+    //  Comptabilité : encaissement si réglée
+    if ($statut === 'réglée') {
+        $f = db_row("SELECT id, numero, montant_patient, date_reglement FROM factures WHERE id=?", [$id]);
+        if ($f) {
+            compta_on_facture($f + ['mode_paiement' => post_str('mode_paiement', 'especes'), 'regle_par' => $_SESSION['user_id']], 'reglement');
+        }
+    }
     logActivity("Facture #$id -> $statut", $statut === 'réglée' ? 'green' : 'blue', 'facture', $id);
     header('Location: ' . APP_URL . '/facturation.php?ok=1'); exit;
 }
@@ -52,13 +67,29 @@ if ($search) {
     $params = array_merge($params, [$like, $like, $like]);
 }
 
-$factures = db_select(
-    "SELECT f.*, CONCAT(p.prenom,' ',p.nom) AS patient_nom, p.numero AS patient_num
+$_factPager = new Paginator([
+    'sql'        => "SELECT f.*, CONCAT(p.prenom,' ',p.nom) AS patient_nom, p.numero AS patient_num
      FROM factures f
      JOIN patients p ON p.id = f.patient_id
-     $where ORDER BY f.date_emission DESC LIMIT 100",
-    $params
-);
+     $where",
+    'count_sql'  => "SELECT COUNT(*) FROM factures f JOIN patients p ON p.id = f.patient_id $where",
+    'params'     => $params,
+    'sort_cols'  => [
+        'numero'       => 'f.numero',
+        'patient'      => 'patient_nom',
+        'total'        => 'f.montant_total',
+        'assurance'    => 'f.montant_assurance',
+        'patient_part' => 'f.montant_patient',
+        'couverture'   => 'f.assurance_type',
+        'statut'       => 'f.statut',
+        'date'         => 'f.date_emission',
+        'reglement'    => 'f.date_reglement',
+    ],
+    'default_sort' => 'date',
+    'default_dir'  => 'desc',
+    'per_page'   => 20,
+]);
+$factures = $_factPager->load();
 $patients = db_select("SELECT id, CONCAT(prenom,' ',nom) AS nom_complet, numero FROM patients ORDER BY nom LIMIT 300");
 
 // KPIs
@@ -177,11 +208,11 @@ $moisAbrev = ['01'=>'Jan','02'=>'Fév','03'=>'Mar','04'=>'Avr','05'=>'Mai','06'=
 <div class="card">
   <div class="card-header">
     <h3>Factures</h3>
-    <span style="font-size:12px;color:var(--text2)"><?= count($factures) ?> résultat(s)</span>
+    <span style="font-size:12px;color:var(--text2)"><?= $_factPager->total ?> résultat(s)</span>
   </div>
   <table>
     <thead>
-      <tr><th>N° Facture</th><th>Patient</th><th>Total</th><th>Assurance</th><th>Part patient</th><th>Couverture</th><th>Statut</th><th>Date</th><th>Règlement</th><?php if (can('factures.create')): ?><th>Action</th><?php endif; ?></tr>
+      <tr><th><?= $_factPager->th('numero','N° Facture') ?></th><th><?= $_factPager->th('patient','Patient') ?></th><th><?= $_factPager->th('total','Total') ?></th><th><?= $_factPager->th('assurance','Assurance') ?></th><th><?= $_factPager->th('patient_part','Part patient') ?></th><th><?= $_factPager->th('couverture','Couverture') ?></th><th><?= $_factPager->th('statut','Statut') ?></th><th><?= $_factPager->th('date','Date') ?></th><th><?= $_factPager->th('reglement','Règlement') ?></th><?php if (can('factures.create')): ?><th>Action</th><?php endif; ?></tr>
     </thead>
     <tbody>
     <?php foreach ($factures as $f): ?>
@@ -221,6 +252,7 @@ $moisAbrev = ['01'=>'Jan','02'=>'Fév','03'=>'Mar','04'=>'Avr','05'=>'Mai','06'=
     <?php endif; ?>
     </tbody>
   </table>
+  <?= $_factPager->renderPagination() ?>
 </div>
 
 <!-- MODAL CREER FACTURE -->

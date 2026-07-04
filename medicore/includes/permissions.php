@@ -27,6 +27,7 @@ define('ALL_PAGES', [
     'caisse'       => ['label'=>'Caisse & Tickets',     'icon'=>'caisse',      'section'=>''],
     'laboratoire'  => ['label'=>'Laboratoire',          'icon'=>'laboratoire', 'section'=>''],
     'facturation'  => ['label'=>'Facturation',          'icon'=>'facturation', 'section'=>'Administration'],
+    'comptabilite' => ['label'=>'Comptabilité',         'icon'=>'comptabilite','section'=>'Administration'],
     'rh'           => ['label'=>'Ressources humaines',  'icon'=>'rh',          'section'=>''],
     'stocks'       => ['label'=>'Stocks & Matériel',    'icon'=>'stocks',      'section'=>''],
     'rapports'     => ['label'=>'Rapports',             'icon'=>'rapports',    'section'=>''],
@@ -106,6 +107,10 @@ define('ALL_ACTIONS', [
     'consentements.view'        => ['label'=>'Consulter les consentements','module'=>'Consentements'],
     'audit.view'                => ['label'=>'Consulter l\'audit',         'module'=>'Audit'],
     'api.access'                => ['label'=>'Acceder a l\'API REST',      'module'=>'API'],
+    'compta.consulter'          => ['label'=>'Consulter la comptabilité',   'module'=>'Comptabilité'],
+    'compta.saisir'             => ['label'=>'Saisir une écriture manuelle','module'=>'Comptabilité'],
+    'compta.cloturer'           => ['label'=>'Clôturer un exercice',        'module'=>'Comptabilité'],
+    'compta.param_comptes'      => ['label'=>'Paramétrer le plan comptable','module'=>'Comptabilité'],
 ]);
 
 //  Charger depuis BDD (cache session par role) 

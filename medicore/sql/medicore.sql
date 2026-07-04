@@ -437,8 +437,8 @@ CREATE TABLE IF NOT EXISTS `app_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO `app_settings` (`cle`, `valeur`, `label`) VALUES
-('font_body',         'DM Sans',           'Police principale'),
-('font_heading',      'Playfair Display',  'Police titres'),
+('font_body',         'Manrope',           'Police principale'),
+('font_heading',      'Manrope',           'Police titres'),
 ('font_size',         '14',                'Taille de base (px)'),
 ('currency_symbol',   'FCFA',                 'Symbole monétaire'),
 ('currency_code',     'XAF',               'Code ISO monnaie'),
@@ -652,6 +652,6 @@ CREATE TABLE IF NOT EXISTS `stock_entry_lignes` (
   KEY `idx_ligne_entry` (`stock_entry_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Modules v3 : lancer aussi sql/update_v3.sql pour les nouveaux modules
+-- Modules v3+ : lancer aussi sql/update_v3.sql, ..., update_v8.sql, update_v9.sql pour les nouveaux modules
 
 COMMIT;
