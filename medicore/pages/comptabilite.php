@@ -287,34 +287,61 @@ $evol = db_select("SELECT DATE_FORMAT(e.date_ecriture,'%Y-%m') AS m, SUM(l.debit
 
 <?php elseif ($tab === 'plan' && can('compta.param_comptes')):
   $comptes = db_select("SELECT * FROM compta_comptes ORDER BY classe, numero");
+  $types = ['actif','passif','charge','produit','tresorerie','tiers'];
 ?>
-<div class="card"><div class="card-header"><h3>Plan comptable</h3></div>
-<table><thead><tr><th>Numéro</th><th>Libellé</th><th>Classe</th><th>Type</th><th>Statut</th><th>Modifier</th></tr></thead><tbody>
-<?php foreach ($comptes as $c): ?>
-  <tr>
-    <form method="POST" style="display:contents"><?= csrf_field() ?>
-    <input type="hidden" name="action" value="compte_save"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>">
-    <td><input name="numero" value="<?= h($c['numero']) ?>" style="width:70px"></td>
-    <td><input name="libelle" value="<?= h($c['libelle']) ?>" style="width:220px"></td>
-    <td><select name="classe" style="width:60px"><?php for ($k = 1; $k <= 8; $k++): ?><option value="<?= $k ?>" <?= (int)$c['classe'] === $k ? 'selected' : '' ?>><?= $k ?></option><?php endfor; ?></select></td>
-    <td><select name="type"><?php foreach (['actif','passif','charge','produit','tresorerie','tiers'] as $t): ?><option value="<?= $t ?>" <?= $c['type'] === $t ? 'selected' : '' ?>><?= $t ?></option><?php endforeach; ?></select></td>
-    <td><select name="statut"><option value="actif" <?= $c['statut'] === 'actif' ? 'selected' : '' ?>>actif</option><option value="inactif" <?= $c['statut'] === 'inactif' ? 'selected' : '' ?>>inactif</option></select></td>
-    <td><button class="btn btn-sm btn-blue">Enregistrer</button></td>
-    </form>
-  </tr>
-<?php endforeach; ?>
-<tr>
-  <form method="POST" style="display:contents"><?= csrf_field() ?>
-  <input type="hidden" name="action" value="compte_save"><input type="hidden" name="id" value="0">
-  <td><input name="numero" placeholder="ex 706" style="width:70px"></td>
-  <td><input name="libelle" placeholder="Libellé" style="width:220px"></td>
-  <td><select name="classe"><?php for ($k = 1; $k <= 8; $k++): ?><option value="<?= $k ?>"><?= $k ?></option><?php endfor; ?></select></td>
-  <td><select name="type"><?php foreach (['actif','passif','charge','produit','tresorerie','tiers'] as $t): ?><option value="<?= $t ?>"><?= $t ?></option><?php endforeach; ?></select></td>
-  <td><select name="statut"><option value="actif">actif</option></select></td>
-  <td><button class="btn btn-sm btn-green">+ Ajouter</button></td>
-  </form>
-</tr>
-</tbody></table></div>
+<div class="card">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+    <h3>Plan comptable SYSCOHADA</h3>
+    <button class="btn btn-blue btn-sm" onclick="comptaCompteOpen(0)">+ Ajouter un compte</button>
+  </div>
+  <table><thead><tr><th>Numéro</th><th>Libellé</th><th>Classe</th><th>Type</th><th>Statut</th><th style="text-align:right">Actions</th></tr></thead><tbody>
+  <?php foreach ($comptes as $c): ?>
+    <tr>
+      <td><strong style="font-variant-numeric:tabular-nums"><?= h($c['numero']) ?></strong></td>
+      <td><?= h($c['libelle']) ?></td>
+      <td><span class="badge badge-gray">Classe <?= (int)$c['classe'] ?></span></td>
+      <td><span class="badge badge-blue"><?= h($c['type']) ?></span></td>
+      <td><span class="badge <?= $c['statut'] === 'actif' ? 'badge-green' : 'badge-gray' ?>"><?= h($c['statut']) ?></span></td>
+      <td style="text-align:right"><button class="btn btn-sm btn-ghost" onclick="comptaCompteOpen(<?= htmlspecialchars(json_encode(['id'=>(int)$c['id'],'numero'=>$c['numero'],'libelle'=>$c['libelle'],'classe'=>(int)$c['classe'],'type'=>$c['type'],'statut'=>$c['statut']], JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP), ENT_QUOTES) ?>)">✏️ Modifier</button></td>
+    </tr>
+  <?php endforeach; ?>
+  </tbody></table>
+</div>
+
+<form method="POST" id="form-compte"><?= csrf_field() ?>
+  <input type="hidden" name="action" value="compte_save">
+  <input type="hidden" name="id" id="cc-id" value="0">
+  <div id="modal-compte" class="modal-overlay" style="display:none;align-items:center;justify-content:center;z-index:300" onclick="if(event.target===this)comptaCompteClose()">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(480px,95vw);padding:24px">
+      <h3 id="cc-title" style="margin-bottom:16px">Ajouter un compte</h3>
+      <div class="form-group"><label>Numéro</label><input name="numero" id="cc-numero" required placeholder="ex 706"></div>
+      <div class="form-group"><label>Libellé</label><input name="libelle" id="cc-libelle" required placeholder="Libellé du compte"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label>Classe</label><select name="classe" id="cc-classe"><?php for ($k = 1; $k <= 8; $k++): ?><option value="<?= $k ?>">Classe <?= $k ?></option><?php endfor; ?></select></div>
+        <div class="form-group"><label>Type</label><select name="type" id="cc-type"><?php foreach ($types as $t): ?><option value="<?= $t ?>"><?= $t ?></option><?php endforeach; ?></select></div>
+      </div>
+      <div class="form-group"><label>Statut</label><select name="statut" id="cc-statut"><option value="actif">actif</option><option value="inactif">inactif</option></select></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+        <button type="button" class="btn btn-ghost" onclick="comptaCompteClose()">Annuler</button>
+        <button type="submit" class="btn btn-blue">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</form>
+<script>
+function comptaCompteOpen(d){
+  var data = (typeof d === 'object' && d) ? d : {id:0,numero:'',libelle:'',classe:1,type:'actif',statut:'actif'};
+  document.getElementById('cc-title').textContent = data.id ? ('Modifier le compte ' + data.numero) : 'Ajouter un compte';
+  document.getElementById('cc-id').value      = data.id || 0;
+  document.getElementById('cc-numero').value  = data.numero || '';
+  document.getElementById('cc-libelle').value = data.libelle || '';
+  document.getElementById('cc-classe').value   = data.classe || 1;
+  document.getElementById('cc-type').value     = data.type || 'actif';
+  document.getElementById('cc-statut').value   = data.statut || 'actif';
+  document.getElementById('modal-compte').style.display = 'flex';
+}
+function comptaCompteClose(){ document.getElementById('modal-compte').style.display = 'none'; }
+</script>
 <?php elseif ($tab === 'plan' && !can('compta.param_comptes')): ?>
 <div class="alert alert-red">Vous n'avez pas la permission de modifier le plan comptable.</div>
 <?php elseif ($tab === 'exercices'):
