@@ -3,3 +3,6 @@ vendor/
 *.log
 .DS_Store
 .superpowers/
+
+# Brainy ERP : dépôt git dédié (C:\xampp\htdocs\brainy-erp\.git)
+brainy-erp/
