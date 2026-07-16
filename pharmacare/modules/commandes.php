@@ -328,7 +328,7 @@ if (in_array($action, ['add', 'edit'])) {
         <div style="padding:16px 20px;border-top:1px solid var(--border);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
             <div style="font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);">Produits commandés</div>
-            <button type="button" class="btn btn-primary btn-xs" onclick="openCmdProduitModal()"><?= icon('plus',13) ?> Choisir les produits</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="openCmdProduitModal()"><?= icon('plus',15) ?> Choisir les produits</button>
           </div>
           <div class="table-wrap" style="margin-bottom:8px;">
             <table id="cmd-summary-table">
