@@ -193,7 +193,7 @@ document.addEventListener('click',function(e){var btn=document.getElementById('s
       <span class="nav-icon i-blue"><?= icon('building',14) ?></span> Fournisseurs
     </a>
     <?php endif; ?>
-    <?php if(hasPermission('clients.voir')): ?>
+    <?php if(hasPermission('clients.voir') && fideliteActive()): ?>
     <a href="<?= APP_URL ?>/modules/clients.php" class="nav-item <?= $activePage==='clients'?'active':'' ?>">
       <span class="nav-icon i-cyan"><?= icon('users',14) ?></span> Clients
     </a>
