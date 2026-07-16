@@ -94,6 +94,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
         }
     }
 
+    // ── Retour Pharmacie → Magasin (transfert inverse) ─────
+    if ($action === 'retour') {
+        $produits_ids = $_POST['produit_id'] ?? [];
+        $quantites    = $_POST['quantite']    ?? [];
+        $note         = trim($_POST['note'] ?? '');
+
+        $lignesValides = [];
+        for ($i = 0; $i < count($produits_ids); $i++) {
+            $pid = (int)$produits_ids[$i];
+            $qte = (int)$quantites[$i];
+            if ($pid > 0 && $qte > 0) $lignesValides[] = [$pid, $qte];
+        }
+
+        if (!$lignesValides) {
+            flash('Aucune ligne valide pour le retour.', 'error');
+            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+        }
+
+        try {
+            $db->beginTransaction();
+
+            // Vérifier la disponibilité du stock pharmacie pour chaque ligne
+            $stmtStock = $db->prepare("SELECT nom, stock FROM produits WHERE id=?");
+            $insuffisants = [];
+            foreach ($lignesValides as [$pid, $qte]) {
+                $stmtStock->execute([$pid]);
+                $p = $stmtStock->fetch();
+                if (!$p) {
+                    $insuffisants[] = "Produit #$pid introuvable";
+                } elseif ((int)$p['stock'] < $qte) {
+                    $insuffisants[] = e($p['nom']) . " (pharmacie: {$p['stock']}, demandé: $qte)";
+                }
+            }
+            if ($insuffisants) {
+                $db->rollBack();
+                flash('Stock pharmacie insuffisant : ' . implode(' ; ', $insuffisants), 'error');
+                header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+            }
+
+            $stmtNom        = $db->prepare("SELECT nom FROM produits WHERE id=?");
+            $stmtDecPharm   = $db->prepare("UPDATE produits SET stock = stock - ? WHERE id = ? AND stock >= ?");
+            $stmtIncMag     = $db->prepare("UPDATE produits SET stock_magasin = stock_magasin + ? WHERE id = ?");
+            $stmtMvtPharm   = $db->prepare("INSERT INTO mouvements_stock (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'sortie',?,?,?)");
+            $stmtMvtMag     = $db->prepare("INSERT INTO mouvements_magasin (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'entrée',?,?,?)");
+
+            $libelle = 'Retour pharmacie → magasin' . ($note ? ' — ' . $note : '');
+
+            foreach ($lignesValides as [$pid, $qte]) {
+                $stmtDecPharm->execute([$qte, $pid, $qte]);
+                if ($stmtDecPharm->rowCount() === 0) {
+                    // garde-fou concurrence
+                    $db->rollBack();
+                    flash('Stock pharmacie modifié entre-temps pour un produit. Réessayez.', 'error');
+                    header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+                }
+                $stmtIncMag->execute([$qte, $pid]);
+
+                $stmtMvtPharm->execute([$pid, $qte, $libelle, $uid]);
+                $stmtMvtMag->execute([$pid, $qte, $libelle, $uid]);
+            }
+
+            $db->commit();
+            auditLog('magasin.retour', sprintf('Retour pharmacie→magasin : %d ligne(s)%s', count($lignesValides), $note ? ' (' . $note . ')' : ''));
+            flash('Retour vers magasin effectué (' . count($lignesValides) . ' produit(s)).');
+            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+        } catch (Exception $e) {
+            $db->rollBack();
+            flash('Erreur lors du retour : ' . $e->getMessage(), 'error');
+            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+        }
+    }
+
     // ── Réception / Ajustement manuel du magasin ───────────
     if ($action === 'reception') {
         $pid  = (int)($_POST['produit_id'] ?? 0);
@@ -247,6 +319,9 @@ showFlash();
       <?php if (hasPermission('magasin.gerer')): ?>
       <button type="button" class="btn btn-primary btn-sm" onclick="openTransfertModal()">
         <?= icon('truck',14) ?> Transfert vers pharmacie
+      </button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="openRetourModal()">
+        <?= icon('refresh',14) ?> Retour vers magasin
       </button>
       <?php endif; ?>
     </div>
@@ -469,6 +544,168 @@ function submitTransfert(e) {
   });
   if (bad) { alert('Une ou plusieurs quantités sont invalides ou dépassent le stock disponible.'); return false; }
   if (!confirm('Confirmer le transfert de ' + checks.length + ' produit(s) vers la pharmacie ?')) return false;
+  form.submit();
+  return false;
+}
+</script>
+<?php endif; ?>
+
+<?php if (hasPermission('magasin.gerer')): ?>
+<!-- ═══ Modale RETOUR PHARMACIE → MAGASIN (multi-sélection) ═══ -->
+<div class="modal-overlay" id="modal-retour">
+  <div class="modal" style="width:920px;max-width:94vw;">
+    <div class="modal-header" style="padding:22px 28px;">
+      <div class="modal-title"><?= icon('refresh',16) ?> Retour Pharmacie → Magasin</div>
+      <button class="modal-close" onclick="closeModal('modal-retour')">✕</button>
+    </div>
+    <form method="POST" action="?onglet=stock" id="ret-form" onsubmit="return submitRetour(event)">
+      <input type="hidden" name="csrf" value="<?= csrf() ?>">
+      <input type="hidden" name="action" value="retour">
+      <div class="card-pad" style="padding:20px 28px;">
+        <div class="flex-between" style="margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+          <div class="search-box" style="flex:1;min-width:220px;">
+            <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
+            <input type="text" id="ret-search" placeholder="Filtrer les produits..." oninput="filterRetList()">
+          </div>
+          <label class="text-sm" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="ret-select-all" onchange="toggleAllRet(this.checked)">
+            <span>Tout sélectionner</span>
+          </label>
+        </div>
+        <style>
+          #ret-table th{padding:12px 14px;}
+          #ret-table td{padding:11px 14px;}
+          #ret-table tbody tr:hover{background:var(--glass);}
+          #ret-table .ret-qte{padding:7px 10px;}
+        </style>
+        <div class="table-wrap" style="max-height:440px;overflow-y:auto;">
+          <table id="ret-table">
+            <thead>
+              <tr>
+                <th style="width:42px;"></th><th>Médicament</th>
+                <th style="text-align:right;">Stock pharmacie</th>
+                <th style="text-align:right;">Qté à retourner</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($produits as $p):
+                $dispo = (int)$p['stock'];
+              ?>
+              <tr data-nom="<?= e(strtolower($p['nom'] . ' ' . $p['reference'])) ?>" data-pid="<?= (int)$p['id'] ?>">
+                <td style="text-align:center;">
+                  <input type="checkbox" class="ret-check" data-pid="<?= (int)$p['id'] ?>" data-dispo="<?= $dispo ?>" onchange="onRetCheck(this)" <?= $dispo <= 0 ? 'disabled' : '' ?>>
+                </td>
+                <td class="td-name"><?= e($p['nom']) ?>
+                  <?php if ($p['reference']): ?><div class="text-sm td-mono" style="color:var(--text3);"><?= e($p['reference']) ?></div><?php endif; ?>
+                </td>
+                <td class="fw-mono text-right" style="text-align:right;<?= $dispo <= 0 ? 'color:var(--text3);' : '' ?>"><?= fmtInt($dispo) ?></td>
+                <td style="text-align:right;">
+                  <input type="number" class="ret-qte" data-pid="<?= (int)$p['id'] ?>" data-dispo="<?= $dispo ?>" min="1" max="<?= max(1, $dispo) ?>" value="1" disabled style="width:80px;text-align:right;" oninput="onRetQte(this)">
+                </td>
+              </tr>
+              <?php endforeach; ?>
+              <?php if (!$produits): ?>
+              <tr><td colspan="4"><div class="empty">Aucun produit</div></td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+        <div id="ret-summary" class="text-sm" style="margin-top:14px;color:var(--text3);">0 produit sélectionné.</div>
+        <div class="form-group" style="margin-top:14px;">
+          <label>Note (optionnel)</label>
+          <input type="text" name="note" placeholder="Motif du retour..." style="width:100%;">
+        </div>
+      </div>
+      <div class="modal-footer" style="padding:16px 28px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-retour')">Annuler</button>
+        <button type="submit" class="btn btn-primary"><?= icon('refresh',14) ?> Valider le retour</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function openRetourModal(pid) {
+  document.querySelectorAll('#ret-table .ret-check').forEach(function(c){ c.checked = false; });
+  document.querySelectorAll('#ret-table .ret-qte').forEach(function(q){ q.value = '1'; q.disabled = true; q.style.borderColor = ''; });
+  document.getElementById('ret-select-all').checked = false;
+  if (pid) {
+    var cb = document.querySelector('#ret-table .ret-check[data-pid="' + pid + '"]');
+    if (cb && !cb.disabled) {
+      cb.checked = true; onRetCheck(cb);
+      var row = cb.closest('tr'); if (row) row.scrollIntoView({block:'center'});
+    }
+  }
+  updateRetSummary();
+  openModal('modal-retour');
+}
+
+function onRetCheck(cb) {
+  var qte = document.querySelector('#ret-table .ret-qte[data-pid="' + cb.getAttribute('data-pid') + '"]');
+  if (qte) {
+    qte.disabled = !cb.checked;
+    if (cb.checked) { if (!qte.value) qte.value = '1'; qte.focus(); onRetQte(qte); }
+    else qte.style.borderColor = '';
+  }
+  updateRetSummary();
+}
+
+function onRetQte(inp) {
+  var dispo = parseInt(inp.getAttribute('data-dispo'), 10);
+  var q = parseInt(inp.value, 10) || 0;
+  if (q > dispo) { inp.style.borderColor = 'var(--red)'; inp.setCustomValidity('Dépasse le stock pharmacie'); }
+  else if (q <= 0) { inp.style.borderColor = 'var(--red)'; inp.setCustomValidity('Quantité invalide'); }
+  else { inp.style.borderColor = ''; inp.setCustomValidity(''); }
+  updateRetSummary();
+}
+
+function updateRetSummary() {
+  var checks = document.querySelectorAll('#ret-table .ret-check:checked');
+  var total = 0, bad = 0;
+  checks.forEach(function(c){
+    var qte = document.querySelector('#ret-table .ret-qte[data-pid="' + c.getAttribute('data-pid') + '"]');
+    var q = parseInt(qte.value, 10) || 0;
+    total += q;
+    if (q <= 0 || q > parseInt(c.getAttribute('data-dispo'), 10)) bad++;
+  });
+  var s = document.getElementById('ret-summary');
+  s.textContent = checks.length + ' produit(s) sélectionné(s) — ' + total + ' unité(s)';
+  s.style.color = bad > 0 ? 'var(--red)' : 'var(--text3)';
+}
+
+function toggleAllRet(checked) {
+  document.querySelectorAll('#ret-table .ret-check').forEach(function(c){
+    if (c.disabled) return;
+    c.checked = checked; onRetCheck(c);
+  });
+  updateRetSummary();
+}
+
+function filterRetList() {
+  var q = document.getElementById('ret-search').value.toLowerCase();
+  document.querySelectorAll('#ret-table tbody tr').forEach(function(r){
+    r.style.display = r.getAttribute('data-nom').indexOf(q) > -1 ? '' : 'none';
+  });
+}
+
+function submitRetour(e) {
+  e.preventDefault();
+  var form = document.getElementById('ret-form');
+  var checks = document.querySelectorAll('#ret-table .ret-check:checked');
+  if (checks.length === 0) { alert('Sélectionnez au moins un produit à retourner.'); return false; }
+  var bad = false;
+  checks.forEach(function(c){
+    var pid = c.getAttribute('data-pid');
+    var dispo = parseInt(c.getAttribute('data-dispo'), 10);
+    var qte = document.querySelector('#ret-table .ret-qte[data-pid="' + pid + '"]');
+    var q = parseInt(qte.value, 10) || 0;
+    if (q <= 0 || q > dispo) bad = true;
+    else {
+      var h1 = document.createElement('input'); h1.type = 'hidden'; h1.name = 'produit_id[]'; h1.value = pid; form.appendChild(h1);
+      var h2 = document.createElement('input'); h2.type = 'hidden'; h2.name = 'quantite[]'; h2.value = q; form.appendChild(h2);
+    }
+  });
+  if (bad) { alert('Une ou plusieurs quantités sont invalides ou dépassent le stock pharmacie.'); return false; }
+  if (!confirm('Confirmer le retour de ' + checks.length + ' produit(s) vers le magasin ?')) return false;
   form.submit();
   return false;
 }
