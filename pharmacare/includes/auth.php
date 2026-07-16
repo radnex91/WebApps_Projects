@@ -132,7 +132,7 @@ function isPharmacien(): bool { return hasPermission('produits.ajouter'); }
 // ── Authentification ──────────────────────────────────────
 
 function login(string $loginInput, string $password): array {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    $ip = clientIp();
 
     // Vérifier si l'IP est bloquée
     $remaining = rateLimitRemaining($ip);

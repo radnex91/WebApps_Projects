@@ -818,6 +818,7 @@ if ($action === 'rapport_session'):
     </div>
     <script>
     function printRapport(){
+      if (!rateLimitClick('print.rapportZ', 10, 60000)) { rateLimitWarn('print.rapportZ', 10, 60000); return; }
       var el=document.getElementById('rapport-print');
       var content=el.innerHTML;
       var win=window.open('','_blank','width=900,height=1100');
@@ -1106,6 +1107,7 @@ if ($fermetureAuto && $heureDepassee && !empty($sessionsOuvertes)):
 
 <script>
 function printSection(id){
+  if (!rateLimitClick('print.caisse', 15, 60000)) { rateLimitWarn('print.caisse', 15, 60000); return; }
   var el=document.getElementById(id);
   if(!el)return;
   var content=el.innerHTML;
