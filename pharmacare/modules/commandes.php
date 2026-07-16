@@ -324,42 +324,27 @@ if (in_array($action, ['add', 'edit'])) {
           </div>
         </div>
 
-        <!-- Lignes de commande -->
+        <!-- Produits commandés (sélection via modale multi-sélection) -->
         <div style="padding:16px 20px;border-top:1px solid var(--border);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
             <div style="font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);">Produits commandés</div>
-            <button type="button" class="btn btn-ghost btn-xs" onclick="addLigne()"><?= icon('plus',13) ?> Ajouter une ligne</button>
+            <button type="button" class="btn btn-primary btn-xs" onclick="openCmdProduitModal()"><?= icon('plus',13) ?> Choisir les produits</button>
           </div>
-          <div id="lignes-container">
-            <?php if ($lignes): foreach ($lignes as $l): ?>
-            <div class="cmd-ligne" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-              <select name="produit_id[]" style="flex:3;min-width:0;" onchange="fillLigne(this)">
-                <option value="">— Sélectionner un produit —</option>
-                <?php foreach ($produits as $p): ?>
-                <option value="<?= $p['id'] ?>" data-prix="<?= $p['prix_achat'] ?>" <?= $l['produit_id']==$p['id']?'selected':'' ?>><?= e($p['nom']) ?></option>
-                <?php endforeach; ?>
-              </select>
-              <input type="hidden" name="designation[]" value="<?= e($l['designation']) ?>">
-              <input type="number" name="quantite[]" placeholder="Qté" value="<?= $l['quantite'] ?>" min="1" style="flex:1;min-width:0;width:70px;" oninput="calcTotal()">
-              <input type="number" name="prix_unitaire[]" placeholder="Prix achat" value="<?= $l['prix_unitaire'] ?>" step="1" min="0" style="flex:1;min-width:0;width:100px;" oninput="calcTotal()">
-              <button type="button" class="btn btn-ghost btn-xs" onclick="this.parentElement.remove();calcTotal();" style="flex-shrink:0;">✕</button>
-            </div>
-            <?php endforeach; else: ?>
-            <div class="cmd-ligne" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-              <select name="produit_id[]" style="flex:3;min-width:0;" onchange="fillLigne(this)">
-                <option value="">— Sélectionner un produit —</option>
-                <?php foreach ($produits as $p): ?>
-                <option value="<?= $p['id'] ?>" data-prix="<?= $p['prix_achat'] ?>"><?= e($p['nom']) ?></option>
-                <?php endforeach; ?>
-              </select>
-              <input type="hidden" name="designation[]" value="">
-              <input type="number" name="quantite[]" placeholder="Qté" value="1" min="1" style="flex:1;min-width:0;width:70px;" oninput="calcTotal()">
-              <input type="number" name="prix_unitaire[]" placeholder="Prix achat" step="1" min="0" style="flex:1;min-width:0;width:100px;" oninput="calcTotal()">
-              <button type="button" class="btn btn-ghost btn-xs" onclick="this.parentElement.remove();calcTotal();" style="flex-shrink:0;">✕</button>
-            </div>
-            <?php endif; ?>
+          <div class="table-wrap" style="margin-bottom:8px;">
+            <table id="cmd-summary-table">
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th style="text-align:right;">Qté</th>
+                  <th style="text-align:right;">Prix achat</th>
+                  <th style="text-align:right;">Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
           </div>
-          <div id="cmd-total" style="font-size:14px;font-weight:600;padding:10px;border-radius:var(--radius-sm);margin-top:8px;background:var(--teal-dim);color:var(--teal2);text-align:center;">
+          <div id="cmd-total" style="font-size:14px;font-weight:600;padding:10px;border-radius:var(--radius-sm);margin-top:8px;background:var(--bg2);color:var(--text3);text-align:center;">
             Total : <span id="total-cmd">0</span> FCFA
           </div>
         </div>
@@ -379,92 +364,183 @@ if (in_array($action, ['add', 'edit'])) {
         </div>
       </form>
     </div>
+
+    <!-- ═══ Modale SÉLECTION PRODUITS (multi-sélection) ═══ -->
+    <div class="modal-overlay" id="modal-cmd-produits">
+      <div class="modal" style="width:920px;max-width:94vw;">
+        <div class="modal-header" style="padding:22px 28px;">
+          <div class="modal-title"><?= icon('clipboard',16) ?> Produits à commander</div>
+          <button class="modal-close" onclick="closeModal('modal-cmd-produits')">✕</button>
+        </div>
+        <div class="card-pad" style="padding:20px 28px;">
+          <div class="flex-between" style="margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+            <div class="search-box" style="flex:1;min-width:220px;">
+              <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
+              <input type="text" id="cmd-prod-search" placeholder="Filtrer les produits..." oninput="filterCmdList()">
+            </div>
+            <label class="text-sm" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="cmd-prod-selectall" onchange="toggleAllCmd(this.checked)">
+              <span>Tout sélectionner</span>
+            </label>
+          </div>
+          <style>
+            #cmd-prod-table th{padding:12px 14px;}
+            #cmd-prod-table td{padding:11px 14px;}
+            #cmd-prod-table tbody tr:hover{background:var(--glass);}
+            #cmd-prod-table .cmd-qte,#cmd-prod-table .cmd-prix{padding:7px 10px;}
+          </style>
+          <div class="table-wrap" style="max-height:440px;overflow-y:auto;">
+            <table id="cmd-prod-table">
+              <thead>
+                <tr>
+                  <th style="width:42px;"></th><th>Médicament</th>
+                  <th style="text-align:right;">Qté</th>
+                  <th style="text-align:right;">Prix achat</th>
+                </tr>
+              </thead>
+              <tbody id="cmd-prod-tbody"></tbody>
+            </table>
+          </div>
+          <div id="cmd-prod-summary" class="text-sm" style="margin-top:14px;color:var(--text3);">0 produit sélectionné.</div>
+        </div>
+        <div class="modal-footer" style="padding:16px 28px;">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('modal-cmd-produits')">Annuler</button>
+          <button type="button" class="btn btn-primary" onclick="confirmCmdSelection()"><?= icon('check',14) ?> Valider la sélection</button>
+        </div>
+      </div>
+    </div>
+
     <script>
-    var produitsData = <?= json_encode(array_map(function($p){ return ['id'=>(int)$p['id'],'nom'=>$p['nom'],'prix'=>(float)$p['prix_achat']]; }, $produits)) ?>;
+    var produitsData = <?= json_encode(array_map(function($p){ return ['id'=>(int)$p['id'],'nom'=>$p['nom'],'prix'=>(float)$p['prix_achat']]; }, $produits), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+    var cmdInitial = <?= json_encode(array_map(function($l){ return ['pid'=>(int)$l['produit_id'],'nom'=>$l['pnom'] ?? $l['designation'],'qte'=>(int)$l['quantite'],'prix'=>(float)$l['prix_unitaire']]; }, $lignes), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+    var cmdSelected = {}; // pid -> {nom, qte, prix}
+    cmdInitial.forEach(function(it){ if (it.pid > 0) cmdSelected[it.pid] = {nom: it.nom, qte: it.qte, prix: it.prix}; });
 
-    function addLigne() {
-      var c = document.getElementById('lignes-container');
-      var d = document.createElement('div');
-      d.className = 'cmd-ligne';
-      d.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+    function esc(s){ var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+    function fmtPrix(n){ return Math.round(n).toLocaleString('fr-FR'); }
 
-      var sel = document.createElement('select');
-      sel.name = 'produit_id[]';
-      sel.style.cssText = 'flex:3;min-width:0;';
-      sel.onchange = function() { fillLigne(this); };
-      var opt0 = document.createElement('option');
-      opt0.value = '';
-      opt0.textContent = '— Sélectionner un produit —';
-      sel.appendChild(opt0);
+    function openCmdProduitModal() {
+      var tbody = document.getElementById('cmd-prod-tbody');
+      tbody.innerHTML = '';
       produitsData.forEach(function(p) {
-        var opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.nom;
-        opt.setAttribute('data-prix', p.prix);
-        sel.appendChild(opt);
+        var sel = cmdSelected[p.id];
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-nom', p.nom.toLowerCase());
+        tr.innerHTML =
+          '<td style="text-align:center;"><input type="checkbox" class="cmd-check" data-pid="'+p.id+'" onchange="onCmdCheck(this)" '+(sel?'checked':'')+'></td>' +
+          '<td class="td-name">'+esc(p.nom)+'</td>' +
+          '<td style="text-align:right;"><input type="number" class="cmd-qte" data-pid="'+p.id+'" min="1" value="'+(sel?sel.qte:1)+'" style="width:80px;text-align:right;" '+(sel?'':'disabled')+' oninput="updateCmdModalSummary()"></td>' +
+          '<td style="text-align:right;"><input type="number" class="cmd-prix" data-pid="'+p.id+'" min="0" step="1" value="'+(sel?sel.prix:p.prix)+'" style="width:110px;text-align:right;" '+(sel?'':'disabled')+' oninput="updateCmdModalSummary()"></td>';
+        tbody.appendChild(tr);
       });
-
-      var inpDes = document.createElement('input');
-      inpDes.type = 'hidden';
-      inpDes.name = 'designation[]';
-
-      var inpQte = document.createElement('input');
-      inpQte.type = 'number';
-      inpQte.name = 'quantite[]';
-      inpQte.placeholder = 'Qté';
-      inpQte.value = '1';
-      inpQte.min = '1';
-      inpQte.style.cssText = 'flex:1;min-width:0;width:70px;';
-      inpQte.oninput = calcTotal;
-
-      var inpPu = document.createElement('input');
-      inpPu.type = 'number';
-      inpPu.name = 'prix_unitaire[]';
-      inpPu.placeholder = 'Prix achat';
-      inpPu.step = '1';
-      inpPu.min = '0';
-      inpPu.style.cssText = 'flex:1;min-width:0;width:100px;';
-      inpPu.oninput = calcTotal;
-
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-ghost btn-xs';
-      btn.style.flexShrink = '0';
-      btn.textContent = '✕';
-      btn.onclick = function() { d.remove(); calcTotal(); };
-
-      d.appendChild(sel);
-      d.appendChild(inpDes);
-      d.appendChild(inpQte);
-      d.appendChild(inpPu);
-      d.appendChild(btn);
-      c.appendChild(d);
+      document.getElementById('cmd-prod-search').value = '';
+      document.getElementById('cmd-prod-selectall').checked = false;
+      filterCmdList();
+      updateCmdModalSummary();
+      openModal('modal-cmd-produits');
     }
 
-    function fillLigne(sel) {
-      var opt = sel.options[sel.selectedIndex];
-      var row = sel.parentElement;
-      var desInput = row.querySelector('input[name="designation[]"]');
-      var puInput = row.querySelector('input[name="prix_unitaire[]"]');
-      if (opt.value) {
-        desInput.value = opt.textContent;
-        puInput.value = opt.getAttribute('data-prix') || '';
+    function onCmdCheck(cb) {
+      var pid = cb.getAttribute('data-pid');
+      var qte = document.querySelector('#cmd-prod-table .cmd-qte[data-pid="'+pid+'"]');
+      var prix = document.querySelector('#cmd-prod-table .cmd-prix[data-pid="'+pid+'"]');
+      qte.disabled = !cb.checked; prix.disabled = !cb.checked;
+      if (cb.checked) { if (!qte.value) qte.value = '1'; qte.focus(); }
+      updateCmdModalSummary();
+    }
+
+    function toggleAllCmd(checked) {
+      document.querySelectorAll('#cmd-prod-tbody .cmd-check').forEach(function(c){
+        if (c.disabled) return;
+        c.checked = checked; onCmdCheck(c);
+      });
+      updateCmdModalSummary();
+    }
+
+    function filterCmdList() {
+      var q = document.getElementById('cmd-prod-search').value.toLowerCase();
+      document.querySelectorAll('#cmd-prod-tbody tr').forEach(function(r){
+        r.style.display = r.getAttribute('data-nom').indexOf(q) > -1 ? '' : 'none';
+      });
+    }
+
+    function updateCmdModalSummary() {
+      var checks = document.querySelectorAll('#cmd-prod-tbody .cmd-check:checked');
+      var total = 0;
+      checks.forEach(function(cb){
+        var pid = cb.getAttribute('data-pid');
+        var q = parseInt(document.querySelector('#cmd-prod-table .cmd-qte[data-pid="'+pid+'"]').value, 10) || 0;
+        var p = parseFloat(String(document.querySelector('#cmd-prod-table .cmd-prix[data-pid="'+pid+'"]').value).replace(',', '.')) || 0;
+        total += q * p;
+      });
+      document.getElementById('cmd-prod-summary').textContent = checks.length + ' produit(s) sélectionné(s) — ' + total.toLocaleString('fr-FR') + ' FCFA';
+    }
+
+    function confirmCmdSelection() {
+      var next = {};
+      document.querySelectorAll('#cmd-prod-tbody .cmd-check:checked').forEach(function(cb){
+        var pid = cb.getAttribute('data-pid');
+        var p = produitsData.find(function(x){ return String(x.id) === pid; });
+        var qte = parseInt(document.querySelector('#cmd-prod-table .cmd-qte[data-pid="'+pid+'"]').value, 10) || 0;
+        var prix = parseFloat(String(document.querySelector('#cmd-prod-table .cmd-prix[data-pid="'+pid+'"]').value).replace(',', '.')) || 0;
+        next[pid] = {nom: p ? p.nom : '', qte: qte, prix: prix};
+      });
+      cmdSelected = next;
+      closeModal('modal-cmd-produits');
+      renderCmdSummary();
+      calcTotal();
+    }
+
+    function renderCmdSummary() {
+      var tbody = document.querySelector('#cmd-summary-table tbody');
+      tbody.innerHTML = '';
+      var keys = Object.keys(cmdSelected);
+      if (!keys.length) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="empty">Aucun produit sélectionné — cliquez sur « Choisir les produits ».</div></td></tr>';
+        return;
       }
+      keys.forEach(function(pid){
+        var it = cmdSelected[pid];
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="td-name">'+esc(it.nom)+'</td>' +
+          '<td class="fw-mono" style="text-align:right;">'+it.qte+'</td>' +
+          '<td class="fw-mono" style="text-align:right;">'+fmtPrix(it.prix)+'</td>' +
+          '<td class="fw-mono c-teal" style="text-align:right;">'+fmtPrix(it.qte * it.prix)+'</td>' +
+          '<td style="text-align:right;"><button type="button" class="btn btn-ghost btn-xs" onclick="removeCmdLine('+pid+')">✕</button></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function removeCmdLine(pid) {
+      delete cmdSelected[pid];
+      renderCmdSummary();
       calcTotal();
     }
 
     function calcTotal() {
       var total = 0;
-      document.querySelectorAll('.cmd-ligne').forEach(function(row) {
-        var qte = parseFloat(row.querySelector('input[name="quantite[]"]').value) || 0;
-        var pu = parseFloat(row.querySelector('input[name="prix_unitaire[]"]').value) || 0;
-        total += qte * pu;
-      });
+      Object.keys(cmdSelected).forEach(function(pid){ var it = cmdSelected[pid]; total += it.qte * it.prix; });
       document.getElementById('total-cmd').textContent = total.toLocaleString('fr-FR');
       var el = document.getElementById('cmd-total');
       if (total > 0) { el.style.background = 'var(--teal-dim)'; el.style.color = 'var(--teal2)'; }
       else { el.style.background = 'var(--bg2)'; el.style.color = 'var(--text3)'; }
     }
+
+    document.getElementById('cmd-form').addEventListener('submit', function(e){
+      var keys = Object.keys(cmdSelected);
+      if (!keys.length) { e.preventDefault(); alert('Sélectionnez au moins un produit à commander.'); return; }
+      this.querySelectorAll('input.cmd-hidden').forEach(function(i){ i.remove(); });
+      var form = this;
+      keys.forEach(function(pid){
+        var it = cmdSelected[pid];
+        [['produit_id', pid], ['designation', it.nom], ['quantite', it.qte], ['prix_unitaire', it.prix]].forEach(function(pair){
+          var h = document.createElement('input'); h.type = 'hidden'; h.className = 'cmd-hidden'; h.name = pair[0] + '[]'; h.value = pair[1]; form.appendChild(h);
+        });
+      });
+    });
+
+    renderCmdSummary();
     calcTotal();
     </script>
     <?php layout_foot(); exit;
