@@ -726,38 +726,58 @@ showFlash();
     if (!rateLimitClick('print.rapport', 10, 60000)) { rateLimitWarn('print.rapport', 10, 60000); return; }
     var src = document.getElementById('print-rapport-content');
     if (!src) { window.print(); return; }
-    var content = src.innerHTML;
-    var win = window.open('', '_blank', 'width=1000,height=700');
-    if (!win) { alert('Autorisez les fenêtres pop-up pour imprimer le rapport.'); return; }
-    win.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-      <title>Rapport des mouvements de vente</title>
-      <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-      <style>
-        *{margin:0;padding:0;box-sizing:border-box;}
-        body{font-family:'Manrope',sans-serif;color:#1e293b;padding:24px;max-width:1000px;margin:0 auto;}
-        .pr-header{text-align:center;border-bottom:2px solid #1e293b;padding-bottom:14px;margin-bottom:18px;}
-        .pr-app{font-size:20px;font-weight:700;letter-spacing:.3px;}
-        .pr-title{font-size:16px;font-weight:600;margin-top:4px;color:#334155;}
-        .pr-period{font-size:13px;margin-top:8px;color:#475569;}
-        .pr-meta{font-size:11px;color:#94a3b8;margin-top:4px;}
-        .pr-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px;}
-        .pr-table th{background:#1e293b;color:#fff;padding:7px 6px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.3px;}
-        .pr-table th.num{text-align:right;}
-        .pr-table td{padding:6px 6px;border-bottom:1px solid #e2e8f0;}
-        .pr-table td.num{text-align:right;font-family:'DM Mono',monospace;}
-        .pr-table tbody tr:nth-child(even){background:#f8fafc;}
-        .pr-table tfoot td{font-weight:700;border-top:2px solid #1e293b;background:#f1f5f9;padding:8px 6px;}
-        .pr-table tfoot td.num{font-family:'DM Mono',monospace;}
-        .pr-empty{text-align:center;padding:24px;color:#94a3b8;}
-        .pr-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;}
-        .pr-summary div{font-size:12px;}
-        .pr-summary span{color:#64748b;}
-        .pr-summary strong{font-family:'DM Mono',monospace;}
-        @media print{body{padding:0;max-width:none;}@page{margin:12mm;size:A4 landscape;}}
-      </style></head><body>${content}
-      <script>window.onload=function(){window.print();}<\/script>
-    </body></html>`);
-    win.document.close();
+
+    // Iframe caché : pas de blocage par le pop-up blocker
+    var old = document.getElementById('print-rapport-iframe');
+    if (old) old.parentNode.removeChild(old);
+
+    var iframe = document.createElement('iframe');
+    iframe.id = 'print-rapport-iframe';
+    iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px;top:0;';
+    document.body.appendChild(iframe);
+
+    var doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">'
+      + '<title>Rapport des mouvements de vente</title>'
+      + '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">'
+      + '<style>'
+      + '*{margin:0;padding:0;box-sizing:border-box;}'
+      + 'body{font-family:\'Manrope\',sans-serif;color:#1e293b;padding:24px;max-width:1000px;margin:0 auto;}'
+      + '.pr-header{text-align:center;border-bottom:2px solid #1e293b;padding-bottom:14px;margin-bottom:18px;}'
+      + '.pr-app{font-size:20px;font-weight:700;letter-spacing:.3px;}'
+      + '.pr-title{font-size:16px;font-weight:600;margin-top:4px;color:#334155;}'
+      + '.pr-period{font-size:13px;margin-top:8px;color:#475569;}'
+      + '.pr-meta{font-size:11px;color:#94a3b8;margin-top:4px;}'
+      + '.pr-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px;}'
+      + '.pr-table th{background:#1e293b;color:#fff;padding:7px 6px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.3px;}'
+      + '.pr-table th.num{text-align:right;}'
+      + '.pr-table td{padding:6px 6px;border-bottom:1px solid #e2e8f0;}'
+      + '.pr-table td.num{text-align:right;font-family:\'DM Mono\',monospace;}'
+      + '.pr-table tbody tr:nth-child(even){background:#f8fafc;}'
+      + '.pr-table tfoot td{font-weight:700;border-top:2px solid #1e293b;background:#f1f5f9;padding:8px 6px;}'
+      + '.pr-table tfoot td.num{font-family:\'DM Mono\',monospace;}'
+      + '.pr-empty{text-align:center;padding:24px;color:#94a3b8;}'
+      + '.pr-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;}'
+      + '.pr-summary div{font-size:12px;}'
+      + '.pr-summary span{color:#64748b;}'
+      + '.pr-summary strong{font-family:\'DM Mono\',monospace;}'
+      + '@media print{body{padding:0;max-width:none;}@page{margin:12mm;size:A4 landscape;}}'
+      + '</style></head><body>' + src.innerHTML + '</body></html>');
+    doc.close();
+
+    // Lancer l'impression une fois le contenu (et les polices) prêt
+    var done = false;
+    function launch(){
+      if (done) return; done = true;
+      try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) { window.print(); }
+    }
+    if (doc.readyState === 'complete') {
+      setTimeout(launch, 250);
+    } else {
+      iframe.onload = function(){ setTimeout(launch, 250); };
+      setTimeout(launch, 1500); // filet de sécurité
+    }
   };
 
   // ── Tableau des mouvements ───────────────────────────────
