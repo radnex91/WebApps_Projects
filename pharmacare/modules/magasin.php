@@ -313,30 +313,36 @@ document.getElementById('search-mag').addEventListener('input', function(){
 <?php if (hasPermission('magasin.gerer')): ?>
 <!-- ═══ Modale TRANSFERT VERS PHARMACIE (multi-sélection) ═══ -->
 <div class="modal-overlay" id="modal-transfert">
-  <div class="modal" style="max-width:720px;">
-    <div class="modal-header">
+  <div class="modal" style="width:920px;max-width:94vw;">
+    <div class="modal-header" style="padding:22px 28px;">
       <div class="modal-title"><?= icon('truck',16) ?> Transfert Magasin → Pharmacie</div>
       <button class="modal-close" onclick="closeModal('modal-transfert')">✕</button>
     </div>
     <form method="POST" action="?onglet=stock" id="trf-form" onsubmit="return submitTransfert(event)">
       <input type="hidden" name="csrf" value="<?= csrf() ?>">
       <input type="hidden" name="action" value="transfert">
-      <div class="card-pad" style="padding:14px 18px;">
-        <div class="flex-between" style="margin-bottom:10px;gap:10px;flex-wrap:wrap;">
-          <div class="search-box" style="flex:1;min-width:200px;">
+      <div class="card-pad" style="padding:20px 28px;">
+        <div class="flex-between" style="margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+          <div class="search-box" style="flex:1;min-width:220px;">
             <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
             <input type="text" id="trf-search" placeholder="Filtrer les produits..." oninput="filterTrfList()">
           </div>
-          <label class="text-sm" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <label class="text-sm" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="trf-select-all" onchange="toggleAllTrf(this.checked)">
             <span>Tout sélectionner</span>
           </label>
         </div>
-        <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
+        <style>
+          #trf-table th{padding:12px 14px;}
+          #trf-table td{padding:11px 14px;}
+          #trf-table tbody tr:hover{background:var(--glass);}
+          #trf-table .trf-qte{padding:7px 10px;}
+        </style>
+        <div class="table-wrap" style="max-height:440px;overflow-y:auto;">
           <table id="trf-table">
             <thead>
               <tr>
-                <th style="width:34px;"></th><th>Médicament</th>
+                <th style="width:42px;"></th><th>Médicament</th>
                 <th style="text-align:right;">Dispo magasin</th>
                 <th style="text-align:right;">Qté à transférer</th>
               </tr>
@@ -364,13 +370,13 @@ document.getElementById('search-mag').addEventListener('input', function(){
             </tbody>
           </table>
         </div>
-        <div id="trf-summary" class="text-sm" style="margin-top:10px;color:var(--text3);">0 produit sélectionné.</div>
-        <div class="form-group" style="margin-top:10px;">
+        <div id="trf-summary" class="text-sm" style="margin-top:14px;color:var(--text3);">0 produit sélectionné.</div>
+        <div class="form-group" style="margin-top:14px;">
           <label>Note (optionnel)</label>
           <input type="text" name="note" placeholder="Motif du transfert..." style="width:100%;">
         </div>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="padding:16px 28px;">
         <button type="button" class="btn btn-ghost" onclick="closeModal('modal-transfert')">Annuler</button>
         <button type="submit" class="btn btn-primary"><?= icon('truck',14) ?> Valider le transfert</button>
       </div>
