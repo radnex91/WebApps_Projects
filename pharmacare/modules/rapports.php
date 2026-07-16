@@ -580,6 +580,67 @@ showFlash();
   <?php endif; ?>
 </div>
 
+<!-- ── Contenu imprimable (tous les mouvements de la période) ── -->
+<div id="print-rapport-content" style="display:none;">
+  <div class="pr-header">
+    <div class="pr-app"><?= e(getParam('app_nom', 'PharmaCare')) ?></div>
+    <div class="pr-title">Rapport des mouvements de vente</div>
+    <div class="pr-period">Période : <?= e($periodeLabel) ?> (<?= date('d/m/Y', strtotime($dateDebut)) ?> → <?= date('d/m/Y', strtotime($dateFin)) ?>)</div>
+    <div class="pr-meta">Édité le <?= date('d/m/Y à H:i') ?> · <?= $nbMvt ?> mouvement(s) · <?= fmtInt((int)$totQteMvt) ?> article(s)</div>
+  </div>
+
+  <table class="pr-table">
+    <thead>
+      <tr>
+        <th>Date / Heure</th><th>Référence</th><th>Client</th><th>Caissier</th>
+        <th>Médicament</th><th class="num">Qté</th><th class="num">Prix unit.</th>
+        <th class="num">Total ligne</th><th>Paiement</th><th>Statut</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if ($mouvements): foreach ($mouvements as $m):
+        $caissier = trim(($m['prenom'] ?? '').' '.($m['u_nom'] ?? ''));
+        $caissier = $caissier !== '' ? $caissier : '—';
+        $stLbl = ['payé'=>'Payé','en_attente'=>'En attente','partiel'=>'Partiel'];
+        $s = $m['statut_paiement'];
+      ?>
+      <tr>
+        <td><?= date('d/m/Y H:i', strtotime($m['created_at'])) ?></td>
+        <td><?= e($m['reference']) ?></td>
+        <td><?= e($m['client_nom'] ?: '—') ?></td>
+        <td><?= e($caissier) ?></td>
+        <td><?= e($m['produit_nom']) ?></td>
+        <td class="num"><?= fmtInt((int)$m['quantite']) ?></td>
+        <td class="num"><?= fmtMoney((float)$m['prix_unitaire']) ?></td>
+        <td class="num"><?= fmtMoney((float)$m['total_ligne']) ?></td>
+        <td><?= e($modeInfo[$m['mode_paiement']][1] ?? $m['mode_paiement']) ?></td>
+        <td><?= e($stLbl[$s] ?? $s) ?></td>
+      </tr>
+      <?php endforeach; else: ?>
+      <tr><td colspan="10" class="pr-empty">Aucun mouvement de vente sur cette période</td></tr>
+      <?php endif; ?>
+    </tbody>
+    <?php if ($mouvements): ?>
+    <tfoot>
+      <tr>
+        <td colspan="5">Totaux (<?= $nbMvt ?> mouvements)</td>
+        <td class="num"><?= fmtInt((int)$totQteMvt) ?></td>
+        <td></td>
+        <td class="num"><?= fmtMoney((float)$totCaMvt) ?></td>
+        <td colspan="2"></td>
+      </tr>
+    </tfoot>
+    <?php endif; ?>
+  </table>
+
+  <div class="pr-summary">
+    <div><span>CA total :</span> <strong><?= fmtMoney((float)$stats['ca_total']) ?></strong></div>
+    <div><span>Transactions :</span> <strong><?= fmtInt((int)$stats['nb_ventes']) ?></strong></div>
+    <div><span>Panier moyen :</span> <strong><?= fmtMoney((float)$stats['panier_moyen']) ?></strong></div>
+    <div><span>Total lignes :</span> <strong><?= fmtMoney((float)$totCaMvt) ?></strong></div>
+  </div>
+</div>
+
 <!-- Infos stock (contexte global) -->
 <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-top:22px;">
   <div class="stat-card s-blue">
@@ -663,7 +724,40 @@ showFlash();
   // ── Impression du rapport (throttle) ─────────────────────
   window.printRapport = function(){
     if (!rateLimitClick('print.rapport', 10, 60000)) { rateLimitWarn('print.rapport', 10, 60000); return; }
-    window.print();
+    var src = document.getElementById('print-rapport-content');
+    if (!src) { window.print(); return; }
+    var content = src.innerHTML;
+    var win = window.open('', '_blank', 'width=1000,height=700');
+    if (!win) { alert('Autorisez les fenêtres pop-up pour imprimer le rapport.'); return; }
+    win.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+      <title>Rapport des mouvements de vente</title>
+      <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+      <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Manrope',sans-serif;color:#1e293b;padding:24px;max-width:1000px;margin:0 auto;}
+        .pr-header{text-align:center;border-bottom:2px solid #1e293b;padding-bottom:14px;margin-bottom:18px;}
+        .pr-app{font-size:20px;font-weight:700;letter-spacing:.3px;}
+        .pr-title{font-size:16px;font-weight:600;margin-top:4px;color:#334155;}
+        .pr-period{font-size:13px;margin-top:8px;color:#475569;}
+        .pr-meta{font-size:11px;color:#94a3b8;margin-top:4px;}
+        .pr-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px;}
+        .pr-table th{background:#1e293b;color:#fff;padding:7px 6px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.3px;}
+        .pr-table th.num{text-align:right;}
+        .pr-table td{padding:6px 6px;border-bottom:1px solid #e2e8f0;}
+        .pr-table td.num{text-align:right;font-family:'DM Mono',monospace;}
+        .pr-table tbody tr:nth-child(even){background:#f8fafc;}
+        .pr-table tfoot td{font-weight:700;border-top:2px solid #1e293b;background:#f1f5f9;padding:8px 6px;}
+        .pr-table tfoot td.num{font-family:'DM Mono',monospace;}
+        .pr-empty{text-align:center;padding:24px;color:#94a3b8;}
+        .pr-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;}
+        .pr-summary div{font-size:12px;}
+        .pr-summary span{color:#64748b;}
+        .pr-summary strong{font-family:'DM Mono',monospace;}
+        @media print{body{padding:0;max-width:none;}@page{margin:12mm;size:A4 landscape;}}
+      </style></head><body>${content}
+      <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`);
+    win.document.close();
   };
 
   // ── Tableau des mouvements ───────────────────────────────
