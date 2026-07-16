@@ -7,6 +7,13 @@ $db     = getDB();
 $action = $_GET['action'] ?? 'dashboard';
 $id     = (int)($_GET['id'] ?? 0);
 
+// Module « client fidèle » désactivé partout pour l'instant.
+$fideliteActive = fideliteActive();
+if (!$fideliteActive && in_array($action, ['fidelite', 'add-points'], true)) {
+    flash('Le module fidélité client est désactivé.', 'error');
+    header('Location: ' . APP_URL . '/modules/marketing.php'); exit;
+}
+
 // ── POST : créer / modifier une campagne promo ────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add-promo','edit-promo'], true)) {
     requirePermission('marketing.promos');
@@ -343,6 +350,7 @@ $topClients = $db->query("
       <div style="font-size:12px;color:var(--text2);">Sur <?= count($campagnes) ?> campagne(s)</div>
     </div>
   </div>
+  <?php if ($fideliteActive): ?>
   <div class="card">
     <div class="card-header"><div class="card-title">Fidélité</div></div>
     <div class="card-pad">
@@ -350,20 +358,21 @@ $topClients = $db->query("
       <div style="font-size:12px;color:var(--text2);">Meilleurs clients fidélisés</div>
     </div>
   </div>
+  <?php endif; ?>
   <div class="card">
     <div class="card-header"><div class="card-title">Actions</div></div>
     <div class="card-pad" style="display:flex;flex-direction:column;gap:8px;">
       <?php if (hasPermission('marketing.promos')): ?>
       <a href="<?= APP_URL ?>/modules/marketing.php?action=add-promo" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('plus',14) ?> Créer une campagne</a>
       <?php endif; ?>
-      <?php if (hasPermission('marketing.fidelite')): ?>
+      <?php if (hasPermission('marketing.fidelite') && $fideliteActive): ?>
       <a href="<?= APP_URL ?>/modules/marketing.php?action=fidelite" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('users',14) ?> Gérer la fidélité</a>
       <?php endif; ?>
     </div>
   </div>
 </div>
 
-<?php if (count($topClients) > 0): ?>
+<?php if ($fideliteActive && count($topClients) > 0): ?>
 <div class="card">
   <div class="card-header">
     <div class="card-title">Top 5 clients fidélité</div>

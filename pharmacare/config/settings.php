@@ -43,6 +43,16 @@ function getParam(string $key, string $default = ''): string {
 }
 
 /**
+ * Module fidélité / « client fidèle » — activé via le paramètre 'fidelite_active'.
+ * Désactivé par défaut. Pour réactiver partout dans l'app :
+ *   INSERT INTO parametres (cle, valeur) VALUES ('fidelite_active', '1')
+ *     ON DUPLICATE KEY UPDATE valeur='1';
+ */
+function fideliteActive(): bool {
+    return getParam('fidelite_active', '0') === '1';
+}
+
+/**
  * Formatage monétaire selon la devise configurée
  */
 function fmtMoney(float $n): string {

@@ -6,6 +6,9 @@ require_once __DIR__ . '/../config/comptabilite.php';
 requirePermission('vente.creer');
 $db = getDB();
 
+// Module « client fidèle » désactivé partout pour l'instant (paramètre fidelite_active).
+$fideliteActive = fideliteActive();
+
 $modeLabels = [
     'espèces'   => 'Espèces',
     'carte'     => 'Carte bancaire',
@@ -79,6 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
     $clientNom    = '';
     $clientTel    = '';
     $clientMode   = $_POST['client_mode'] ?? 'simple';  // 'simple' | 'existant'
+    // Mode « client fidèle » désactivé : force toujours la vente libre.
+    if (!$fideliteActive) $clientMode = 'simple';
 
     if ($clientMode === 'existant' && !empty($_POST['client_id'])) {
         $clientId = (int)$_POST['client_id'];
@@ -541,6 +546,7 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
       <div class="form-group" style="margin-bottom:6px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <label style="margin:0;">Client</label>
+          <?php if ($fideliteActive): ?>
           <div style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid #334155;">
             <button type="button" id="client-mode-simple" class="client-mode-toggle active"
                     onclick="setClientMode('simple')"
@@ -555,6 +561,9 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
               Fidèle
             </button>
           </div>
+          <?php else: ?>
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;background:rgba(148,163,184,.12);padding:3px 10px;border-radius:6px;border:1px solid rgba(148,163,184,.2);">Vente libre</span>
+          <?php endif; ?>
         </div>
         <input type="hidden" name="client_mode" id="client-mode-hdn" value="simple">
         <!-- Saisie libre -->
@@ -562,6 +571,7 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
                placeholder="Nom du client *"
                style="width:100%;font-family:'DM Mono',monospace;">
         <!-- Client existant -->
+        <?php if ($fideliteActive): ?>
         <select name="client_id" id="client-select" style="width:100%;display:none;"
                 onchange="onClientSelectChange()">
           <option value="">— Sélectionner —</option>
@@ -572,9 +582,10 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
           <option value="<?= $cl['id'] ?>"><?= e($cl['nom']) . ($cl['telephone'] ? ' — ' . $cl['telephone'] : '') ?></option>
           <?php endforeach; ?>
         </select>
+        <?php endif; ?>
       </div>
       <input type="hidden" name="mode_paiement" id="mode-paiement" value="espèces">
-      <div id="mode-credit" style="display:none;margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px; border-radius:6px; border:1px solid #334155;">
+      <div id="mode-credit" style="display:none;margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px; border-radius:6px; border:1px solid #334155;<?= $fideliteActive ? '' : ' display:none;' ?>">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:#f8fafc;font-size:14px;font-weight:500;user-select:none;">
           <input type="checkbox" id="credit-checkbox" onchange="toggleCreditMode(this)"
                  style="width:18px;height:18px;cursor:pointer;accent-color:var(--teal2);">
@@ -809,6 +820,7 @@ function filterCat(cat) {
 showView(true);
 
 var CLIENT_MODE = 'simple'; // Vente libre par défaut à l'ouverture du POS
+var FIDELITE_ACTIVE = <?= $fideliteActive ? 'true' : 'false' ?>;
 
 function chooseClientMode(mode) {
   CLIENT_MODE = mode;
@@ -835,14 +847,22 @@ function chooseClientMode(mode) {
     headerDiv.appendChild(btn);
     
     // Bouton pour changer de mode
-    var btnMode = document.createElement('button');
-    btnMode.type = 'button';
-    btnMode.id = 'btn-switch-mode';
-    btnMode.className = 'btn btn-ghost btn-xs';
-    btnMode.textContent = mode === 'simple' ? '→ Fidèle' : '→ Libre';
-    btnMode.onclick = function(){ switchClientMode(); };
-    btnMode.style.marginRight = '4px';
-    headerDiv.appendChild(btnMode);
+    var btnMode = document.getElementById('btn-switch-mode');
+    if (!btnMode) {
+      btnMode = document.createElement('button');
+      btnMode.type = 'button';
+      btnMode.id = 'btn-switch-mode';
+      btnMode.className = 'btn btn-ghost btn-xs';
+      btnMode.style.marginRight = '4px';
+      btnMode.onclick = function(){ switchClientMode(); };
+      headerDiv.appendChild(btnMode);
+    }
+    if (!FIDELITE_ACTIVE) {
+      btnMode.style.display = 'none';
+    } else {
+      btnMode.style.display = '';
+      btnMode.textContent = mode === 'simple' ? '→ Fidèle' : '→ Libre';
+    }
   }
 
   // Appliquer le mode
@@ -859,6 +879,7 @@ function chooseClientMode(mode) {
 }
 
 function switchClientMode() {
+  if (!FIDELITE_ACTIVE) { return; } // mode « client fidèle » désactivé
   var newMode = (CLIENT_MODE === 'simple') ? 'existant' : 'simple';
   CLIENT_MODE = newMode;
   setClientMode(newMode);
@@ -892,6 +913,8 @@ function _guardAddToCart() {
 _guardAddToCart();
 
 function setClientMode(mode) {
+  // Mode « client fidèle » désactivé : force toujours la vente libre.
+  if (!FIDELITE_ACTIVE) mode = 'simple';
   const btnSimple    = document.getElementById('client-mode-simple');
   const btnExistant  = document.getElementById('client-mode-existant');
   const inputSimple  = document.getElementById('client-nom-saisie');
