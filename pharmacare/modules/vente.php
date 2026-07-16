@@ -48,6 +48,19 @@ if (hasPermission('caisse.ouvrir')) {
 // ── Traitement vente POST ──────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
     verifyCsrf();
+
+    // ── Rate limit POS : max 20 ventes / 60s par utilisateur ──
+    $uid = (int)($_SESSION['user_id'] ?? 0);
+    $rlKey = 'pos.vente:' . $uid;
+    $rl = rateLimitConsume($rlKey, 20, 60);
+    if (!$rl['allowed']) {
+        $retry = max(1, (int)$rl['retry']);
+        flash('Trop de ventes enregistrées (limite anti-abus). Réessayez dans '
+            . $retry . ' s.', 'error');
+        auditLog('vente.ratelimit', sprintf('Vente bloquée (rate limit) user #%d, retry %ds', $uid, $retry));
+        header('Location: ' . APP_URL . '/modules/vente.php'); exit;
+    }
+
     $cartRaw = json_decode($_POST['cart_data'], true);
 
     if (!$cartRaw || count($cartRaw) === 0) {
@@ -1034,6 +1047,7 @@ const TICKET_TITLE = <?= json_encode($ticketSousTitre) ?>;
 const TICKET_FOOT  = <?= json_encode($ticketPied) ?>;
 
 function printReceipt80() {
+  if (!rateLimitClick('print.ticket80', 15, 60000)) { rateLimitWarn('print.ticket80', 15, 60000); return; }
   const content = document.getElementById('receipt-content').innerHTML;
   const win = window.open('', '_blank', 'width=320,height=600');
   win.document.write(`<!DOCTYPE html><html><head><title>Ticket</title>
@@ -1048,6 +1062,7 @@ function printReceipt80() {
 }
 
 function printReceiptA4() {
+  if (!rateLimitClick('print.ticketA4', 15, 60000)) { rateLimitWarn('print.ticketA4', 15, 60000); return; }
   const d = JSON.parse(document.getElementById('receipt-a4-data').textContent);
   if (!d) return;
   const fmt = (n) => Number(n).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});

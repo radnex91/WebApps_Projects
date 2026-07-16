@@ -244,6 +244,7 @@ function showDetail(vid) {
 }
 
 function printReceiptFromHistory() {
+  if (!rateLimitClick('print.ticketHist', 15, 60000)) { rateLimitWarn('print.ticketHist', 15, 60000); return; }
   const vid = currentReceiptVid;
   if (!vid) return;
   const v = ventesData[vid];

@@ -545,3 +545,24 @@ function candleHideTip(wrapId, i) {
     }
   }
 }
+// ── Throttle client-side (export / impression) ──────────────
+// Limite le nombre d'actions identiques par fenêtre de temps côté navigateur.
+// Usage : if (!rateLimitClick('export.mvt', 10, 60000)) return;
+window.rateLimitClick = function(key, max, perMs) {
+  perMs = perMs || 60000;
+  max = max || 10;
+  var store;
+  try { store = JSON.parse(sessionStorage.getItem('rl_clicks') || '{}'); }
+  catch (e) { store = {}; }
+  var now = Date.now();
+  var arr = (store[key] || []).filter(function(t){ return t > now - perMs; });
+  if (arr.length >= max) return false;
+  arr.push(now);
+  store[key] = arr;
+  try { sessionStorage.setItem('rl_clicks', JSON.stringify(store)); } catch (e) {}
+  return true;
+};
+window.rateLimitWarn = function(key, max, perMs) {
+  var sec = Math.round(perMs / 1000);
+  alert('Trop d\'actions (« ' + key + ' »). Maximum ' + max + ' par ' + sec + ' s. Patientez un instant.');
+};

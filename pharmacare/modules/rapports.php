@@ -261,7 +261,7 @@ showFlash();
   <div style="font-family:var(--font-title);font-size:20px;font-weight:600;">
     Rapport de ventes <span style="color:var(--text3);font-weight:400;font-size:14px;">— <?= e($periodeLabel) ?></span>
   </div>
-  <button onclick="window.print()" class="btn btn-ghost btn-sm" style="gap:6px;">
+  <button onclick="printRapport()" class="btn btn-ghost btn-sm" style="gap:6px;">
     <?= icon('receipt',13) ?> Imprimer
   </button>
 </div>
@@ -660,6 +660,12 @@ showFlash();
     form.submit();
   };
 
+  // ── Impression du rapport (throttle) ─────────────────────
+  window.printRapport = function(){
+    if (!rateLimitClick('print.rapport', 10, 60000)) { rateLimitWarn('print.rapport', 10, 60000); return; }
+    window.print();
+  };
+
   // ── Tableau des mouvements ───────────────────────────────
   var mvtTable = document.getElementById('mvt-table');
   var mvtRows  = mvtTable ? mvtTable.querySelectorAll('tbody tr[data-search]') : [];
@@ -703,6 +709,7 @@ showFlash();
   };
 
   window.exportMvtCSV = function(){
+    if (!rateLimitClick('export.mvt', 10, 60000)) { rateLimitWarn('export.mvt', 10, 60000); return; }
     if (!mvtRows.length) return;
     var headers = ['Date/Heure','Reference','Client','Caissier','Medicament','Qte','Prix unitaire','Total ligne','Paiement','Statut'];
     var lines = [headers.join(';')];
