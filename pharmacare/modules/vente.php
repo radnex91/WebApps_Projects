@@ -490,7 +490,7 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
   <div class="cart-panel">
     <div class="card-header">
       <div class="card-title">Nouvelle vente</div>
-      <span id="cart-item-count" style="font-size:12px;color:#94a3b8;display:none;">0 article</span>
+      <span id="cart-item-count" style="font-size:12px;color:#94a3b8;">0 article</span>
     </div>
     <?php if ($sessionActive): ?>
     <div style="padding:6px 16px;background:var(--teal-dim);border-bottom:1px solid var(--border2);font-size:12px;display:flex;justify-content:space-between;align-items:center;">
@@ -499,45 +499,9 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
     </div>
     <?php endif; ?>
 
-    <!-- ── Écran de choix du mode client (avant panier) ── -->
-    <div id="client-choice-screen" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;gap:20px;">
-      <div style="font-size:15px;font-weight:600;color:#f8fafc;text-align:center;">
-        <?= icon('users',24) ?>
-        <div style="margin-top:8px;">Type de vente</div>
-      </div>
-      <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0;">
-        Choisissez le mode client avant de démarrer
-      </p>
-      <button type="button" onclick="chooseClientMode('simple')"
-              style="width:100%;padding:18px;border-radius:12px;border:2px solid #334155;background:#1e293b;color:#f8fafc;cursor:pointer;transition:all 0.2s;text-align:left;font-size:14px;"
-              onmouseover="this.style.borderColor='#10b981';this.style.background='#0f172a'"
-              onmouseout="this.style.borderColor='#334155';this.style.background='#1e293b'">
-        <div style="font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;">
-          <?= icon('user',18) ?> Vente libre
-        </div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">
-          Saisie rapide du nom — client de passage
-        </div>
-      </button>
-      <button type="button" onclick="chooseClientMode('existant')"
-              style="width:100%;padding:18px;border-radius:12px;border:2px solid #334155;background:#1e293b;color:#f8fafc;cursor:pointer;transition:all 0.2s;text-align:left;font-size:14px;"
-              onmouseover="this.style.borderColor='#8b5cf6';this.style.background='#0f172a'"
-              onmouseout="this.style.borderColor='#334155';this.style.background='#1e293b'">
-        <div style="font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;">
-          <?= icon('star',18) ?> Client fidèle
-        </div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">
-          Client enregistré — crédit disponible
-        </div>
-      </button>
-      <div style="font-size:10px;color:#475569;text-align:center;margin-top:auto;">
-        Vous pourrez changer en cours de vente
-      </div>
-    </div>
+    <!-- ── Panier (vente libre par défaut à l'ouverture) ── -->
 
-    <!-- ── Panier (caché tant que mode non choisi) ── -->
-
-    <div id="cart-body" style="display:none;flex:1;flex-direction:column;">
+    <div id="cart-body" style="display:flex;flex:1;flex-direction:column;">
       <div class="cart-items" id="cart-items">
         <!-- Rendu par JS -->
       </div>
@@ -831,19 +795,19 @@ function filterCat(cat) {
 // Afficher la vue liste par défaut (toutes catégories)
 showView(true);
 
-var CLIENT_MODE = null; // 'simple' | 'existant' | null (pas encore choisi)
+var CLIENT_MODE = 'simple'; // Vente libre par défaut à l'ouverture du POS
 
 function chooseClientMode(mode) {
   CLIENT_MODE = mode;
-  var screen  = document.getElementById('client-choice-screen');
+  var screen  = document.getElementById('client-choice-screen'); // peut être absent (écran retiré)
   var cartBody = document.getElementById('cart-body');
   var header  = document.querySelector('.cart-panel .card-header .card-title');
   var count   = document.getElementById('cart-item-count');
 
-  // Cacher l'écran de choix, afficher le panier
-  screen.style.display = 'none';
-  cartBody.style.display = 'flex';
-  count.style.display = '';
+  // Cacher l'écran de choix (s'il existe encore), afficher le panier
+  if (screen) screen.style.display = 'none';
+  if (cartBody) cartBody.style.display = 'flex';
+  if (count) count.style.display = '';
   if (header) header.textContent = 'Panier';
 
   // Ajouter bouton "vider" dans le header
@@ -1188,6 +1152,22 @@ function printReceiptA4() {
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ── Vente libre prioritaire : démarre directement en mode Libre ──
+// La caisse s'ouvre prête à encaisser un client de passage, sans écran de
+// choix. Le bouton « → Fidèle » reste dispo pour basculer vers un client
+// enregistré en cours de vente si besoin.
+(function autoStartLibre(){
+  // configure le panier (boutons Vider / → Fidèle) + verrouille le mode Libre
+  if (typeof chooseClientMode === 'function') {
+    chooseClientMode('simple');
+  }
+  // focus sur la recherche/code-barres pour enchaîner la saisie
+  setTimeout(function(){
+    var bc = document.getElementById('barcode-input');
+    if (bc) bc.focus();
+  }, 120);
+})();
 </script>
 </script>
 <?php endif; ?>
