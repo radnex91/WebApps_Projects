@@ -189,6 +189,10 @@ input[type=text],input[type=email],input[type=password],input[type=number],input
 input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 12px var(--teal-glow);}
 select option{background:var(--bg2);}
 textarea{resize:vertical;min-height:80px;}
+/* Champs numériques sans flèches haut/bas (champ libre mais numérique) */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
 .form-hint{font-size:11px;color:var(--text3);margin-top:2px;}
 .form-error{font-size:11px;color:var(--red);margin-top:2px;}
 
