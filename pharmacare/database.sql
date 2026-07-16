@@ -113,6 +113,8 @@ CREATE TABLE produits (
     description     TEXT,
     stock           INT DEFAULT 0,
     seuil_alerte    INT DEFAULT 10,
+    stock_magasin   INT DEFAULT 0,
+    seuil_magasin   INT DEFAULT 20,
     prix_achat      DECIMAL(10,2) DEFAULT 0,
     prix_vente      DECIMAL(10,2) DEFAULT 0,
     tva             DECIMAL(5,2) DEFAULT 9.00,
@@ -196,6 +198,39 @@ CREATE TABLE mouvements_stock (
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (produit_id) REFERENCES produits(id) ON DELETE SET NULL,
     FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE SET NULL
+);
+
+-- ── Magasin (dépôt central) : Fournisseur → Magasin → Pharmacie ─
+CREATE TABLE mouvements_magasin (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    produit_id    INT,
+    type          ENUM('entrée','sortie','ajustement') NOT NULL,
+    quantite      INT NOT NULL,
+    motif         VARCHAR(255),
+    utilisateur_id INT,
+    transfert_id  INT NULL,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (produit_id)    REFERENCES produits(id)       ON DELETE SET NULL,
+    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE SET NULL
+);
+
+CREATE TABLE transferts_magasin (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    reference     VARCHAR(20) UNIQUE NOT NULL,
+    utilisateur_id INT,
+    note          TEXT,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE SET NULL
+);
+
+CREATE TABLE transfert_lignes (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    transfert_id  INT NOT NULL,
+    produit_id    INT,
+    produit_nom   VARCHAR(200),
+    quantite      INT NOT NULL,
+    FOREIGN KEY (transfert_id) REFERENCES transferts_magasin(id) ON DELETE CASCADE,
+    FOREIGN KEY (produit_id)   REFERENCES produits(id)          ON DELETE SET NULL
 );
 
 -- ════════════════════════════════════════════════════════════
@@ -399,7 +434,10 @@ INSERT INTO permissions (code, libelle, module) VALUES
 -- Marketing
 ('marketing.voir',       'Voir le marketing',             'marketing'),
 ('marketing.promos',     'Gérer les promotions',          'marketing'),
-('marketing.fidelite',   'Gérer la fidélité clients',     'marketing');
+('marketing.fidelite',   'Gérer la fidélité clients',     'marketing'),
+-- Magasin (dépôt central)
+('magasin.voir',         'Voir le stock magasin',         'magasin'),
+('magasin.gerer',        'Gérer le magasin (réceptions & transferts)', 'magasin');
 
 -- ── Permissions par rôle ──────────────────────────────────
 
@@ -407,7 +445,7 @@ INSERT INTO permissions (code, libelle, module) VALUES
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 1, id FROM permissions;
 
--- Pharmacien : 17 permissions + clients.voir
+-- Pharmacien : 17 permissions + clients.voir + magasin
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 2, id FROM permissions WHERE code IN (
     'dashboard.voir', 'vente.creer', 'stock.voir', 'stock.ajuster',
@@ -416,7 +454,8 @@ SELECT 2, id FROM permissions WHERE code IN (
     'commandes.voir', 'commandes.creer', 'commandes.modifier',
     'ventes_hist.voir', 'rapports.voir',
     'clients.voir',
-    'marketing.voir', 'marketing.promos'
+    'marketing.voir', 'marketing.promos',
+    'magasin.voir', 'magasin.gerer'
 );
 
 -- Caissier : 9 permissions

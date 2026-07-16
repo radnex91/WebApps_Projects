@@ -121,19 +121,21 @@ if ($action === 'livrer' && $id && hasPermission('commandes.modifier') && $_SERV
                 );
             }
 
-            // Mettre à jour le stock
+            // Mettre à jour le stock du MAGASIN (dépôt central).
+            // La livraison fournisseur alimente le magasin, qui ravitalle
+            // ensuite la pharmacie via des transferts (module Magasin).
             $lignes = $db->prepare("SELECT produit_id, quantite FROM commande_lignes WHERE commande_id=?");
             $lignes->execute([$id]);
             foreach ($lignes as $l) {
                 if ($l['produit_id']) {
-                    $db->prepare("UPDATE produits SET stock = stock + ? WHERE id = ?")->execute([$l['quantite'], $l['produit_id']]);
-                    $db->prepare("INSERT INTO mouvements_stock (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'entrée',?,?,?)")
+                    $db->prepare("UPDATE produits SET stock_magasin = stock_magasin + ? WHERE id = ?")->execute([$l['quantite'], $l['produit_id']]);
+                    $db->prepare("INSERT INTO mouvements_magasin (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'entrée',?,?,?)")
                        ->execute([$l['produit_id'], $l['quantite'], 'Livraison CMD ' . $cmd['reference'] . ' — ' . $validationNote, currentUser()['id']]);
                 }
             }
 
             $db->commit();
-            flash('Commande livrée — stock mis à jour.');
+            flash('Commande livrée — stock magasin mis à jour. Pensez à transférer vers la pharmacie.');
         } catch (Exception $e) {
             $db->rollBack();
             flash('Erreur : ' . $e->getMessage(), 'error');

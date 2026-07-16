@@ -204,6 +204,7 @@ function genRef(string $prefix): string {
     $tables = [
         'VNT' => 'ventes',
         'CMD' => 'commandes',
+        'TRF' => 'transferts_magasin',
     ];
     $table = $tables[$prefix] ?? 'ventes';
 

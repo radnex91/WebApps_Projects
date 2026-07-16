@@ -86,6 +86,9 @@ function layout_head(string $title, string $activePage = ''): void {
     // Alertes stock
     try { $alertes = getDB()->query("SELECT COUNT(*) FROM produits WHERE stock <= seuil_alerte AND actif=1")->fetchColumn(); }
     catch (Exception $e) { $alertes = 0; }
+    // Alertes stock magasin (dépôt central)
+    try { $alertesMagasin = getDB()->query("SELECT COUNT(*) FROM produits WHERE stock_magasin <= seuil_magasin AND actif=1")->fetchColumn(); }
+    catch (Exception $e) { $alertesMagasin = 0; }
     ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -198,6 +201,14 @@ document.addEventListener('click',function(e){var btn=document.getElementById('s
     <?php if(hasPermission('commandes.voir')): ?>
     <a href="<?= APP_URL ?>/modules/commandes.php" class="nav-item <?= $activePage==='commandes'?'active':'' ?>">
       <span class="nav-icon i-purple"><?= icon('clipboard',14) ?></span> Commandes
+    </a>
+    <?php endif; ?>
+    <?php if(hasPermission('magasin.voir')): ?>
+    <a href="<?= APP_URL ?>/modules/magasin.php" class="nav-item <?= $activePage==='magasin'?'active':'' ?>">
+      <span class="nav-icon i-orange"><?= icon('box',14) ?></span> Magasin
+      <?php if($alertesMagasin > 0): ?>
+        <span class="nav-badge"><?= $alertesMagasin ?></span>
+      <?php endif; ?>
     </a>
     <?php endif; ?>
     <?php if(hasPermission('marketing.voir')): ?>

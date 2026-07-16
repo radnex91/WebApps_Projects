@@ -4,5 +4,8 @@ vendor/
 .DS_Store
 .superpowers/
 
+# PharmaCare : fichiers de rate-limit (artefacts runtime)
+pharmacare/config/.rate_limit/
+
 # Brainy ERP : dépôt git dédié (C:\xampp\htdocs\brainy-erp\.git)
 brainy-erp/
