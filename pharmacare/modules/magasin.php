@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
 
         if (!$lignesValides) {
             flash('Aucune ligne valide pour le transfert.', 'error');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=transfert'); exit;
+            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
         }
 
         try {
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             if ($insuffisants) {
                 $db->rollBack();
                 flash('Stock magasin insuffisant : ' . implode(' ; ', $insuffisants), 'error');
-                header('Location: ' . APP_URL . '/modules/magasin.php?onglet=transfert'); exit;
+                header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
             }
 
             // Créer l'entête de transfert
@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
         } catch (Exception $e) {
             $db->rollBack();
             flash('Erreur lors du transfert : ' . $e->getMessage(), 'error');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=transfert'); exit;
+            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
         }
     }
 
@@ -226,7 +226,6 @@ showFlash();
   <div class="card-pad" style="padding:6px 12px;">
     <div class="flex gap-8" style="flex-wrap:wrap;">
       <a href="?onglet=stock"      class="btn btn-sm <?= $onglet==='stock'?'btn-primary':'btn-ghost' ?>"><?= icon('box',14) ?> Stock magasin</a>
-      <a href="?onglet=transfert"  class="btn btn-sm <?= $onglet==='transfert'?'btn-primary':'btn-ghost' ?>"><?= icon('truck',14) ?> Transfert vers pharmacie</a>
       <?php if (hasPermission('magasin.gerer')): ?>
       <a href="?onglet=reception"  class="btn btn-sm <?= $onglet==='reception'?'btn-primary':'btn-ghost' ?>"><?= icon('plus',14) ?> Réception / Ajustement</a>
       <?php endif; ?>
@@ -240,9 +239,16 @@ showFlash();
 <div class="card">
   <div class="card-header">
     <div class="card-title">Stock du dépôt central (magasin)</div>
-    <div class="search-box" style="min-width:240px;">
-      <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
-      <input type="text" id="search-mag" placeholder="Rechercher un médicament...">
+    <div class="flex gap-8" style="flex-wrap:wrap;align-items:center;">
+      <div class="search-box" style="min-width:240px;">
+        <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
+        <input type="text" id="search-mag" placeholder="Rechercher un médicament...">
+      </div>
+      <?php if (hasPermission('magasin.gerer')): ?>
+      <button type="button" class="btn btn-primary btn-sm" onclick="openTransfertModal()">
+        <?= icon('truck',14) ?> Transfert vers pharmacie
+      </button>
+      <?php endif; ?>
     </div>
   </div>
   <div class="table-wrap">
@@ -278,7 +284,7 @@ showFlash();
           </td>
           <?php if (hasPermission('magasin.gerer')): ?>
           <td style="text-align:right;">
-            <a href="?onglet=transfert&pid=<?= $p['id'] ?>" class="btn btn-ghost btn-xs"><?= icon('truck',13) ?> Transférer</a>
+            <button type="button" class="btn btn-ghost btn-xs" onclick="openTransfertModal(<?= (int)$p['id'] ?>)"><?= icon('truck',13) ?> Transférer</button>
           </td>
           <?php endif; ?>
         </tr>
@@ -304,107 +310,164 @@ document.getElementById('search-mag').addEventListener('input', function(){
 });
 </script>
 
-<?php elseif ($onglet === 'transfert' && hasPermission('magasin.gerer')):
-  $pidPreset = (int)($_GET['pid'] ?? 0);
-?>
-<!-- ═══ Onglet TRANSFERT VERS PHARMACIE ════════════════════ -->
-<div class="card" style="max-width:820px;margin:0 auto;">
-  <div class="card-header">
-    <div class="card-title">Transfert Magasin → Pharmacie</div>
-    <span class="text-sm">Le stock magasin diminue, le stock pharmacie augmente.</span>
-  </div>
-  <div class="card-pad">
-    <form method="POST" action="?onglet=transfert" id="trf-form">
+<?php if (hasPermission('magasin.gerer')): ?>
+<!-- ═══ Modale TRANSFERT VERS PHARMACIE (multi-sélection) ═══ -->
+<div class="modal-overlay" id="modal-transfert">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-header">
+      <div class="modal-title"><?= icon('truck',16) ?> Transfert Magasin → Pharmacie</div>
+      <button class="modal-close" onclick="closeModal('modal-transfert')">✕</button>
+    </div>
+    <form method="POST" action="?onglet=stock" id="trf-form" onsubmit="return submitTransfert(event)">
       <input type="hidden" name="csrf" value="<?= csrf() ?>">
       <input type="hidden" name="action" value="transfert">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);">Produits à transférer</div>
-        <button type="button" class="btn btn-ghost btn-xs" onclick="addTrfLigne()"><?= icon('plus',13) ?> Ajouter une ligne</button>
-      </div>
-      <div id="trf-lignes">
-        <div class="trf-ligne" style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
-          <select name="produit_id[]" style="flex:3;min-width:0;" onchange="updateDispo(this)">
-            <option value="">— Sélectionner un produit —</option>
-            <?php foreach ($produits as $p): ?>
-            <option value="<?= $p['id'] ?>" data-dispo="<?= (int)$p['stock_magasin'] ?>" <?= $pidPreset===$p['id']?'selected':'' ?>><?= e($p['nom']) ?> (mag: <?= (int)$p['stock_magasin'] ?>)</option>
-            <?php endforeach; ?>
-          </select>
-          <input type="number" name="quantite[]" placeholder="Qté" min="1" value="1" style="flex:1;min-width:0;width:90px;" oninput="checkQte(this)">
-          <span class="trf-dispo text-sm" style="color:var(--text3);min-width:90px;"></span>
-          <button type="button" class="btn btn-ghost btn-xs" onclick="this.parentElement.remove()" style="flex-shrink:0;">✕</button>
+      <div class="card-pad" style="padding:14px 18px;">
+        <div class="flex-between" style="margin-bottom:10px;gap:10px;flex-wrap:wrap;">
+          <div class="search-box" style="flex:1;min-width:200px;">
+            <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
+            <input type="text" id="trf-search" placeholder="Filtrer les produits..." oninput="filterTrfList()">
+          </div>
+          <label class="text-sm" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="trf-select-all" onchange="toggleAllTrf(this.checked)">
+            <span>Tout sélectionner</span>
+          </label>
+        </div>
+        <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
+          <table id="trf-table">
+            <thead>
+              <tr>
+                <th style="width:34px;"></th><th>Médicament</th>
+                <th style="text-align:right;">Dispo magasin</th>
+                <th style="text-align:right;">Qté à transférer</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($produits as $p):
+                $dispo = (int)$p['stock_magasin'];
+              ?>
+              <tr data-nom="<?= e(strtolower($p['nom'] . ' ' . $p['reference'])) ?>" data-pid="<?= (int)$p['id'] ?>">
+                <td style="text-align:center;">
+                  <input type="checkbox" class="trf-check" data-pid="<?= (int)$p['id'] ?>" data-dispo="<?= $dispo ?>" onchange="onTrfCheck(this)" <?= $dispo <= 0 ? 'disabled' : '' ?>>
+                </td>
+                <td class="td-name"><?= e($p['nom']) ?>
+                  <?php if ($p['reference']): ?><div class="text-sm td-mono" style="color:var(--text3);"><?= e($p['reference']) ?></div><?php endif; ?>
+                </td>
+                <td class="fw-mono text-right" style="text-align:right;<?= $dispo <= 0 ? 'color:var(--text3);' : '' ?>"><?= fmtInt($dispo) ?></td>
+                <td style="text-align:right;">
+                  <input type="number" class="trf-qte" data-pid="<?= (int)$p['id'] ?>" data-dispo="<?= $dispo ?>" min="1" max="<?= max(1, $dispo) ?>" value="1" disabled style="width:80px;text-align:right;" oninput="onTrfQte(this)">
+                </td>
+              </tr>
+              <?php endforeach; ?>
+              <?php if (!$produits): ?>
+              <tr><td colspan="4"><div class="empty">Aucun produit</div></td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+        <div id="trf-summary" class="text-sm" style="margin-top:10px;color:var(--text3);">0 produit sélectionné.</div>
+        <div class="form-group" style="margin-top:10px;">
+          <label>Note (optionnel)</label>
+          <input type="text" name="note" placeholder="Motif du transfert..." style="width:100%;">
         </div>
       </div>
-      <div class="form-group" style="margin-top:8px;">
-        <label>Note (optionnel)</label>
-        <input type="text" name="note" placeholder="Motif du transfert..." style="width:100%;">
-      </div>
-      <div class="modal-footer" style="padding:0;">
-        <a href="?onglet=stock" class="btn btn-ghost">Annuler</a>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-transfert')">Annuler</button>
         <button type="submit" class="btn btn-primary"><?= icon('truck',14) ?> Valider le transfert</button>
       </div>
     </form>
   </div>
 </div>
 <script>
-var trfProduits = <?= json_encode(array_map(function($p){ return ['id'=>(int)$p['id'],'nom'=>$p['nom'],'dispo'=>(int)$p['stock_magasin']]; }, $produits), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+function openTransfertModal(pid) {
+  // réinitialiser la sélection
+  document.querySelectorAll('#trf-table .trf-check').forEach(function(c){ c.checked = false; });
+  document.querySelectorAll('#trf-table .trf-qte').forEach(function(q){ q.value = '1'; q.disabled = true; q.style.borderColor = ''; });
+  document.getElementById('trf-select-all').checked = false;
+  // pré-cocher le produit demandé (bouton « Transférer » d'une ligne)
+  if (pid) {
+    var cb = document.querySelector('#trf-table .trf-check[data-pid="' + pid + '"]');
+    if (cb && !cb.disabled) {
+      cb.checked = true; onTrfCheck(cb);
+      var row = cb.closest('tr'); if (row) row.scrollIntoView({block:'center'});
+    }
+  }
+  updateTrfSummary();
+  openModal('modal-transfert');
+}
 
-function updateDispo(sel) {
-  var opt = sel.options[sel.selectedIndex];
-  var span = sel.parentElement.querySelector('.trf-dispo');
-  if (opt.value) {
-    span.textContent = 'dispo: ' + opt.getAttribute('data-dispo');
-  } else {
-    span.textContent = '';
+function onTrfCheck(cb) {
+  var qte = document.querySelector('#trf-table .trf-qte[data-pid="' + cb.getAttribute('data-pid') + '"]');
+  if (qte) {
+    qte.disabled = !cb.checked;
+    if (cb.checked) { if (!qte.value) qte.value = '1'; qte.focus(); onTrfQte(qte); }
+    else qte.style.borderColor = '';
   }
-  checkQte(sel.parentElement.querySelector('input[name="quantite[]"]'));
+  updateTrfSummary();
 }
-function checkQte(inp) {
-  var sel = inp.parentElement.querySelector('select');
-  var span = inp.parentElement.querySelector('.trf-dispo');
-  if (!sel.value) return;
-  var dispo = parseInt(sel.options[sel.selectedIndex].getAttribute('data-dispo'), 10);
+
+function onTrfQte(inp) {
+  var dispo = parseInt(inp.getAttribute('data-dispo'), 10);
   var q = parseInt(inp.value, 10) || 0;
-  if (q > dispo) {
-    inp.style.borderColor = 'var(--red)';
-    span.style.color = 'var(--red)';
-    span.textContent = '✕ dispo: ' + dispo + ' (insuffisant)';
-  } else {
-    inp.style.borderColor = '';
-    span.style.color = 'var(--text3)';
-    span.textContent = 'dispo: ' + dispo;
-  }
+  if (q > dispo) { inp.style.borderColor = 'var(--red)'; inp.setCustomValidity('Dépasse le stock disponible'); }
+  else if (q <= 0) { inp.style.borderColor = 'var(--red)'; inp.setCustomValidity('Quantité invalide'); }
+  else { inp.style.borderColor = ''; inp.setCustomValidity(''); }
+  updateTrfSummary();
 }
-function addTrfLigne() {
-  var c = document.getElementById('trf-lignes');
-  var proto = c.querySelector('.trf-ligne');
-  var d = proto.cloneNode(true);
-  d.querySelector('select').value = '';
-  d.querySelector('input[name="quantite[]"]').value = '1';
-  d.querySelector('.trf-dispo').textContent = '';
-  d.querySelector('.trf-dispo').style.color = 'var(--text3)';
-  d.querySelector('input[name="quantite[]"]').style.borderColor = '';
-  c.appendChild(d);
+
+function updateTrfSummary() {
+  var checks = document.querySelectorAll('#trf-table .trf-check:checked');
+  var total = 0, bad = 0;
+  checks.forEach(function(c){
+    var qte = document.querySelector('#trf-table .trf-qte[data-pid="' + c.getAttribute('data-pid') + '"]');
+    var q = parseInt(qte.value, 10) || 0;
+    total += q;
+    if (q <= 0 || q > parseInt(c.getAttribute('data-dispo'), 10)) bad++;
+  });
+  var s = document.getElementById('trf-summary');
+  s.textContent = checks.length + ' produit(s) sélectionné(s) — ' + total + ' unité(s)';
+  s.style.color = bad > 0 ? 'var(--red)' : 'var(--text3)';
 }
-document.querySelectorAll('#trf-lignes .trf-ligne').forEach(function(l){
-  updateDispo(l.querySelector('select'));
-});
-document.getElementById('trf-form').addEventListener('submit', function(e){
-  var lignes = document.querySelectorAll('#trf-lignes .trf-ligne');
-  var ok = false, bad = false;
-  lignes.forEach(function(l){
-    var sel = l.querySelector('select');
-    var q = parseInt(l.querySelector('input[name="quantite[]"]').value, 10) || 0;
-    if (sel.value && q > 0) {
-      ok = true;
-      var dispo = parseInt(sel.options[sel.selectedIndex].getAttribute('data-dispo'), 10);
-      if (q > dispo) bad = true;
+
+function toggleAllTrf(checked) {
+  document.querySelectorAll('#trf-table .trf-check').forEach(function(c){
+    if (c.disabled) return;
+    c.checked = checked; onTrfCheck(c);
+  });
+  updateTrfSummary();
+}
+
+function filterTrfList() {
+  var q = document.getElementById('trf-search').value.toLowerCase();
+  document.querySelectorAll('#trf-table tbody tr').forEach(function(r){
+    r.style.display = r.getAttribute('data-nom').indexOf(q) > -1 ? '' : 'none';
+  });
+}
+
+function submitTransfert(e) {
+  e.preventDefault();
+  var form = document.getElementById('trf-form');
+  var checks = document.querySelectorAll('#trf-table .trf-check:checked');
+  if (checks.length === 0) { alert('Sélectionnez au moins un produit à transférer.'); return false; }
+  var bad = false;
+  checks.forEach(function(c){
+    var pid = c.getAttribute('data-pid');
+    var dispo = parseInt(c.getAttribute('data-dispo'), 10);
+    var qte = document.querySelector('#trf-table .trf-qte[data-pid="' + pid + '"]');
+    var q = parseInt(qte.value, 10) || 0;
+    if (q <= 0 || q > dispo) bad = true;
+    else {
+      // construire les champs envoyés au serveur (alignés produit_id[] / quantite[])
+      var h1 = document.createElement('input'); h1.type = 'hidden'; h1.name = 'produit_id[]'; h1.value = pid; form.appendChild(h1);
+      var h2 = document.createElement('input'); h2.type = 'hidden'; h2.name = 'quantite[]'; h2.value = q; form.appendChild(h2);
     }
   });
-  if (!ok) { e.preventDefault(); alert('Ajoutez au moins une ligne valide.'); return; }
-  if (bad) { e.preventDefault(); alert('Une quantité dépasse le stock magasin disponible.'); return; }
-  if (!confirm('Confirmer le transfert vers la pharmacie ?')) e.preventDefault();
-});
+  if (bad) { alert('Une ou plusieurs quantités sont invalides ou dépassent le stock disponible.'); return false; }
+  if (!confirm('Confirmer le transfert de ' + checks.length + ' produit(s) vers la pharmacie ?')) return false;
+  form.submit();
+  return false;
+}
 </script>
+<?php endif; ?>
 
 <?php elseif ($onglet === 'reception' && hasPermission('magasin.gerer')): ?>
 <!-- ═══ Onglet RÉCEPTION / AJUSTEMENT ══════════════════════ -->
