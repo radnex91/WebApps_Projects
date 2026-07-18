@@ -1,1 +1,2 @@
-Deny from all
+# Apache 2.4 — bloque l'accès direct aux fichiers de rate-limit
+Require all denied

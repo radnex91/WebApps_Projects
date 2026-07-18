@@ -31,8 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'caisse_heure_fermeture'  => preg_match('/^\d{2}:\d{2}$/', $_POST['caisse_heure_fermeture'] ?? '') ? $_POST['caisse_heure_fermeture'] : '22:00',
     ];
 
-    $stmt = $db->prepare("INSERT INTO parametres (cle,valeur) VALUES (?,?) ON DUPLICATE KEY UPDATE valeur=VALUES(valeur)");
-    foreach ($toSave as $k => $v) $stmt->execute([$k, $v]);
+    $stmt = $db->prepare("INSERT INTO parametres (cle,valeur) VALUES (?,?) ON DUPLICATE KEY UPDATE valeur=?");
+    foreach ($toSave as $k => $v) $stmt->execute([$k, $v, $v]);
 
     flash('Paramètres enregistrés avec succès.');
     header('Location: ' . APP_URL . '/modules/parametres.php'); exit;
@@ -314,13 +314,7 @@ function hexToRgba(hex, alpha) {
 }
 
 function previewFont(font, target) {
-  const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;500;600&display=swap`;
-  if (!googleFontsCache[font]) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet'; link.href = url;
-    document.head.appendChild(link);
-    googleFontsCache[font] = true;
-  }
+  // Polices self-hostées (assets/fonts/fonts.css) — déjà chargées dans le head, rien à charger.
   const el = document.getElementById('preview-' + target);
   if (el) el.style.fontFamily = `'${font}', sans-serif`;
 }

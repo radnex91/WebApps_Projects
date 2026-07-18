@@ -270,7 +270,7 @@ layout_head('Magasin — dépôt central', 'magasin');
 showFlash();
 ?>
 
-<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
+<div class="stats-grid no-print" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
   <div class="stat-card s-blue">
     <div class="stat-icon" style="color:var(--blue);opacity:.25;"><?= icon('box',28) ?></div>
     <div class="stat-label">Références</div>
@@ -294,7 +294,7 @@ showFlash();
 </div>
 
 <!-- Onglets -->
-<div class="card" style="margin-bottom:16px;">
+<div class="card no-print" style="margin-bottom:16px;">
   <div class="card-pad" style="padding:6px 12px;">
     <div class="flex gap-8" style="flex-wrap:wrap;">
       <a href="?onglet=stock"      class="btn btn-sm <?= $onglet==='stock'?'btn-primary':'btn-ghost' ?>"><?= icon('box',14) ?> Stock magasin</a>
@@ -312,7 +312,7 @@ showFlash();
   <div class="card-header">
     <div class="card-title">Stock du dépôt central (magasin)</div>
     <div class="flex gap-8" style="flex-wrap:wrap;align-items:center;">
-      <div class="search-box" style="min-width:240px;">
+      <div class="search-box" style="min-width:420px;flex:1;max-width:640px;">
         <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
         <input type="text" id="search-mag" placeholder="Rechercher un médicament...">
       </div>
@@ -419,6 +419,7 @@ document.getElementById('search-mag').addEventListener('input', function(){
               <tr>
                 <th style="width:42px;"></th><th>Médicament</th>
                 <th style="text-align:right;">Dispo magasin</th>
+                <th style="text-align:right;">Dispo pharmacie</th>
                 <th style="text-align:right;">Qté à transférer</th>
               </tr>
             </thead>
@@ -434,13 +435,14 @@ document.getElementById('search-mag').addEventListener('input', function(){
                   <?php if ($p['reference']): ?><div class="text-sm td-mono" style="color:var(--text3);"><?= e($p['reference']) ?></div><?php endif; ?>
                 </td>
                 <td class="fw-mono text-right" style="text-align:right;<?= $dispo <= 0 ? 'color:var(--text3);' : '' ?>"><?= fmtInt($dispo) ?></td>
+                <td class="fw-mono text-right" style="text-align:right;color:var(--text3);"><?= fmtInt((int)$p['stock']) ?></td>
                 <td style="text-align:right;">
                   <input type="number" class="trf-qte" data-pid="<?= (int)$p['id'] ?>" data-dispo="<?= $dispo ?>" min="1" max="<?= max(1, $dispo) ?>" value="1" disabled style="width:80px;text-align:right;" oninput="onTrfQte(this)">
                 </td>
               </tr>
               <?php endforeach; ?>
               <?php if (!$produits): ?>
-              <tr><td colspan="4"><div class="empty">Aucun produit</div></td></tr>
+              <tr><td colspan="5"><div class="empty">Aucun produit</div></td></tr>
               <?php endif; ?>
             </tbody>
           </table>
@@ -749,7 +751,7 @@ function submitRetour(e) {
         <label>Motif</label>
         <input type="text" name="motif" placeholder="Origine de la réception / raison de l'ajustement" style="width:100%;">
       </div>
-      <div class="modal-footer" style="padding:0;">
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px;">
         <a href="?onglet=stock" class="btn btn-ghost">Annuler</a>
         <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> Enregistrer</button>
       </div>
@@ -759,7 +761,12 @@ function submitRetour(e) {
 
 <?php elseif ($onglet === 'historique'): ?>
 <!-- ═══ Onglet HISTORIQUE ══════════════════════════════════ -->
-<div class="card" style="margin-bottom:16px;">
+<div class="flex-between no-print" style="margin-bottom:16px;align-items:center;flex-wrap:wrap;gap:10px;">
+  <div style="font-size:15px;font-weight:600;color:var(--text2);">Historique des mouvements Magasin ↔ Pharmacie</div>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()"><?= icon('report',14) ?> Imprimer l'historique</button>
+</div>
+
+<div class="card no-print" style="margin-bottom:16px;">
   <div class="card-header">
     <div class="card-title">Transferts Magasin → Pharmacie</div>
     <span class="text-sm"><?= count($transferts) ?> transfert(s)</span>
@@ -797,7 +804,7 @@ function submitRetour(e) {
   </div>
 </div>
 
-<div class="card">
+<div class="card no-print">
   <div class="card-header">
     <div class="card-title">Mouvements du magasin</div>
     <span class="text-sm"><?= count($mouvements) ?> mouvement(s)</span>
@@ -832,6 +839,72 @@ function submitRetour(e) {
       </tbody>
     </table>
   </div>
+</div>
+
+<!-- ── Bloc impression A4 ── -->
+<div id="print-history" class="print-only">
+  <div style="text-align:center;margin-bottom:6px;">
+    <div style="font-size:18px;font-weight:700;">Historique des mouvements — Magasin ↔ Pharmacie</div>
+    <div style="font-size:12px;color:#555;">Édité le <?= date('d/m/Y à H:i') ?> — <?= e($appNom ?? 'PharmaCare') ?></div>
+  </div>
+
+  <h3 style="font-size:14px;margin:18px 0 8px;">Transferts Magasin → Pharmacie (<?= count($transferts) ?>)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead>
+      <tr>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Référence</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Date</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Opérateur</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:right;background:#eee;">Lignes</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:right;background:#eee;">Unités</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($transferts as $t): ?>
+      <tr>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= e($t['reference']) ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= date('d/m/Y H:i', strtotime($t['created_at'])) ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= e(trim($t['prenom'] . ' ' . $t['u_nom'])) ?: '—' ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;text-align:right;"><?= (int)$t['nb_lignes'] ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;text-align:right;"><?= fmtInt((int)$t['total_qte']) ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= e($t['note'] ?? '—') ?></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if (!$transferts): ?>
+      <tr><td colspan="6" style="border:1px solid #999;padding:8px;text-align:center;">Aucun transfert</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:14px;margin:18px 0 8px;">Mouvements du magasin (<?= count($mouvements) ?>)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead>
+      <tr>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Date</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Produit</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Type</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:right;background:#eee;">Quantité</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Motif</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Opérateur</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($mouvements as $m): ?>
+      <tr>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= date('d/m/Y H:i', strtotime($m['created_at'])) ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= e($m['pnom'] ?? '—') ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= e($m['type']) ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;text-align:right;"><?= ($m['quantite'] > 0 ? '+' : '') . fmtInt((int)$m['quantite']) ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= e($m['motif'] ?? '—') ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= e(trim($m['prenom'] . ' ' . $m['u_nom'])) ?: '—' ?></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if (!$mouvements): ?>
+      <tr><td colspan="6" style="border:1px solid #999;padding:8px;text-align:center;">Aucun mouvement</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
 </div>
 
 <!-- Modal détail transfert -->

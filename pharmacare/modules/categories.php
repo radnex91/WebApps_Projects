@@ -7,6 +7,19 @@ $db = getDB();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
+    // ── Suppression (POST + CSRF) ──
+    if (($_POST['action'] ?? '') === 'delete') {
+        $did = (int)($_POST['id'] ?? 0);
+        $nb  = $db->prepare("SELECT COUNT(*) FROM produits WHERE categorie_id=? AND actif=1");
+        $nb->execute([$did]); $nb = $nb->fetchColumn();
+        if ($nb > 0) {
+            flash("Impossible : $nb produit(s) utilisent cette catégorie.", 'error');
+        } else {
+            $db->prepare("DELETE FROM categories WHERE id=?")->execute([$did]);
+            flash('Catégorie supprimée.');
+        }
+        header('Location: ' . APP_URL . '/modules/categories.php'); exit;
+    }
     $nom     = trim($_POST['nom'] ?? '');
     $couleur = preg_match('/^#[0-9a-f]{6}$/i', $_POST['couleur']??'') ? $_POST['couleur'] : '#00c9a7';
     $cid     = (int)($_POST['id'] ?? 0);
@@ -17,19 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $db->prepare("INSERT INTO categories (nom,couleur) VALUES (?,?)")->execute([$nom,$couleur]);
         flash('Catégorie ajoutée.');
-    }
-    header('Location: ' . APP_URL . '/modules/categories.php'); exit;
-}
-
-if (isset($_GET['delete'])) {
-    $did = (int)$_GET['delete'];
-    $nb  = $db->prepare("SELECT COUNT(*) FROM produits WHERE categorie_id=? AND actif=1");
-    $nb->execute([$did]); $nb = $nb->fetchColumn();
-    if ($nb > 0) {
-        flash("Impossible : $nb produit(s) utilisent cette catégorie.", 'error');
-    } else {
-        $db->prepare("DELETE FROM categories WHERE id=?")->execute([$did]);
-        flash('Catégorie supprimée.');
     }
     header('Location: ' . APP_URL . '/modules/categories.php'); exit;
 }
@@ -65,7 +65,7 @@ showFlash();
                 </button>
                 <?php if ($c['nb'] == 0): ?>
                 <button class="btn btn-danger btn-xs"
-                  onclick="confirmDelete('?delete=<?= $c['id'] ?>','Supprimer cette catégorie ?')">
+                  onclick="confirmDeletePost('delete','<?= (int)$c['id'] ?>','Supprimer cette catégorie ?')">
                   <?= icon('trash',13) ?>
                 </button>
                 <?php endif; ?>

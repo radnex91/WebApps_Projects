@@ -223,6 +223,27 @@ $ca_cais = $stmtCais->fetchAll();
 $maxCaisCa = $ca_cais ? max(array_column($ca_cais, 'ca')) : 1;
 
 // ── Mouvements détaillés (une ligne par produit vendu) ───────
+// Agrégats sur toute la période (sans charger toutes les lignes)
+$stmtMvtStats = $db->prepare("
+    SELECT COUNT(*) AS nb,
+           COALESCE(SUM(vl.quantite),0) AS tot_qte,
+           COALESCE(SUM(vl.total_ligne),0) AS tot_ca
+    FROM vente_lignes vl
+    JOIN ventes v ON vl.vente_id = v.id
+    WHERE DATE(v.created_at) BETWEEN ? AND ?
+");
+$stmtMvtStats->execute([$dateDebut, $dateFin]);
+$mvtStats = $stmtMvtStats->fetch();
+$nbMvt     = (int)($mvtStats['nb'] ?? 0);
+$totQteMvt = (float)($mvtStats['tot_qte'] ?? 0);
+$totCaMvt  = (float)($mvtStats['tot_ca'] ?? 0);
+
+// Liste paginée (affichage + impression + CSV portent sur la page courante)
+require_once __DIR__ . '/../includes/pagination.php';
+$mvtPerPage = 50;
+$mvtPage    = max(1, (int)($_GET['mvt_page'] ?? 1));
+$mvtOffset  = paginateOffset($mvtPage, $mvtPerPage);
+
 $stmtMvt = $db->prepare("
     SELECT v.id, v.reference, v.client_nom, v.mode_paiement, v.statut_paiement,
            v.created_at,
@@ -233,12 +254,10 @@ $stmtMvt = $db->prepare("
     LEFT JOIN utilisateurs u ON u.id = v.caissier_id
     WHERE DATE(v.created_at) BETWEEN ? AND ?
     ORDER BY v.created_at DESC, vl.id ASC
+    LIMIT $mvtPerPage OFFSET $mvtOffset
 ");
 $stmtMvt->execute([$dateDebut, $dateFin]);
 $mouvements = $stmtMvt->fetchAll();
-$nbMvt = count($mouvements);
-$totQteMvt = $nbMvt ? array_sum(array_column($mouvements, 'quantite')) : 0;
-$totCaMvt  = $nbMvt ? array_sum(array_column($mouvements, 'total_ligne')) : 0;
 
 // ── Infos complémentaires (hors période) ─────────────────────
 $nb_produits     = $db->query("SELECT COUNT(*) FROM produits WHERE actif=1")->fetchColumn();
@@ -571,13 +590,7 @@ showFlash();
       <?php endif; ?>
     </table>
   </div>
-  <?php if ($nbMvt > 20): ?>
-  <div style="padding:12px 20px;border-top:1px solid var(--border);text-align:center;">
-    <button class="btn btn-ghost btn-sm" id="mvt-more" onclick="showAllMvt()" style="gap:6px;">
-      <?= icon('eye',13) ?> Afficher les <?= $nbMvt ?> mouvements (20 premiers affichés)
-    </button>
-  </div>
-  <?php endif; ?>
+  <?= renderPagination($mvtPage, $mvtPerPage, $nbMvt, ['periode'=>$periode,'debut'=>$debut,'fin'=>$fin], 'mvt_page') ?>
 </div>
 
 <!-- ── Contenu imprimable (tous les mouvements de la période) ── -->
@@ -740,7 +753,7 @@ showFlash();
     doc.open();
     doc.write('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">'
       + '<title>Rapport des mouvements de vente</title>'
-      + '<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">'
+      + '<link href="<?= APP_URL ?>/assets/fonts/fonts.css" rel="stylesheet">'
       + '<style>'
       + '*{margin:0;padding:0;box-sizing:border-box;}'
       + 'body{font-family:\'Manrope\',sans-serif;color:#1e293b;padding:24px;max-width:1000px;margin:0 auto;}'

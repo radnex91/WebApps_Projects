@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 // ── Configuration chargée depuis env.php ─────────────────
 require_once __DIR__ . '/env.php';
 

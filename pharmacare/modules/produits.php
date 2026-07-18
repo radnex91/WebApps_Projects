@@ -7,10 +7,14 @@ $db     = getDB();
 $action = $_GET['action'] ?? 'list';
 $id     = (int)($_GET['id'] ?? 0);
 
-// ── Suppression ─────────────────────────────────────────────
-if ($action === 'delete' && $id && hasPermission('produits.archiver')) {
-    $db->prepare("UPDATE produits SET actif=0 WHERE id=?")->execute([$id]);
-    flash('Médicament archivé.');
+// ── Suppression (POST + CSRF) ───────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete' && hasPermission('produits.archiver')) {
+    verifyCsrf();
+    $delId = (int)($_POST['id'] ?? 0);
+    if ($delId) {
+        $db->prepare("UPDATE produits SET actif=0 WHERE id=?")->execute([$delId]);
+        flash('Médicament archivé.');
+    }
     header('Location: ' . APP_URL . '/modules/produits.php'); exit;
 }
 
@@ -140,19 +144,31 @@ if (in_array($action, ['add','edit'])) {
 }
 
 // ── Vue liste ────────────────────────────────────────────────
+require_once __DIR__ . '/../includes/pagination.php';
 $q     = trim($_GET['q'] ?? '');
+$where = "p.actif=1";
+$params = [];
+if ($q !== '') {
+    $qEsc = str_replace(['\\','%','_'], ['\\\\','\%','\_'], $q);
+    $where .= " AND (p.nom LIKE ? ESCAPE '\\\\' OR p.reference LIKE ? ESCAPE '\\\\')";
+    $params[] = "%$qEsc%";
+    $params[] = "%$qEsc%";
+}
+
+$perPage = 25;
+$page    = max(1, (int)($_GET['page'] ?? 1));
+$cntStmt = $db->prepare("SELECT COUNT(*) FROM produits p WHERE $where");
+$cntStmt->execute($params);
+$totalProduits = (int)$cntStmt->fetchColumn();
+$offset  = paginateOffset($page, $perPage);
+
 $query = "SELECT p.*, c.nom AS cat, f.nom AS fourn
           FROM produits p
           LEFT JOIN categories c ON p.categorie_id=c.id
           LEFT JOIN fournisseurs f ON p.fournisseur_id=f.id
-          WHERE p.actif=1";
-$params = [];
-if ($q !== '') {
-    $query  .= " AND (p.nom LIKE ? OR p.reference LIKE ?)";
-    $params[] = "%$q%";
-    $params[] = "%$q%";
-}
-$query .= " ORDER BY p.nom";
+          WHERE $where
+          ORDER BY p.nom
+          LIMIT $perPage OFFSET $offset";
 $stmt   = $db->prepare($query);
 $stmt->execute($params);
 $produits = $stmt->fetchAll();
@@ -165,7 +181,7 @@ showFlash();
     <div class="card-title">Liste des médicaments</div>
     <div class="flex gap-8">
       <form method="GET" style="display:flex;">
-        <div class="search-box" style="width:210px;">
+        <div class="search-box" style="min-width:420px;flex:1;max-width:640px;">
           <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
           <input type="text" name="q" placeholder="Rechercher..." value="<?= e($q) ?>">
         </div>
@@ -180,7 +196,7 @@ showFlash();
       <thead>
         <tr>
           <th>Médicament</th><th>Réf.</th><th>Catégorie</th>
-          <th>Stock</th><th>P. Vente</th><th>Expiration</th>
+          <th>Stock</th><th>P. Achat</th><th>P. Vente</th><th>Expiration</th>
           <th>Fournisseur</th><th>Statut</th>
           <?php if (hasPermission('produits.modifier') || hasPermission('produits.archiver')): ?><th>Actions</th><?php endif; ?>
         </tr>
@@ -196,6 +212,7 @@ showFlash();
           <td class="td-mono"><?= e($p['reference'] ?? '—') ?></td>
           <td><span class="badge badge-gray"><?= e($p['cat'] ?? '—') ?></span></td>
           <td><strong><?= $p['stock'] ?></strong></td>
+          <td class="fw-mono" style="color:var(--text3);"><?= fmtMoney((float)$p['prix_achat']) ?></td>
           <td class="fw-mono c-teal"><?= fmtMoney((float)$p['prix_vente']) ?></td>
           <td class="text-sm"><?= $p['date_expiration'] ? date('d/m/Y', strtotime($p['date_expiration'])) : '—' ?></td>
           <td class="text-sm"><?= e($p['fourn'] ?? '—') ?></td>
@@ -205,7 +222,7 @@ showFlash();
             <div class="flex gap-8">
               <a href="?action=edit&id=<?= $p['id'] ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?></a>
               <button class="btn btn-danger btn-xs"
-                onclick="confirmDelete('?action=delete&id=<?= $p['id'] ?>','Archiver ce médicament ?')">
+                onclick="confirmDeletePost('delete','<?= (int)$p['id'] ?>','Archiver ce médicament ?')">
                 <?= icon('trash',13) ?>
               </button>
             </div>
@@ -224,5 +241,6 @@ showFlash();
       </tbody>
     </table>
   </div>
+  <?= renderPagination($page, $perPage, $totalProduits, ['q'=>$q]) ?>
 </div>
 <?php layout_foot(); ?>

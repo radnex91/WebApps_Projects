@@ -82,6 +82,7 @@ nav::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px;}
 .nav-icon.i-slate::before{background:radial-gradient(circle,#64748b,#475569);}
 .nav-icon.i-slate::after{box-shadow:0 0 12px #64748b;}
 .nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;box-shadow:0 0 8px var(--red-glow);}
+.nav-badge.nav-badge-gold{background:var(--gold);color:#3a2a00;box-shadow:0 0 8px var(--gold-glow);}
 .sidebar-footer{padding:14px;border-top:1px solid var(--border);}
 .user-card{display:flex;align-items:center;gap:10px;padding:9px;border-radius:var(--radius-sm);background:var(--glass);border:1px solid var(--border);margin-bottom:6px;backdrop-filter:blur(8px);}
 .avatar{width:33px;height:33px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;}
@@ -366,6 +367,7 @@ body.login-page{overflow:auto;display:flex;align-items:center;justify-content:ce
 /* ── CANDLE CHART SVG ───────────────────────────────────── */
 .candle-chart-svg{display:block;width:100%;height:auto;}
 .candle-chart-wrap{position:relative;padding:10px 6px 4px;}
+.bar-chart-wrap{position:relative;padding:10px 6px 4px;}
 .candle-chart-svg .candle-body{transition:all .2s cubic-bezier(.4,0,.2,1);}
 .candle-chart-svg .candle-body:hover{stroke-width:2.5 !important;opacity:1 !important;}
 .candle-chart-svg:hover .candle-body{opacity:0.85;}
@@ -381,6 +383,7 @@ body.login-page{overflow:auto;display:flex;align-items:center;justify-content:ce
 @media(max-width:1000px){.products-grid-pos{grid-template-columns:repeat(2,1fr);}.pos-layout{grid-template-columns:1fr;}.cart-panel{max-height:50vh;}}
 
 /* ── PRINT — Ticket thermique 80mm ─────────────────────── */
+.print-only{display:none;}
 @media print {
   body { background: #fff !important; color: #000 !important; font-size: 12px !important; }
   #sidebar, #topbar, .btn, .modal-close, .modal-footer,
@@ -388,6 +391,8 @@ body.login-page{overflow:auto;display:flex;align-items:center;justify-content:ce
   .cart-panel, .products-grid-pos, .card-header,
   .form-group, .divider, .page-btn, .pagination,
   .modal-overlay:not(.print-me) { display: none !important; }
+  .no-print{display:none !important;}
+  .print-only{display:block !important;}
   #main { margin-left: 0 !important; }
   #content { padding: 0 !important; overflow: visible !important; }
   .card, .modal { border: none !important; box-shadow: none !important;

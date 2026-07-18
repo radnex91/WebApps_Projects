@@ -1,0 +1,21 @@
+{
+    "name": "pharmacare/app",
+    "description": "PharmaCare — gestion de pharmacie",
+    "type": "project",
+    "require": {
+        "php": ">=8.0",
+        "ext-pdo": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PharmaCare\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    }
+}

@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../config/settings.php';
+require_once __DIR__ . '/../includes/pagination.php';
 requirePermission('ventes_hist.voir');
 $db = getDB();
 
@@ -20,6 +21,12 @@ $whereS = "DATE(created_at) BETWEEN " . $db->quote($dateDebut) . " AND " . $db->
 if ($mode) $whereS .= " AND mode_paiement=" . $db->quote($mode);
 if (!$estAdmin) $whereS .= " AND caissier_id=" . (int)$_SESSION['user_id'];
 
+// ── Pagination ──
+$perPage = 25;
+$page    = max(1, (int)($_GET['page'] ?? 1));
+$totalVentes = (int)$db->query("SELECT COUNT(*) FROM ventes v WHERE $whereV")->fetchColumn();
+$offset  = paginateOffset($page, $perPage);
+
 $ventes = $db->query("
     SELECT v.*, u.prenom, u.nom AS u_nom, COUNT(vl.id) AS nb_lignes
     FROM ventes v
@@ -27,6 +34,7 @@ $ventes = $db->query("
     LEFT JOIN vente_lignes vl ON vl.vente_id = v.id
     WHERE $whereV
     GROUP BY v.id ORDER BY v.created_at DESC
+    LIMIT $perPage OFFSET $offset
 ")->fetchAll();
 
 $stats = $db->query("
@@ -164,6 +172,7 @@ showFlash();
       </tbody>
     </table>
   </div>
+  <?= renderPagination($page, $perPage, $totalVentes, ['debut'=>$dateDebut,'fin'=>$dateFin,'mode'=>$mode]) ?>
 </div>
 
 <!-- Modal détail vente -->
@@ -270,7 +279,7 @@ function printReceiptFromHistory() {
   const win = window.open('', '_blank', 'width=320,height=600');
   win.document.write(`<!DOCTYPE html><html><head><title>Ticket ${v.reference}</title>
     <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'DM Mono',monospace;font-size:12px;line-height:1.5;padding:8px;max-width:280px;margin:0 auto;}@media print{body{margin:0;}@page{margin:0;size:80mm auto;}}</style>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="<?= APP_URL ?>/assets/fonts/fonts.css" rel="stylesheet">
   </head><body>${receiptHtml}<script>window.onload=function(){window.print();}<\/script></body></html>`);
   win.document.close();
 }

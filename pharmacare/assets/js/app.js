@@ -20,6 +20,28 @@ function confirmDelete(url, msg) {
   });
 }
 
+// ── Confirm delete en POST + CSRF (actions destructives) ──
+// Soumet un formulaire POST vers l'URL courante avec action/id/csrf.
+function confirmDeletePost(action, id, msg) {
+  showConfirm('Confirmer la suppression', msg || 'Cette action est irréversible.', function() {
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '';
+    var addHidden = function(name, value) {
+      var h = document.createElement('input');
+      h.type = 'hidden';
+      h.name = name;
+      h.value = value;
+      form.appendChild(h);
+    };
+    addHidden('action', action);
+    if (id) addHidden('id', id);
+    addHidden('csrf', window.CSRF_TOKEN || '');
+    document.body.appendChild(form);
+    form.submit();
+  });
+}
+
 // ── Confirm modal ──────────────────────────────────────────
 function showConfirm(title, message, onConfirm) {
   let overlay = document.getElementById('confirm-overlay');
@@ -543,6 +565,45 @@ function candleHideTip(wrapId, i) {
       bodies[i].setAttribute('stroke-width', '1.5');
       bodies[i].style.opacity = '';
     }
+  }
+}
+
+// ── Bar Chart Tooltip ───────────────────────────────────────
+function barShowTip(el, wrapId, label, rowsJson) {
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) return;
+  let tip = wrap.querySelector('.chart-tooltip');
+  if (!tip) { tip = document.createElement('div'); tip.className = 'chart-tooltip'; wrap.appendChild(tip); }
+  tip.replaceChildren();
+  const lbl = document.createElement('div'); lbl.className = 'ct-label'; lbl.textContent = label;
+  tip.appendChild(lbl);
+  let rows = [];
+  try { rows = JSON.parse(rowsJson); } catch (e) { rows = []; }
+  rows.forEach(function (r) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;gap:14px;font-size:11px;line-height:1.5;';
+    const k = document.createElement('span'); k.style.color = 'var(--text3)'; k.textContent = r[0];
+    const v = document.createElement('span'); v.style.fontWeight = '600'; v.style.color = 'var(--text)'; v.textContent = r[1];
+    row.appendChild(k); row.appendChild(v);
+    tip.appendChild(row);
+  });
+  tip.style.display = 'block';
+  void tip.offsetWidth;
+  tip.classList.add('visible');
+  const rect = el.getBoundingClientRect();
+  const wrapRect = wrap.getBoundingClientRect();
+  let left = rect.left - wrapRect.left + rect.width / 2 - tip.offsetWidth / 2;
+  let top  = rect.top - wrapRect.top - tip.offsetHeight - 8;
+  left = Math.max(6, Math.min(left, wrapRect.width - tip.offsetWidth - 6));
+  top  = Math.max(6, top);
+  tip.style.left = left + 'px';
+  tip.style.top  = top + 'px';
+}
+function barHideTip(wrapId) {
+  const wrap = document.getElementById(wrapId);
+  if (wrap) {
+    const tip = wrap.querySelector('.chart-tooltip');
+    if (tip) { tip.classList.remove('visible'); }
   }
 }
 // ── Throttle client-side (export / impression) ──────────────

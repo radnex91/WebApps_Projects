@@ -41,6 +41,16 @@ function icon(string $name, int $size = 18, string $extra = ''): string {
         'book'         => '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/>',
         'balance'      => '<path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/><path d="M2 20h20"/>',
         'megaphone'    => '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/><circle cx="22" cy="12" r="2"/><path d="M22 5a7 7 0 0 1 0 14"/>',
+        // ── Icônes médicales / pharmaceutiques (sidebar) ──
+        'pulse'        => '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+        'bag'          => '<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+        'cash-register' => '<rect x="3" y="8" width="18" height="13" rx="1"/><rect x="7" y="3" width="10" height="5" rx="1"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="7" y1="16" x2="7" y2="18"/><line x1="11" y1="16" x2="11" y2="18"/><line x1="15" y1="16" x2="15" y2="18"/><line x1="18" y1="16" x2="18" y2="18"/>',
+        'boxes'        => '<rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="12" y1="9" x2="12" y2="15"/>',
+        'capsule'      => '<rect x="2" y="9" width="20" height="6" rx="3"/><line x1="12" y1="9" x2="12" y2="15"/>',
+        'warehouse'    => '<path d="M3 21V8l9-5 9 5v13"/><path d="M3 21h18"/><rect x="9" y="13" width="6" height="8"/><line x1="9" y1="17" x2="15" y2="17"/>',
+        'calculator'   => '<rect x="5" y="2" width="14" height="20" rx="2"/><rect x="8" y="5" width="8" height="3" rx="1"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/><line x1="8" y1="20" x2="8" y2="20"/><line x1="12" y1="20" x2="12" y2="20"/><line x1="16" y1="20" x2="16" y2="20"/>',
+        'shield'       => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+        'stethoscope'  => '<path d="M4 3v5a4 4 0 0 0 8 0V3"/><path d="M6 3h4"/><path d="M8 12v3a5 5 0 0 0 10 0v-1"/><circle cx="18" cy="13" r="2"/><circle cx="21" cy="16" r="2"/>',
     ];
     $path = $icons[$name] ?? $icons['settings'];
     return '<svg width="'.$s.'" height="'.$s.'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" '.$extra.'>'.$path.'</svg>';
@@ -78,10 +88,9 @@ function layout_head(string $title, string $activePage = ''): void {
     $border    = $isLight ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.06)';
     $border2   = $isLight ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.1)';
 
-    // Google Fonts URL
+    // Polices self-hostées (Manrope + DM Mono) — pas de CDN en prod
     $bodyFont  = urlencode($police);
     $titleFont = urlencode($policeTitre);
-    $fontsUrl  = "https://fonts.googleapis.com/css2?family={$bodyFont}:wght@300;400;500;600;700;800&family={$titleFont}:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap";
 
     // Alertes stock
     try { $alertes = getDB()->query("SELECT COUNT(*) FROM produits WHERE stock <= seuil_alerte AND actif=1")->fetchColumn(); }
@@ -96,9 +105,8 @@ function layout_head(string $title, string $activePage = ''): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= e($title) ?> — <?= e($appNom) ?></title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="<?= $fontsUrl ?>" rel="stylesheet">
-<link rel="stylesheet" href="<?= APP_URL ?>/assets/css/style.css">
+<link rel="stylesheet" href="<?= APP_URL ?>/assets/fonts/fonts.css?v=<?= APP_VERSION ?>">
+<link rel="stylesheet" href="<?= APP_URL ?>/assets/css/style.css?v=<?= APP_VERSION ?>">
 <style>
 :root {
   --teal:    <?= $c1 ?>;
@@ -145,7 +153,13 @@ body, .nav-item, .btn, input, select, textarea, td, th { font-family: var(--font
 <body>
 <script>
 function toggleStockPanel(){var p=document.getElementById('stock-panel');if(p)p.style.display=p.style.display==='none'?'block':'none';}
-document.addEventListener('click',function(e){var btn=document.getElementById('stock-alert-btn');var panel=document.getElementById('stock-panel');if(panel&&panel.style.display!=='none'&&btn&&!btn.contains(e.target)&&!panel.contains(e.target)){panel.style.display='none';}});
+function toggleMagasinPanel(){var p=document.getElementById('magasin-panel');if(p)p.style.display=p.style.display==='none'?'block':'none';}
+document.addEventListener('click',function(e){
+  var sb=document.getElementById('stock-alert-btn'),sp=document.getElementById('stock-panel');
+  if(sp&&sp.style.display!=='none'&&sb&&!sb.contains(e.target)&&!sp.contains(e.target)){sp.style.display='none';}
+  var mb=document.getElementById('magasin-alert-btn'),mp=document.getElementById('magasin-panel');
+  if(mp&&mp.style.display!=='none'&&mb&&!mb.contains(e.target)&&!mp.contains(e.target)){mp.style.display='none';}
+});
 </script>
 
 <div id="sidebar">
@@ -160,24 +174,24 @@ document.addEventListener('click',function(e){var btn=document.getElementById('s
     <?php if(hasPermission('dashboard.voir')): ?>
     <div class="nav-section">Principal</div>
     <a href="<?= APP_URL ?>/dashboard.php" class="nav-item <?= $activePage==='dashboard'?'active':'' ?>">
-      <span class="nav-icon i-teal"><?= icon('dashboard',14) ?></span> Tableau de bord
+      <span class="nav-icon i-teal"><?= icon('pulse',14) ?></span> Tableau de bord
     </a>
     <?php endif; ?>
     <?php if(hasPermission('vente.creer')): ?>
     <a href="<?= APP_URL ?>/modules/vente.php" class="nav-item <?= $activePage==='vente'?'active':'' ?>">
-      <span class="nav-icon i-green"><?= icon('cart',14) ?></span> Point de Vente
+      <span class="nav-icon i-green"><?= icon('bag',14) ?></span> Point de Vente
     </a>
     <?php endif; ?>
     <?php if(hasPermission('caisse.voir') || hasPermission('caisse.ouvrir')): ?>
     <a href="<?= APP_URL ?>/modules/caisse.php" class="nav-item <?= $activePage==='caisse'?'active':'' ?>">
-      <span class="nav-icon i-gold"><?= icon('money',14) ?></span> Caisses
+      <span class="nav-icon i-gold"><?= icon('cash-register',14) ?></span> Caisses
     </a>
     <?php endif; ?>
     <?php if(hasPermission('stock.voir') || hasPermission('produits.voir') || hasPermission('fournisseurs.voir') || hasPermission('commandes.voir')): ?>
     <div class="nav-section">Gestion</div>
     <?php if(hasPermission('stock.voir')): ?>
     <a href="<?= APP_URL ?>/modules/stock.php" class="nav-item <?= $activePage==='stock'?'active':'' ?>">
-      <span class="nav-icon i-orange"><?= icon('box',14) ?></span> Stock
+      <span class="nav-icon i-orange"><?= icon('boxes',14) ?></span> Stock
       <?php if($alertes > 0): ?>
         <span class="nav-badge"><?= $alertes ?></span>
       <?php endif; ?>
@@ -185,12 +199,12 @@ document.addEventListener('click',function(e){var btn=document.getElementById('s
     <?php endif; ?>
     <?php if(hasPermission('produits.voir')): ?>
     <a href="<?= APP_URL ?>/modules/produits.php" class="nav-item <?= $activePage==='produits'?'active':'' ?>">
-      <span class="nav-icon i-cyan"><?= icon('pill',14) ?></span> Médicaments
+      <span class="nav-icon i-cyan"><?= icon('capsule',14) ?></span> Médicaments
     </a>
     <?php endif; ?>
     <?php if(hasPermission('fournisseurs.voir')): ?>
     <a href="<?= APP_URL ?>/modules/fournisseurs.php" class="nav-item <?= $activePage==='fournisseurs'?'active':'' ?>">
-      <span class="nav-icon i-blue"><?= icon('building',14) ?></span> Fournisseurs
+      <span class="nav-icon i-blue"><?= icon('truck',14) ?></span> Fournisseurs
     </a>
     <?php endif; ?>
     <?php if(hasPermission('clients.voir') && fideliteActive()): ?>
@@ -205,9 +219,9 @@ document.addEventListener('click',function(e){var btn=document.getElementById('s
     <?php endif; ?>
     <?php if(hasPermission('magasin.voir')): ?>
     <a href="<?= APP_URL ?>/modules/magasin.php" class="nav-item <?= $activePage==='magasin'?'active':'' ?>">
-      <span class="nav-icon i-orange"><?= icon('box',14) ?></span> Magasin
+      <span class="nav-icon i-orange"><?= icon('warehouse',14) ?></span> Magasin
       <?php if($alertesMagasin > 0): ?>
-        <span class="nav-badge"><?= $alertesMagasin ?></span>
+        <span class="nav-badge nav-badge-gold"><?= $alertesMagasin ?></span>
       <?php endif; ?>
     </a>
     <?php endif; ?>
@@ -236,7 +250,7 @@ document.addEventListener('click',function(e){var btn=document.getElementById('s
     <?php endif; ?>
     <?php if(hasPermission('comptabilite.voir')): ?>
     <a href="<?= APP_URL ?>/modules/comptabilite.php" class="nav-item <?= $activePage==='comptabilite'?'active':'' ?>">
-      <span class="nav-icon i-teal"><?= icon('book',14) ?></span> Comptabilité
+      <span class="nav-icon i-teal"><?= icon('calculator',14) ?></span> Comptabilité
     </a>
     <?php endif; ?>
     <?php endif; ?>
@@ -253,7 +267,7 @@ document.addEventListener('click',function(e){var btn=document.getElementById('s
     <?php endif; ?>
     <?php if(hasPermission('roles.voir')): ?>
     <a href="<?= APP_URL ?>/modules/roles.php" class="nav-item <?= $activePage==='roles'?'active':'' ?>">
-      <span class="nav-icon i-purple"><?= icon('lock',14) ?></span> Rôles & Permissions
+      <span class="nav-icon i-purple"><?= icon('shield',14) ?></span> Rôles & Permissions
     </a>
     <?php endif; ?>
     <?php if(hasPermission('categories.voir')): ?>
@@ -327,6 +341,47 @@ document.addEventListener('click',function(e){var btn=document.getElementById('s
       </div>
     </div>
     <?php endif; ?>
+    <?php if ($alertesMagasin > 0): ?>
+    <div class="stock-alert-wrapper" style="position:relative;">
+      <button onclick="toggleMagasinPanel()" id="magasin-alert-btn" style="background:var(--gold-dim);border:1px solid var(--gold-glow);color:var(--gold);padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;font-family:inherit;transition:all .15s;">
+        <span style="width:7px;height:7px;background:var(--gold);border-radius:50%;animation:pulse-dot 1.5s infinite;"></span>
+        <?= icon('alert',14) ?> <?= $alertesMagasin ?> magasin
+      </button>
+      <div id="magasin-panel" style="display:none;position:absolute;top:100%;right:0;width:380px;max-height:420px;overflow-y:auto;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow);z-index:300;margin-top:8px;">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-family:var(--font-title);font-size:15px;font-weight:600;color:var(--gold);"><?= icon('alert',16) ?> Alertes magasin</div>
+          <button onclick="toggleMagasinPanel()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;">×</button>
+        </div>
+        <?php
+        $alertMagProds = getDB()->query("
+            SELECT p.id, p.nom, p.stock_magasin, p.seuil_magasin, p.reference,
+                   CASE WHEN p.stock_magasin = 0 THEN 'rupture' ELSE 'bas' END AS niveau
+            FROM produits p
+            WHERE p.actif = 1 AND p.stock_magasin <= p.seuil_magasin
+            ORDER BY p.stock_magasin ASC, p.nom ASC LIMIT 15
+        ")->fetchAll();
+        foreach ($alertMagProds as $ap):
+            $isRupture = $ap['stock_magasin'] == 0;
+        ?>
+        <a href="<?= APP_URL ?>/modules/magasin.php?onglet=stock" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:background .15s;" onmouseover="this.style.background='var(--glass)'" onmouseout="this.style.background='transparent'">
+          <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:<?= $isRupture ? 'var(--red)' : 'var(--gold)' ?>;box-shadow:0 0 6px <?= $isRupture ? 'var(--red-glow)' : 'var(--gold-glow)' ?>;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?= e($ap['nom']) ?></div>
+            <div style="font-size:11px;color:var(--text3);"><?= e($ap['reference'] ?? '—') ?></div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:14px;font-weight:700;color:<?= $isRupture ? 'var(--red)' : 'var(--gold)' ?>;"><?= $ap['stock_magasin'] ?></div>
+            <div style="font-size:10px;color:var(--text3);">seuil <?= $ap['seuil_magasin'] ?></div>
+          </div>
+        </a>
+        <?php endforeach; ?>
+        <?php if ($alertesMagasin > 15): ?>
+        <div style="padding:10px 16px;text-align:center;font-size:12px;color:var(--text3);">+ <?= $alertesMagasin - 15 ?> autre<?= ($alertesMagasin - 15) > 1 ? 's' : '' ?></div>
+        <?php endif; ?>
+        <a href="<?= APP_URL ?>/modules/magasin.php?onglet=stock" style="display:block;padding:10px 16px;text-align:center;font-size:12px;font-weight:600;color:var(--gold);border-top:1px solid var(--border);text-decoration:none;">Voir le stock magasin →</a>
+      </div>
+    </div>
+    <?php endif; ?>
     <span class="badge badge-gray" style="font-size:11px;" id="live-clock"><?= date('d/m/Y H:i') ?></span>
   </div>
   </div>
@@ -338,7 +393,8 @@ function layout_foot(): void {
 ?>
   </div><!-- /content -->
 </div><!-- /main -->
-<script src="<?= APP_URL ?>/assets/js/app.js"></script>
+<script>window.CSRF_TOKEN = <?= json_encode(csrf()) ?>;</script>
+<script src="<?= APP_URL ?>/assets/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script>
 (function(){
   var el=document.getElementById('live-clock');

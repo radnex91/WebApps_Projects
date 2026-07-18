@@ -16,7 +16,12 @@
       "Bash(powershell *)",
       "Bash(xxd \"C:\\\\xampp\\\\htdocs\\\\pharmacare\\\\config\\\\settings.php\")",
       "Bash(Select-String -Pattern \"0000090|00000a0|00000b0|00000c0\")",
-      "Bash(Select-Object -First 8)"
+      "Bash(Select-Object -First 8)",
+      "Skill(impeccable)",
+      "Bash(node *)",
+      "Bash(composer install *)",
+      "Read(//c/xampp/mysql/bin/**)",
+      "Bash(/c/xampp/mysql/bin/mysql.exe -u root -e \"SHOW DATABASES LIKE 'pharmacare%';\")"
     ]
   }
 }

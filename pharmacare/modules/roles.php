@@ -25,6 +25,22 @@ $moduleLabels = [
     'caisse'        => 'Caisses',
 ];
 
+// ── Suppression d'un rôle personnalisé (POST + CSRF) ────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete' && hasPermission('roles.gerer')) {
+    verifyCsrf();
+    $delId = (int)($_POST['id'] ?? 0);
+    $role = $db->prepare("SELECT * FROM roles WHERE id = ? AND est_systeme = 0");
+    $role->execute([$delId]);
+    $role = $role->fetch();
+    if ($role) {
+        $db->prepare("UPDATE utilisateurs SET role_id = 3 WHERE role_id = ?")->execute([$delId]);
+        $db->prepare("DELETE FROM role_permissions WHERE role_id = ?")->execute([$delId]);
+        $db->prepare("DELETE FROM roles WHERE id = ?")->execute([$delId]);
+        flash("Rôle « {$role['libelle']} » supprimé. Les utilisateurs ont été réassignés au rôle Caissier.");
+    }
+    header('Location: ' . APP_URL . '/modules/roles.php'); exit;
+}
+
 // ── POST : mise à jour des permissions ────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== 'add' && hasPermission('roles.gerer')) {
     verifyCsrf();
@@ -83,20 +99,6 @@ if ($action === 'add' && hasPermission('roles.gerer') && $_SERVER['REQUEST_METHO
     header('Location: ' . APP_URL . '/modules/roles.php'); exit;
 }
 
-// ── Suppression d'un rôle personnalisé ─────────────────────
-if ($action === 'delete' && hasPermission('roles.gerer') && $id) {
-    $role = $db->prepare("SELECT * FROM roles WHERE id = ? AND est_systeme = 0");
-    $role->execute([$id]);
-    $role = $role->fetch();
-    if ($role) {
-        $db->prepare("UPDATE utilisateurs SET role_id = 3 WHERE role_id = ?")->execute([$id]);
-        $db->prepare("DELETE FROM role_permissions WHERE role_id = ?")->execute([$id]);
-        $db->prepare("DELETE FROM roles WHERE id = ?")->execute([$id]);
-        flash("Rôle « {$role['libelle']} » supprimé. Les utilisateurs ont été réassignés au rôle Caissier.");
-    }
-    header('Location: ' . APP_URL . '/modules/roles.php'); exit;
-}
-
 // ── Données pour les modales ─────────────────────────────────
 $allPerms = $db->query("SELECT * FROM permissions ORDER BY module, id")->fetchAll();
 $allRolePerms = $db->query("SELECT role_id, permission_id FROM role_permissions")->fetchAll();
@@ -130,9 +132,7 @@ showFlash();
     <table>
       <thead><tr><th>Rôle</th><th>Utilisateurs</th><th>Permissions</th><th>Type</th><th>Actions</th></tr></thead>
       <tbody>
-        <?php foreach ($roles as $r):
-          $rpJson = json_encode($rolePermMap[(int)$r['id']] ?? []);
-        ?>
+        <?php foreach ($roles as $r): ?>
         <tr>
           <td class="td-name">
             <strong><?= e($r['libelle']) ?></strong>
@@ -144,12 +144,12 @@ showFlash();
           <td>
             <div class="flex gap-8">
               <button type="button" class="btn btn-ghost btn-xs"
-                onclick="openEditRoleModal(<?= $r['id'] ?>, '<?= e($rpJson) ?>', '<?= e($r['libelle']) ?>', <?= ($r['code'] === 'admin') ? 'true' : 'false' ?>)">
+                onclick='openEditRoleModal(<?= (int)$r['id'] ?>, <?= json_encode($rolePermMap[(int)$r['id']] ?? [], JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS) ?>, <?= json_encode($r['libelle'], JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS) ?>, <?= ($r['code'] === 'admin') ? 'true' : 'false' ?>)'>
                 <?= icon('edit',13) ?> Permissions
               </button>
               <?php if (!$r['est_systeme'] && hasPermission('roles.gerer')): ?>
-              <a href="?action=delete&id=<?= $r['id'] ?>" class="btn btn-ghost btn-xs" style="color:var(--red);"
-                 onclick="showConfirm('Supprimer ce rôle ?','Les utilisateurs seront réassignés au rôle Caissier.',function(){window.location.href=this.href;}.bind(this));return false;"><?= icon('trash',13) ?></a>
+              <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);"
+                 onclick="confirmDeletePost('delete','<?= (int)$r['id'] ?>','Supprimer ce rôle ?')"><?= icon('trash',13) ?></button>
               <?php endif; ?>
             </div>
           </td>
@@ -162,7 +162,7 @@ showFlash();
 
 <!-- ── Modal Édition Permissions ── -->
 <div class="modal-overlay" id="modal-edit-perms">
-  <div class="modal modal-lg">
+  <div class="modal modal-lg" style="width:920px;max-width:94vw;">
     <div class="modal-header">
       <div class="modal-title" id="modal-edit-title">Permissions</div>
       <button type="button" class="modal-close" onclick="closeModal('modal-edit-perms')">✕</button>
@@ -181,7 +181,7 @@ showFlash();
 
 <!-- ── Modal Nouveau Rôle ── -->
 <div class="modal-overlay" id="modal-new-role">
-  <div class="modal modal-lg">
+  <div class="modal modal-lg" style="width:920px;max-width:94vw;">
     <div class="modal-header">
       <div class="modal-title">Nouveau rôle</div>
       <button type="button" class="modal-close" onclick="closeModal('modal-new-role')">✕</button>
@@ -193,29 +193,38 @@ showFlash();
           <label>Nom du rôle *</label>
           <input type="text" name="libelle" required placeholder="ex: Superviseur" autofocus>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:600;color:var(--text2);">Permissions</span>
           <button type="button" class="btn btn-ghost btn-xs" onclick="var cbs=this.closest('form').querySelectorAll('input[name=\'perms[]\']');var allChecked=true;cbs.forEach(function(c){if(!c.checked)allChecked=false;});cbs.forEach(function(c){c.checked=!allChecked;})">Tout cocher</button>
         </div>
         <?php
-        $currentModule = '';
-        foreach ($allPerms as $p):
-          if ($p['module'] !== $currentModule):
-            if ($currentModule !== '') echo '</div>';
-            $currentModule = $p['module'];
+        // Regroupement par module + ordre d'apparition
+        $byModule = [];
+        foreach ($allPerms as $p) {
+            $byModule[$p['module']][] = $p;
+        }
+        $modIdx = 0;
         ?>
-        <div style="margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-            <?= e($moduleLabels[$p['module']] ?? $p['module']) ?>
-          </div>
-        <?php endif; ?>
+        <div class="role-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+          <?php foreach ($byModule as $mod => $perms): ?>
+          <button type="button" class="btn btn-sm <?= $modIdx === 0 ? 'btn-primary' : 'btn-ghost' ?>"
+                  data-rtab="<?= e($mod) ?>" onclick="switchRoleTab(this)" style="white-space:nowrap;">
+            <?= e($moduleLabels[$mod] ?? $mod) ?> <span style="opacity:.7;font-weight:400;"><?= count($perms) ?></span>
+          </button>
+          <?php $modIdx++; endforeach; ?>
+        </div>
+        <?php $modIdx = 0; ?>
+        <?php foreach ($byModule as $mod => $perms): ?>
+        <div class="role-tab-panel" data-panel="<?= e($mod) ?>" style="display:<?= $modIdx === 0 ? 'block' : 'none' ?>;">
+          <?php foreach ($perms as $p): ?>
           <label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">
             <input type="checkbox" name="perms[]" value="<?= $p['id'] ?>">
             <span><?= e($p['libelle']) ?></span>
             <span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:11px;margin-left:auto;"><?= e($p['code']) ?></span>
           </label>
-        <?php endforeach; ?>
-        <?php if ($currentModule !== '') echo '</div>'; ?>
+          <?php endforeach; ?>
+        </div>
+        <?php $modIdx++; endforeach; ?>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="closeModal('modal-new-role')">Annuler</button>
@@ -233,44 +242,67 @@ function openEditRoleModal(roleId, permsJson, roleName, isAdmin) {
   document.getElementById('edit-role-id').value = roleId;
   document.getElementById('modal-edit-title').textContent = 'Permissions — ' + roleName;
 
-  const rolePerms = JSON.parse(permsJson);
+  const rolePerms = Array.isArray(permsJson) ? permsJson : JSON.parse(permsJson);
   const body = document.getElementById('modal-edit-body');
 
-  let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
-    '<span style="font-size:13px;font-weight:600;color:var(--text2);">Permissions</span>' +
-    '<button type="button" class="btn btn-ghost btn-xs" onclick="var cbs=this.closest(\'form\').querySelectorAll(\'input[name=\\\'perms[]\\\']\');var allChecked=true;cbs.forEach(function(c){if(!c.checked)allChecked=false;});cbs.forEach(function(c){c.checked=!allChecked;})">Tout cocher</button>' +
-    '</div>';
-  let currentModule = '';
-
+  // Regroupement des permissions par module
+  const byModule = {};
+  const order = [];
   ALL_PERMISSIONS.forEach(function(p) {
-    if (p.module !== currentModule) {
-      if (currentModule !== '') html += '</div>';
-      currentModule = p.module;
-      html += '<div style="margin-bottom:16px;">' +
-        '<div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">' +
-        (MODULE_LABELS[p.module] || p.module) +
-        '</div>';
-    }
-    var checked = rolePerms.indexOf(p.id) !== -1 ? 'checked' : '';
-    var disabled = isAdmin ? 'disabled' : '';
-    html += '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">' +
-      '<input type="checkbox" name="perms[]" value="' + p.id + '" ' + checked + ' ' + disabled + '>' +
-      '<span>' + escHtml(p.libelle) + '</span>' +
-      '<span style="color:var(--text3);font-family:\'DM Mono\',monospace;font-size:11px;margin-left:auto;">' + escHtml(p.code) + '</span>' +
-      '</label>';
+    if (!(p.module in byModule)) { byModule[p.module] = []; order.push(p.module); }
+    byModule[p.module].push(p);
   });
 
-  if (currentModule !== '') html += '</div>';
-
+  let html = '';
   if (isAdmin) {
     html += '<div style="background:var(--teal-dim);border:1px solid var(--teal);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--teal2);margin-bottom:14px;">' +
       "L'administrateur dispose de toutes les permissions par conception. Elles ne peuvent pas être retirées." +
       '</div>';
   }
 
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;">' +
+    '<span style="font-size:13px;font-weight:600;color:var(--text2);">Permissions</span>' +
+    '<button type="button" class="btn btn-ghost btn-xs" onclick="var cbs=this.closest(\'form\').querySelectorAll(\'input[name=\\\'perms[]\\\']\');var allChecked=true;cbs.forEach(function(c){if(!c.checked)allChecked=false;});cbs.forEach(function(c){c.checked=!allChecked;})">Tout cocher</button>' +
+    '</div>';
+
+  // Onglets : un par module
+  html += '<div class="role-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);">';
+  order.forEach(function(m, i) {
+    html += '<button type="button" class="btn btn-sm ' + (i === 0 ? 'btn-primary' : 'btn-ghost') + '" data-rtab="' + escHtml(m) + '" onclick="switchRoleTab(this)" style="white-space:nowrap;">' +
+      escHtml(MODULE_LABELS[m] || m) + ' <span style="opacity:.7;font-weight:400;">' + byModule[m].length + '</span></button>';
+  });
+  html += '</div>';
+
+  // Panneaux : un par module
+  order.forEach(function(m, i) {
+    html += '<div class="role-tab-panel" data-panel="' + escHtml(m) + '" style="display:' + (i === 0 ? 'block' : 'none') + ';">';
+    byModule[m].forEach(function(p) {
+      var checked = rolePerms.indexOf(p.id) !== -1 ? 'checked' : '';
+      var disabled = isAdmin ? 'disabled' : '';
+      html += '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;">' +
+        '<input type="checkbox" name="perms[]" value="' + p.id + '" ' + checked + ' ' + disabled + '>' +
+        '<span>' + escHtml(p.libelle) + '</span>' +
+        '<span style="color:var(--text3);font-family:\'DM Mono\',monospace;font-size:11px;margin-left:auto;">' + escHtml(p.code) + '</span>' +
+        '</label>';
+    });
+    html += '</div>';
+  });
+
   body.innerHTML = html;
   document.getElementById('edit-submit-btn').style.display = isAdmin ? 'none' : '';
   openModal('modal-edit-perms');
+}
+
+function switchRoleTab(btn) {
+  var form = btn.closest('form');
+  var m = btn.getAttribute('data-rtab');
+  form.querySelectorAll('.role-tabs .btn').forEach(function(b) {
+    b.classList.remove('btn-primary'); b.classList.add('btn-ghost');
+  });
+  btn.classList.remove('btn-ghost'); btn.classList.add('btn-primary');
+  form.querySelectorAll('.role-tab-panel').forEach(function(p) {
+    p.style.display = p.getAttribute('data-panel') === m ? 'block' : 'none';
+  });
 }
 </script>
 

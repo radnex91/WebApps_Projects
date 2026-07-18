@@ -9,6 +9,17 @@ $id     = (int)($_GET['id'] ?? 0);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
+
+    // ── Toggle actif/désactivé (POST + CSRF) ──
+    if (($_POST['action'] ?? '') === 'toggle') {
+        $tid = (int)($_POST['id'] ?? 0);
+        if ($tid && $tid !== currentUser()['id']) {
+            $db->prepare("UPDATE utilisateurs SET actif = 1-actif WHERE id=?")->execute([$tid]);
+            flash('Statut mis à jour.');
+        }
+        header('Location: ' . APP_URL . '/modules/utilisateurs.php'); exit;
+    }
+
     $nom    = trim($_POST['nom']    ?? '');
     $prenom = trim($_POST['prenom'] ?? '');
     $email  = trim($_POST['email']  ?? '');
@@ -21,6 +32,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $roleCheck = $db->prepare("SELECT id FROM roles WHERE id = ?");
     $roleCheck->execute([$roleId]);
     if (!$roleCheck->fetch()) $roleId = 3; // fallback caissier
+
+    // ── Anti-escalade : un utilisateur ne peut pas modifier son propre rôle ──
+    if ($id === (int)($_SESSION['user_id'] ?? 0)) {
+        $cur = $db->prepare("SELECT role_id FROM utilisateurs WHERE id=?");
+        $cur->execute([$id]);
+        $roleId = (int)$cur->fetchColumn();
+    }
 
     if (!$nom || !$prenom || !$email || !$login) {
         flash('Tous les champs obligatoires doivent être remplis.', 'error');
@@ -48,13 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: ' . APP_URL . '/modules/utilisateurs.php'); exit;
 }
 
-if ($action === 'toggle' && $id) {
-    if ($id !== currentUser()['id']) {
-        $db->prepare("UPDATE utilisateurs SET actif = 1-actif WHERE id=?")->execute([$id]);
-        flash('Statut mis à jour.');
-    }
-    header('Location: ' . APP_URL . '/modules/utilisateurs.php'); exit;
-}
 
 $roles = $db->query("SELECT id, code, libelle, est_systeme FROM roles ORDER BY est_systeme DESC, libelle")->fetchAll();
 
@@ -155,10 +166,11 @@ showFlash();
             <div class="flex gap-8">
               <a href="?action=edit&id=<?= $u['id'] ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?> Modifier</a>
               <?php if ($u['id'] != $currentUid): ?>
-              <a href="?action=toggle&id=<?= $u['id'] ?>"
-                 class="btn <?= $u['actif']?'btn-danger':'btn-gold' ?> btn-xs">
+              <button type="button"
+                 class="btn <?= $u['actif']?'btn-danger':'btn-gold' ?> btn-xs"
+                 onclick="confirmDeletePost('toggle','<?= (int)$u['id'] ?>','<?= $u['actif'] ? 'Désactiver cet utilisateur ?' : 'Activer cet utilisateur ?' ?>')">
                 <?= $u['actif'] ? icon('lock',13).' Désactiver' : icon('unlock',13).' Activer' ?>
-              </a>
+              </button>
               <?php endif; ?>
             </div>
           </td>

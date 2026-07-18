@@ -104,7 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         }
     }
 
-    // Si crédit sans client enregistré → repasse en espèces
+    // Une vente à crédit exige un client enregistré (sinon impossible de constater
+    // la créance en comptabilité : on bloquerait en caisse ce qui n'est pas encaissé).
     if ($modePaiement === 'crédit' && !$clientId) {
         flash('Un client enregistré est requis pour une vente à crédit.', 'error');
         header('Location: ' . APP_URL . '/modules/vente.php'); exit;
@@ -116,11 +117,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         $tvaPct    = (float)getParam('tva', '19.25');
         $subtotal  = 0;
         $tva_total = 0;
+        $coutAchat = 0;  // coût d'achat des marchandises vendues (pour sortie de stock)
 
         // Vérifier les prix côté serveur (sécurité anti-manipulation)
         $pids = array_values(array_map(fn($i) => (int)$i['id'], $cartRaw));
         $ph   = implode(',', array_fill(0, count($pids), '?'));
-        $stmtP = $db->prepare("SELECT id, prix_vente, nom, stock FROM produits WHERE id IN ($ph) AND actif = 1");
+        $stmtP = $db->prepare("SELECT id, prix_vente, prix_achat, nom, stock FROM produits WHERE id IN ($ph) AND actif = 1");
         $stmtP->execute($pids);
         $realPrices = [];
         while ($row = $stmtP->fetch()) {
@@ -137,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
             $sub   = $price * $qty;
             $subtotal  += $sub;
             $tva_total += $sub * $tvaRate;
+            $coutAchat += (float)$realPrices[$pid]['prix_achat'] * $qty;  // COGS au coût d'achat
         }
 
         $total   = $subtotal + $tva_total;
@@ -264,6 +267,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
                     [$caisseCompte, round($total, 2), 0, 'Vente ' . $ref],
                     [$compteVente,  0, round($subtotal, 2), 'Vente médicaments ' . $ref],
                     [$compteTva,    0, round($tva_total, 2), 'TVA collectée ' . $ref],
+                ],
+                'vente', $ref, currentUser()['id']
+            );
+        }
+
+        // ── Sortie de stock au coût d'achat (inventaire intermittent OHADA) ──
+        // Débit 6031 (variation de stock = charge) / Crédit 3111 (stock).
+        // Synchronise le stock comptable avec le stock physique mouvementé.
+        if ($coutAchat > 0) {
+            $compteStock  = compteFindOrCreate($db, '3111', 'Médicaments en stock', 3, 'debit');
+            $compteVarStk = compteFindOrCreate($db, '6031', 'Variation stocks marchandises', 6, 'debit');
+            ecritureCreate($db,
+                'Sortie stock vente ' . $ref,
+                date('Y-m-d'),
+                [
+                    [$compteVarStk, round($coutAchat, 2), 0, 'Sortie stock ' . $ref],
+                    [$compteStock,  0, round($coutAchat, 2), 'Stock vendu ' . $ref],
                 ],
                 'vente', $ref, currentUser()['id']
             );
@@ -1079,7 +1099,7 @@ function printReceipt80() {
       body{font-family:'DM Mono',monospace;font-size:12px;line-height:1.5;padding:8px;max-width:280px;margin:0 auto;}
       @media print{body{margin:0;}@page{margin:0;size:80mm auto;}}
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="<?= APP_URL ?>/assets/fonts/fonts.css" rel="stylesheet">
   </head><body>${content}<script>window.onload=function(){window.print();}<\/script></body></html>`);
   win.document.close();
 }

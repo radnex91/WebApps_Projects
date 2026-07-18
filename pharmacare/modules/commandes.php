@@ -23,8 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($action === 'add' || $action === '
     }
     $fourn_id = !empty($_POST['fournisseur_id']) ? (int)$_POST['fournisseur_id'] : null;
     $statut   = $_POST['statut'] ?? 'en_attente';
-    $date_cmd = $_POST['date_commande'] ?: null;
-    $date_liv = $_POST['date_livraison'] ?: null;
+    $date_cmd = $_POST['date_commande'] ?? null;
+    $date_liv = $_POST['date_livraison'] ?? null;
     $note     = trim($_POST['note'] ?? '');
     $user_id  = currentUser()['id'];
 
@@ -119,6 +119,23 @@ if ($action === 'livrer' && $id && hasPermission('commandes.modifier') && $_SERV
                     ],
                     'commande', $cmd['reference'], currentUser()['id']
                 );
+
+                // Entrée en stock (inventaire intermittent OHADA) :
+                // le stock (3111) est mouvementé HT en contrepartie de la variation
+                // de stock (6031), qui neutralise la charge 6011 à l'inventaire final.
+                if ($montantHt > 0) {
+                    $compteStock  = compteFindOrCreate($db, '3111', 'Médicaments en stock', 3, 'debit');
+                    $compteVarStk = compteFindOrCreate($db, '6031', 'Variation stocks marchandises', 6, 'debit');
+                    ecritureCreate($db,
+                        'Entrée stock CMD ' . $cmd['reference'],
+                        date('Y-m-d'),
+                        [
+                            [$compteStock,  $montantHt, 0, 'Entrée stock ' . $cmd['reference']],
+                            [$compteVarStk, 0, $montantHt, 'Variation stock ' . $cmd['reference']],
+                        ],
+                        'commande', $cmd['reference'], currentUser()['id']
+                    );
+                }
             }
 
             // Mettre à jour le stock du MAGASIN (dépôt central).
@@ -254,11 +271,15 @@ if ($action === 'livrer_form' && $id && hasPermission('commandes.modifier')) {
     <?php layout_foot(); exit;
 }
 
-// ── Supprimer une commande ──────────────────────────────────
-if ($action === 'delete' && $id && hasPermission('commandes.modifier')) {
-    $db->prepare("DELETE FROM commande_lignes WHERE commande_id=?")->execute([$id]);
-    $db->prepare("DELETE FROM commandes WHERE id=?")->execute([$id]);
-    flash('Commande supprimée.');
+// ── Supprimer une commande (POST + CSRF) ───────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete' && hasPermission('commandes.modifier')) {
+    verifyCsrf();
+    $delId = (int)($_POST['id'] ?? 0);
+    if ($delId) {
+        $db->prepare("DELETE FROM commande_lignes WHERE commande_id=?")->execute([$delId]);
+        $db->prepare("DELETE FROM commandes WHERE id=?")->execute([$delId]);
+        flash('Commande supprimée.');
+    }
     header('Location: ' . APP_URL . '/modules/commandes.php'); exit;
 }
 
@@ -358,7 +379,7 @@ if (in_array($action, ['add', 'edit'])) {
         <div class="modal-footer">
           <a href="<?= APP_URL ?>/modules/commandes.php" class="btn btn-ghost">Annuler</a>
           <?php if ($id && hasPermission('commandes.modifier')): ?>
-          <a href="?action=delete&id=<?= $id ?>" class="btn btn-danger" onclick="showConfirm('Supprimer cette commande ?','Cette action est irréversible.',function(){window.location.href=this.href;}.bind(this));return false;"><?= icon('trash',14) ?> Supprimer</a>
+          <button type="button" class="btn btn-danger" onclick="confirmDeletePost('delete','<?= (int)$id ?>','Supprimer cette commande ?')"><?= icon('trash',14) ?> Supprimer</button>
           <?php endif; ?>
           <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> Enregistrer</button>
         </div>

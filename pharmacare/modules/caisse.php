@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../config/settings.php';
+require_once __DIR__ . '/../config/comptabilite.php';
 
 // Accès : caisse.voir OU caisse.ouvrir
 if (!hasPermission('caisse.voir') && !hasPermission('caisse.ouvrir')) {
@@ -145,6 +146,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
     ")->execute([$caisseId, currentUser()['id'], $fond]);
 
     $newSessionId = $db->lastInsertId();
+
+    // Écriture comptable du fond de caisse initial (OHADA) :
+    // Débit 5711 (caisse) / Crédit 471 (compte d'attente — à régulariser selon origine).
+    if ($fond > 0) {
+        $db->beginTransaction();
+        try {
+            $compteCaisse = compteFindOrCreate($db, '5711', 'Caisse principale', 5, 'debit');
+            $compteAttente = compteFindOrCreate($db, '471', 'Compte d\'attente', 4, 'credit');
+            ecritureCreate($db,
+                'Fond de caisse initial — session #' . $newSessionId,
+                date('Y-m-d'),
+                [
+                    [$compteCaisse, round($fond, 2), 0, 'Fond initial session ' . $newSessionId],
+                    [$compteAttente, 0, round($fond, 2), 'Fond initial à régulariser'],
+                ],
+                'caisse', 'FO-' . $newSessionId, currentUser()['id']
+            );
+            $db->commit();
+        } catch (Exception $ex) {
+            $db->rollBack();
+            flash('Caisse ouverte mais écriture comptable du fond échouée : ' . $ex->getMessage(), 'error');
+            header('Location: ?'); exit;
+        }
+    }
+
     auditLog('caisse.open', sprintf('Ouverture caisse #%d : fond %s', (int)$newSessionId, fmtMoney($fond)), (int)$newSessionId);
     flash('Caisse ouverte avec un fond initial de ' . fmtMoney($fond) . '.', 'success');
     header('Location: ?'); exit;
@@ -172,8 +198,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
     }
 
     $labelType = $typeMvt === 'entrée' ? 'Dépôt' : 'Retrait';
-    $db->prepare("INSERT INTO mouvements_caisse (session_id, type, montant, motif, moyen) VALUES (?, ?, ?, ?, 'espèces')")
-       ->execute([$sessionId, $typeMvt, $montant, $labelType . ' : ' . $motif]);
+
+    try {
+        $db->beginTransaction();
+        $db->prepare("INSERT INTO mouvements_caisse (session_id, type, montant, motif, moyen) VALUES (?, ?, ?, ?, 'espèces')")
+           ->execute([$sessionId, $typeMvt, $montant, $labelType . ' : ' . $motif]);
+        $mvtId = (int)$db->lastInsertId();
+
+        // Écriture comptable du mouvement manuel (OHADA) :
+        // Le motif étant libre, la contrepartie transite par 471 (compte d'attente)
+        // en attendant reclassification par le comptable (charge, banque, etc.).
+        //   entrée (dépôt)   : D 5711 (caisse) / C 471
+        //   sortie (retrait) : D 471            / C 5711 (caisse)
+        $compteCaisse  = compteFindOrCreate($db, '5711', 'Caisse principale', 5, 'debit');
+        $compteAttente = compteFindOrCreate($db, '471', 'Compte d\'attente', 4, 'credit');
+        if ($typeMvt === 'entrée') {
+            $lignes = [
+                [$compteCaisse, round($montant, 2), 0, $labelType . ' : ' . $motif],
+                [$compteAttente, 0, round($montant, 2), 'À régulariser : ' . $motif],
+            ];
+        } else {
+            $lignes = [
+                [$compteAttente, round($montant, 2), 0, 'À régulariser : ' . $motif],
+                [$compteCaisse, 0, round($montant, 2), $labelType . ' : ' . $motif],
+            ];
+        }
+        ecritureCreate($db,
+            $labelType . ' caisse — session #' . $sessionId,
+            date('Y-m-d'),
+            $lignes,
+            'caisse', 'MC-' . $mvtId, currentUser()['id']
+        );
+
+        $db->commit();
+    } catch (Exception $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        flash('Erreur mouvement caisse : ' . $e->getMessage(), 'error');
+        header('Location: ?'); exit;
+    }
+
     auditLog('caisse.mouvement', sprintf('%s : %s (%s)', $labelType, fmtMoney($montant), $motif), $sessionId);
     flash($labelType . ' de ' . fmtMoney($montant) . ' enregistré.', 'success');
     header('Location: ?'); exit;
@@ -831,7 +894,7 @@ if ($action === 'rapport_session'):
         'input, select, button, .btn, form { display:none !important; }' +
         '@media print{@page{margin:1cm;size:A4} body{padding:0;}}' +
         '</style>'+
-        '<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet">'+
+        '<link href="<?= APP_URL ?>/assets/fonts/fonts.css" rel="stylesheet">'+
         '</head><body>'+content+'<script>window.onload=function(){window.print();}<\/script></body></html>');
       win.document.close();
     }
@@ -843,6 +906,7 @@ if ($action === 'rapport_session'):
     // ═══════════════════════════════════════════════════════════
     if ($action === 'historique'):
     ?>
+    <?php
     $filtreCaisse = $_GET['caisse'] ?? '';
     $filtreDate   = $_GET['date']   ?? '';
 
@@ -1114,7 +1178,7 @@ function printSection(id){
   var win=window.open('','_blank','width=320,height=600');
   win.document.write('<!DOCTYPE html><html><head><title>Ticket Caisse</title>'+
     '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:\'DM Mono\',monospace;font-size:11px;line-height:1.8;padding:16px;max-width:300px;margin:0 auto;}@media print{@page{margin:0;size:80mm auto;}}input,select,button,.btn,.badge-gray,form{display:none;}</style>'+
-    '<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">'+
+    '<link href="<?= APP_URL ?>/assets/fonts/fonts.css" rel="stylesheet">'+
     '</head><body>'+content+'<script>window.onload=function(){window.print();}<\/script></body></html>');
   win.document.close();
 }

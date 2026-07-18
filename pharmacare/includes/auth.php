@@ -192,7 +192,7 @@ function verifyCsrf(): void {
     }
 }
 
-function e(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+function e(?string $s): string { return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8'); }
 function fmt(float $n): string { return number_format($n, 2, ',', ' '); }
 function fmtInt(int $n): string { return number_format($n, 0, ',', ' '); }
 function today(): string { return date('Y-m-d'); }

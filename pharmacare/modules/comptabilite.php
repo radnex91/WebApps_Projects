@@ -19,6 +19,7 @@ ob_start(); ?>
   <a href="?action=bilan" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🏦</span> Bilan</a>
   <a href="?action=grand-livre" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🔍</span> Grand livre</a>
   <?php if (hasPermission('comptabilite.plan')): ?>
+  <a href="?action=cloture" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🔒</span> Clôture</a>
   <a href="?action=plan" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">⚙️</span> Plan comptable</a>
   <?php endif; ?>
 </div>
@@ -117,6 +118,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_update' && isset(
        ->execute([$intitule, $editId]);
     flash('Intitulé mis à jour.', 'success');
     header('Location: ?action=plan'); exit;
+}
+
+// ── POST : Clôture d'exercice (détermination du résultat) ────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'cloture_exec') {
+    verifyCsrf();
+    requirePermission('comptabilite.plan');
+    $exId = (int)($_POST['exercice_id'] ?? 0);
+    if (!$exId) {
+        flash('Exercice invalide.', 'error');
+        header('Location: ?action=cloture'); exit;
+    }
+    try {
+        $db->beginTransaction();
+        $r = clotureExercice($db, $exId, currentUser()['id']);
+        $db->commit();
+        auditLog('comptabilite.cloture',
+            sprintf('Clôture exercice #%d : produits %s, charges %s, résultat %s (%d lignes ; next=%s)',
+                $exId, fmtMoney($r['produits']), fmtMoney($r['charges']), fmtMoney($r['resultat']),
+                $r['nb_lignes'], $r['next_code'] ?? '—'),
+            $exId, 'CLO-' . $exId);
+        flash(sprintf('Exercice clôturé. Résultat : %s (%s). %s',
+            fmtMoney($r['resultat']),
+            $r['resultat'] >= 0 ? 'bénéfice' : 'perte',
+            $r['next_code'] ? 'Exercice ' . $r['next_code'] . ' créé.' : 'Exercice suivant déjà existant.'),
+            'success');
+    } catch (Exception $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        flash('Clôture impossible : ' . $e->getMessage(), 'error');
+    }
+    header('Location: ?action=cloture'); exit;
 }
 
 // ── Exercice courant ───────────────────────────────────────
@@ -369,7 +400,7 @@ if ($action === 'journal'):
     $fin   = $_GET['fin']   ?? $finEx;
     $src   = $_GET['source'] ?? '';
     $entries = journalGet($db, $debut, $fin, $src);
-    $sources = [''=>'Toutes','vente'=>'Ventes','commande'=>'Commandes','stock'=>'Stock','caisse'=>'Caisse','manuel'=>'Saisies manuelles'];
+    $sources = [''=>'Toutes','vente'=>'Ventes','commande'=>'Commandes','stock'=>'Stock','caisse'=>'Caisse','cloture'=>'Clôtures','manuel'=>'Saisies manuelles'];
     layout_head('Journal comptable', 'comptabilite'); showFlash();
 ?>
 <?= $navLinks ?>
@@ -752,6 +783,98 @@ if ($action === 'bilan'):
       <?= fmtMoney($diff) ?> FCFA
     </div>
     <div style="font-size:12px;color:var(--text3);"><?= abs($diff) < 0.01 ? 'Équilibré ✓' : 'Écart à vérifier' ?></div>
+  </div>
+</div>
+<?php layout_foot(); exit; endif;
+
+// ── Clôture d'exercice ─────────────────────────────────────
+if ($action === 'cloture'):
+    requirePermission('comptabilite.plan');
+    $exList = exercicesAll($db);
+    // Exercice ouvert (non clôturé) le plus ancien = candidat à la clôture
+    $exCible = null;
+    foreach ($exList as $ex) {
+        if (!$ex['cloture']) { $exCible = $ex; break; }
+    }
+    // Résultat de l'exercice cible
+    $resCible = null;
+    if ($exCible) {
+        $resCible = compteResultat($db, $exCible['date_debut'], $exCible['date_fin']);
+        $tp = 0; $tc = 0;
+        foreach ($resCible as $c) {
+            if ((int)$c['classe'] === 6) $tc += (float)$c['total_debit'] - (float)$c['total_credit'];
+            else                          $tp += (float)$c['total_credit'] - (float)$c['total_debit'];
+        }
+        $resNet = $tp - $tc;
+    }
+    layout_head('Clôture d\'exercice', 'comptabilite'); showFlash();
+?>
+<?= $navLinks ?>
+<div class="card" style="max-width:720px;margin:0 auto;">
+  <div class="card-header">
+    <div class="card-title">Clôture d'exercice — détermination du résultat</div>
+  </div>
+  <?php if ($exCible): ?>
+    <div style="padding:16px;">
+      <p style="color:var(--text2);margin-bottom:16px;">
+        La clôture solde les comptes de charges (classe 6) et de produits (classe 7)
+        dans le compte <strong>12 — Résultat de l'exercice</strong>, verrouille toutes
+        les écritures de l'exercice et crée l'exercice suivant.
+        <strong style="color:var(--red);">Action irréversible.</strong>
+      </p>
+      <table>
+        <tbody>
+          <tr><td style="color:var(--text3);">Exercice</td><td><strong><?= e($exCible['code']) ?></strong> — <?= e($exCible['libelle']) ?></td></tr>
+          <tr><td style="color:var(--text3);">Période</td><td><?= date('d/m/Y', strtotime($exCible['date_debut'])) ?> → <?= date('d/m/Y', strtotime($exCible['date_fin'])) ?></td></tr>
+          <tr><td style="color:var(--text3);">Total produits (classe 7)</td><td class="fw-mono" style="text-align:right;color:var(--teal2);"><?= fmtMoney($tp ?? 0) ?></td></tr>
+          <tr><td style="color:var(--text3);">Total charges (classe 6)</td><td class="fw-mono" style="text-align:right;color:var(--red);"><?= fmtMoney($tc ?? 0) ?></td></tr>
+          <tr style="background:var(--bg2);font-weight:700;">
+            <td>Résultat net</td>
+            <td class="fw-mono" style="text-align:right;color:<?= ($resNet ?? 0) >= 0 ? 'var(--teal2)' : 'var(--red)' ?>;">
+              <?= fmtMoney($resNet ?? 0) ?> (<?= ($resNet ?? 0) >= 0 ? 'bénéfice' : 'perte' ?>)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <form method="POST" action="?action=cloture_exec" style="margin-top:20px;">
+        <input type="hidden" name="csrf" value="<?= csrf() ?>">
+        <input type="hidden" name="exercice_id" value="<?= (int)$exCible['id'] ?>">
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;"
+                onclick="return confirm('Confirmer la clôture de l\\'exercice <?= e($exCible['code']) ?> ? Cette action est irréversible.');">
+          🔒 Clôturer l'exercice <?= e($exCible['code']) ?>
+        </button>
+      </form>
+    </div>
+  <?php else: ?>
+    <div style="padding:24px;text-align:center;color:var(--text3);">
+      Aucun exercice ouvert à clôturer. Toutes les périodes sont déjà clôturées.
+    </div>
+  <?php endif; ?>
+
+  <div style="padding:12px 16px;border-top:1px solid var(--border);">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">EXERCICES</div>
+    <table>
+      <thead><tr><th>Code</th><th>Libellé</th><th>Période</th><th>État</th></tr></thead>
+      <tbody>
+        <?php foreach ($exList as $ex): ?>
+        <tr>
+          <td class="td-mono"><?= e($ex['code']) ?></td>
+          <td><?= e($ex['libelle']) ?></td>
+          <td class="text-sm"><?= date('d/m/Y', strtotime($ex['date_debut'])) ?> → <?= date('d/m/Y', strtotime($ex['date_fin'])) ?></td>
+          <td>
+            <?php if ($ex['cloture']): ?>
+              <span class="badge badge-red">Clôturé</span>
+            <?php else: ?>
+              <span class="badge badge-green">Ouvert</span>
+            <?php endif; ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+        <?php if (!$exList): ?>
+        <tr><td colspan="4" class="empty">Aucun exercice</td></tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
   </div>
 </div>
 <?php layout_foot(); exit; endif;

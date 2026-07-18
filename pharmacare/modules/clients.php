@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../config/settings.php';
+require_once __DIR__ . '/../config/comptabilite.php';
 requirePermission('clients.voir');
 $db     = getDB();
 $action = $_GET['action'] ?? 'list';
@@ -60,6 +61,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'reglement') {
         // 1. Enregistrer le règlement
         $db->prepare("INSERT INTO reglements (client_id, vente_id, montant, mode_paiement, note) VALUES (?,?,?,?,?)")
            ->execute([$clientId, $venteId, $montant, $mode, $note]);
+
+        // 1.b. Écriture comptable du règlement (OHADA) :
+        //     Débit du compte de trésorerie (selon le moyen) / Crédit 4112 (client).
+        //     Solde la créance constatée à la vente à crédit.
+        $stmtCli = $db->prepare("SELECT nom FROM clients WHERE id = ?");
+        $stmtCli->execute([$clientId]);
+        $nomClient = $stmtCli->fetchColumn() ?: ('Client #' . $clientId);
+
+        $mapRegl = [
+            'espèces' => compteFindOrCreate($db, '5711', 'Caisse principale', 5, 'debit'),
+            'carte'   => compteFindOrCreate($db, '512',  'Banque', 5, 'debit'),
+            'chèque'  => compteFindOrCreate($db, '511',  'Chèques à encaisser', 5, 'debit'),
+            'mobile'  => compteFindOrCreate($db, '512',  'Banque', 5, 'debit'),
+        ];
+        $compteEncaiss = $mapRegl[$mode] ?? $mapRegl['espèces'];
+        $compteClient  = compteFindOrCreate($db, '4112', 'Clients - Crédit', 4, 'debit');
+        $refRegl = 'REG-' . date('Y') . '-' . str_pad((int)$db->lastInsertId(), 4, '0', STR_PAD_LEFT);
+        ecritureCreate($db,
+            'Règlement ' . $nomClient . ' (' . $mode . ')',
+            date('Y-m-d'),
+            [
+                [$compteEncaiss, round($montant, 2), 0, 'Règlement ' . $nomClient],
+                [$compteClient, 0, round($montant, 2), 'Règlement client ' . $nomClient],
+            ],
+            'caisse', $refRegl, currentUser()['id']
+        );
 
         // 2. Mise à jour des statuts via FIFO
         // On récupère le total payé par le client

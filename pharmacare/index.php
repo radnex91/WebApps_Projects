@@ -39,7 +39,6 @@ $ticketSousTitre = getParam('ticket_sous_titre', 'Gestion Pharmacie');
 $theme  = getParam('theme', 'dark-navy');
 $police = getParam('police', 'Manrope');
 $policeTitre = getParam('police_titre', 'Manrope');
-$fontUrl = 'https://fonts.googleapis.com/css2?family=' . urlencode($police) . ':wght@300;400;500;600;700&family=' . urlencode($policeTitre) . ':wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap';
 
 $pharmaPrimary = '#0D9488';
 $pharmaSecondary = '#14B8A6';
@@ -56,9 +55,7 @@ $borderGlow = 'rgba(13, 148, 136, 0.3)';
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Connexion — <?= e($appNom) ?></title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="<?= $fontUrl ?>" rel="stylesheet">
+<link rel="stylesheet" href="<?= APP_URL ?>/assets/fonts/fonts.css?v=<?= APP_VERSION ?>">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -696,6 +693,7 @@ body {
                 </button>
             </form>
             
+            <?php if (!IS_PROD): ?>
             <div class="demo-credentials">
                 <div class="demo-title">Comptes de démonstration</div>
                 <div class="demo-users">
@@ -705,6 +703,7 @@ body {
                 </div>
                 <div class="demo-pass">Mot de passe: <code>password</code></div>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

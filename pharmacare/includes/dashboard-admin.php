@@ -32,40 +32,97 @@ $ventes7 = $db->query("
   GROUP BY DATE(created_at) ORDER BY jour
 ")->fetchAll();
 
-// CA 30 derniers jours — données OHLC pour chandeliers
-$ohlcRows = $db->query("
-  SELECT DATE(created_at) AS jour,
-         COALESCE(SUM(total),0) AS close_val,
-         COALESCE(MAX(total),0) AS high,
-         COALESCE(MIN(total),0) AS low
-  FROM ventes WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
-  GROUP BY DATE(created_at) ORDER BY jour
-")->fetchAll(PDO::FETCH_ASSOC);
+// ── Évolution du CA — période sélectionnable ───────────────
+$caPeriode = $_GET['ca_periode'] ?? '30j';
+$periodesCa = [
+    '7j'    => ['titre' => '7 derniers jours',            'unit' => 'day'],
+    '30j'   => ['titre' => '30 derniers jours',           'unit' => 'day'],
+    '90j'   => ['titre' => 'Trimestre — 90 derniers jours', 'unit' => 'week'],
+    '12m'   => ['titre' => '12 derniers mois',            'unit' => 'month'],
+    'annee' => ['titre' => 'Année en cours',              'unit' => 'month'],
+];
+if (!isset($periodesCa[$caPeriode])) $caPeriode = '30j';
+$cfgCa = $periodesCa[$caPeriode];
 
-// Indexer par date Y-m-d pour trouver le jour précédent facilement
-$ohlcByDate = [];
-foreach ($ohlcRows as $r) {
-    $ohlcByDate[$r['jour']] = [
-        'close' => (float)$r['close_val'],
-        'high'  => (float)$r['high'],
-        'low'   => (float)$r['low'],
-    ];
+$moisFr = [1=>'janv',2=>'févr',3=>'mars',4=>'avr',5=>'mai',6=>'juin',7=>'juil',8=>'août',9=>'sept',10=>'oct',11=>'nov',12=>'déc'];
+
+// Construction des buckets (un par jour / semaine / mois)
+$caBuckets = [];
+if ($cfgCa['unit'] === 'day') {
+    $n = ($caPeriode === '7j') ? 7 : 30;
+    for ($i = $n - 1; $i >= 0; $i--) {
+        $d = date('Y-m-d', strtotime("-$i days"));
+        $caBuckets[] = ['key' => $d, 'label' => date('j/m', strtotime($d)), 'days' => [$d]];
+    }
+} elseif ($cfgCa['unit'] === 'week') {
+    $mondayThis = date('Y-m-d', strtotime('monday this week'));
+    for ($i = 12; $i >= 0; $i--) {
+        $ws = date('Y-m-d', strtotime("-$i weeks", strtotime($mondayThis)));
+        $days = [];
+        for ($k = 0; $k < 7; $k++) $days[] = date('Y-m-d', strtotime("+$k days", strtotime($ws)));
+        $caBuckets[] = ['key' => $ws, 'label' => date('j/m', strtotime($ws)), 'days' => $days];
+    }
+} else { // month
+    if ($caPeriode === 'annee') {
+        $y = (int)date('Y'); $curM = (int)date('n');
+        for ($m = 1; $m <= $curM; $m++) {
+            $ym = sprintf('%d-%02d', $y, $m);
+            $dim = (int)date('t', strtotime("$ym-01"));
+            $days = [];
+            for ($k = 1; $k <= $dim; $k++) $days[] = sprintf('%s-%02d', $ym, $k);
+            $caBuckets[] = ['key' => $ym, 'label' => $moisFr[$m], 'days' => $days];
+        }
+    } else { // 12m
+        for ($i = 11; $i >= 0; $i--) {
+            $ts = strtotime("-$i months", strtotime(date('Y-m-01')));
+            $ym = date('Y-m', $ts);
+            $y = (int)date('Y', $ts); $m = (int)date('n', $ts);
+            $dim = (int)date('t', $ts);
+            $days = [];
+            for ($k = 1; $k <= $dim; $k++) $days[] = sprintf('%s-%02d', $ym, $k);
+            $caBuckets[] = ['key' => $ym, 'label' => $moisFr[$m] . " '" . substr((string)$y, 2), 'days' => $days];
+        }
+    }
 }
 
+// Totals journaliers sur la plage couverte
+$caMinDate = min(array_merge(...array_column($caBuckets, 'days')));
+$caDailyRows = $db->query("
+  SELECT DATE(created_at) AS jour, COALESCE(SUM(total),0) AS total, COUNT(*) AS nb
+  FROM ventes WHERE created_at >= " . $db->quote($caMinDate) . "
+  GROUP BY DATE(created_at)
+")->fetchAll(PDO::FETCH_ASSOC);
+$caDailyMap = []; $caNbMap = [];
+foreach ($caDailyRows as $r) {
+    $caDailyMap[$r['jour']] = (float)$r['total'];
+    $caNbMap[$r['jour']]    = (int)$r['nb'];
+}
+
+// Agrégation par bucket : CA (close), nb ventes, panier moyen
 $candleData = [];
+$caBars = [];
 $prevClose = 0;
-for ($i = 29; $i >= 0; $i--) {
-    $d = date('Y-m-d', strtotime("-$i days"));
-    $lbl = date('j M', strtotime($d));
-    $close = $ohlcByDate[$d]['close'] ?? 0;
-    $high  = $ohlcByDate[$d]['high']  ?? 0;
-    $low   = $ohlcByDate[$d]['low']   ?? 0;
-    $open  = $prevClose; // open = close du jour précédent
-    $candleData[$lbl] = [
+foreach ($caBuckets as $b) {
+    $close = 0; $nb = 0; $high = 0; $low = PHP_FLOAT_MAX;
+    foreach ($b['days'] as $dd) {
+        $t = $caDailyMap[$dd] ?? 0;
+        $close += $t;
+        $nb    += $caNbMap[$dd] ?? 0;
+        if ($t > $high) $high = $t;
+        if ($t > 0 && $t < $low) $low = $t;
+    }
+    if ($low === PHP_FLOAT_MAX) $low = 0;
+    $open = $prevClose;
+    $candleData[$b['label']] = [
         'open'  => $open,
         'high'  => max($high, $open, $close),
         'low'   => $low > 0 ? $low : min($open, $close),
         'close' => $close,
+    ];
+    $caBars[$b['label']] = [
+        'value' => $close,
+        'nb'    => $nb,
+        'avg'   => $nb > 0 ? $close / $nb : 0,
     ];
     $prevClose = $close;
 }
@@ -170,13 +227,37 @@ showFlash();
 
 <div class="card" style="margin-bottom:20px;">
   <div class="card-header">
-    <div class="card-title">Évolution du CA — 30 derniers jours</div>
-    <span class="badge" style="background:var(--teal-dim);color:var(--teal2);">
-      <?= fmtMoney(array_sum(array_column($candleData, 'close'))) ?> total
-    </span>
+    <div class="card-title">Évolution du CA — <?= e($cfgCa['titre']) ?></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <form method="get" style="display:flex;">
+        <select name="ca_periode" onchange="this.form.submit()" style="padding:5px 10px;font-size:12px;border-radius:var(--radius-sm);background:var(--bg);color:var(--text);border:1px solid var(--border2);cursor:pointer;">
+          <?php foreach ($periodesCa as $k => $pc): ?>
+          <option value="<?= $k ?>" <?= $caPeriode === $k ? 'selected' : '' ?>><?= e($pc['titre']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </form>
+      <span class="badge" style="background:var(--teal-dim);color:var(--teal2);">
+        <?= fmtMoney(array_sum(array_column($candleData, 'close'))) ?> total
+      </span>
+    </div>
   </div>
-  <div class="candle-chart-wrap">
-    <?php renderCandleChart($candleData, 'FCFA'); ?>
+  <div class="line-chart-wrap">
+    <?php
+    $caLineData = [];
+    foreach ($caBars as $lbl => $b) $caLineData[$lbl] = $b['value'];
+    renderLineChart($caLineData, 'var(--teal)', '', 'FCFA');
+    ?>
+  </div>
+  <div class="card-pad" style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:22px;flex-wrap:wrap;font-size:12px;color:var(--text3);">
+    <?php
+    $caTotalCa = array_sum(array_column($caBars, 'value'));
+    $caTotalNb = array_sum(array_column($caBars, 'nb'));
+    $caPanier = $caTotalNb > 0 ? $caTotalCa / $caTotalNb : 0;
+    ?>
+    <span><strong style="color:var(--text2);font-family:var(--font-mono,monospace);"><?= fmtMoney($caTotalCa) ?></strong> CA total</span>
+    <span><strong style="color:var(--text2);"><?= fmtInt((int)$caTotalNb) ?></strong> ventes</span>
+    <span><strong style="color:var(--text2);font-family:var(--font-mono,monospace);"><?= fmtMoney($caPanier) ?></strong> panier moyen</span>
+    <span><strong style="color:var(--gold);font-family:var(--font-mono,monospace);"><?= fmtMoney(max(array_column($caBars, 'value'))) ?></strong> meilleur bucket</span>
   </div>
 </div>
 

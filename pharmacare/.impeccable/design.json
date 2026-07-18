@@ -1,0 +1,259 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-17T00:00:00Z",
+  "title": "Design System: PharmaCare",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Counter Teal",
+        "canonical": "oklch(83% 0.14 195)",
+        "tonalRamp": [
+          "oklch(15% 0.14 195)", "oklch(25% 0.14 195)", "oklch(38% 0.14 195)",
+          "oklch(52% 0.14 195)", "oklch(65% 0.14 195)", "oklch(76% 0.14 195)",
+          "oklch(85% 0.14 195)", "oklch(95% 0.14 195)"
+        ]
+      },
+      "gold": {
+        "role": "secondary",
+        "displayName": "Apothecary Gold",
+        "canonical": "oklch(76% 0.16 70)",
+        "tonalRamp": [
+          "oklch(20% 0.10 70)", "oklch(30% 0.12 70)", "oklch(42% 0.14 70)",
+          "oklch(55% 0.15 70)", "oklch(66% 0.16 70)", "oklch(76% 0.16 70)",
+          "oklch(85% 0.13 70)", "oklch(94% 0.08 70)"
+        ]
+      },
+      "red": {
+        "role": "tertiary",
+        "displayName": "Rupture Red",
+        "canonical": "oklch(63% 0.22 25)",
+        "tonalRamp": [
+          "oklch(18% 0.14 25)", "oklch(28% 0.18 25)", "oklch(40% 0.20 25)",
+          "oklch(52% 0.21 25)", "oklch(63% 0.22 25)", "oklch(72% 0.20 25)",
+          "oklch(82% 0.16 25)", "oklch(93% 0.08 25)"
+        ]
+      },
+      "blue": {
+        "role": "tertiary",
+        "displayName": "Ledger Blue",
+        "canonical": "oklch(70% 0.12 265)",
+        "tonalRamp": [
+          "oklch(18% 0.08 265)", "oklch(28% 0.10 265)", "oklch(40% 0.11 265)",
+          "oklch(54% 0.12 265)", "oklch(64% 0.12 265)", "oklch(70% 0.12 265)",
+          "oklch(82% 0.10 265)", "oklch(94% 0.05 265)"
+        ]
+      },
+      "purple": {
+        "role": "tertiary",
+        "displayName": "Fiscal Violet",
+        "canonical": "oklch(60% 0.15 320)",
+        "tonalRamp": [
+          "oklch(18% 0.10 320)", "oklch(28% 0.12 320)", "oklch(40% 0.14 320)",
+          "oklch(50% 0.15 320)", "oklch(60% 0.15 320)", "oklch(70% 0.14 320)",
+          "oklch(82% 0.10 320)", "oklch(94% 0.05 320)"
+        ]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Instrument Black",
+        "canonical": "oklch(16% 0.005 270)",
+        "tonalRamp": [
+          "oklch(10% 0.005 270)", "oklch(16% 0.005 270)", "oklch(20% 0.006 270)",
+          "oklch(26% 0.006 270)", "oklch(34% 0.006 270)", "oklch(48% 0.006 270)",
+          "oklch(70% 0.006 270)", "oklch(95% 0.006 270)"
+        ]
+      },
+      "neutral-surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "oklch(18% 0.006 270)",
+        "tonalRamp": [
+          "oklch(12% 0.006 270)", "oklch(18% 0.006 270)", "oklch(23% 0.008 270)",
+          "oklch(30% 0.008 270)", "oklch(40% 0.008 270)", "oklch(55% 0.008 270)",
+          "oklch(75% 0.008 270)", "oklch(95% 0.008 270)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(95% 0.01 250)",
+        "tonalRamp": [
+          "oklch(20% 0.01 250)", "oklch(32% 0.01 250)", "oklch(45% 0.01 250)",
+          "oklch(60% 0.01 250)", "oklch(75% 0.01 250)", "oklch(85% 0.01 250)",
+          "oklch(92% 0.01 250)", "oklch(97% 0.005 250)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "oklch(64% 0.02 250)",
+        "tonalRamp": [
+          "oklch(18% 0.02 250)", "oklch(30% 0.02 250)", "oklch(42% 0.02 250)",
+          "oklch(54% 0.02 250)", "oklch(64% 0.02 250)", "oklch(76% 0.02 250)",
+          "oklch(86% 0.015 250)", "oklch(95% 0.01 250)"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Ink Faint",
+        "canonical": "oklch(48% 0.02 250)",
+        "tonalRamp": [
+          "oklch(15% 0.02 250)", "oklch(25% 0.02 250)", "oklch(36% 0.02 250)",
+          "oklch(48% 0.02 250)", "oklch(60% 0.02 250)", "oklch(72% 0.02 250)",
+          "oklch(84% 0.015 250)", "oklch(94% 0.01 250)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Stat-card values — single big readouts (CA, counts)." },
+      "headline": { "displayName": "Headline", "purpose": "Topbar and modal titles. One per screen/dialog." },
+      "title": { "displayName": "Title", "purpose": "Card titles, section anchors within a surface." },
+      "body": { "displayName": "Body", "purpose": "Default 13px reading size: tables, inputs, buttons, prose." },
+      "label": { "displayName": "Label", "purpose": "10px tracked uppercase: stat labels, form labels, table headers, nav sections." },
+      "mono": { "displayName": "DM Mono", "purpose": "References, money, quantities — anything counted and compared. Not a Stitch role; documented here for the live panel." }
+    },
+    "shadows": [
+      { "name": "resting-hairline", "value": "0 0 0 1px rgba(255,255,255,0.05)", "purpose": "Every surface's default edge. Depth without shadow." },
+      { "name": "hover-lift", "value": "0 2px 12px rgba(0,0,0,0.35)", "purpose": "Cards and stat cards on hover, with a 1-3px translateY lift." },
+      { "name": "modal-landing", "value": "0 8px 32px rgba(0,0,0,0.45)", "purpose": "Modals and elevated overlays." },
+      { "name": "toast-shadow", "value": "0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)", "purpose": "PS5-style toast card." },
+      { "name": "glow-teal", "value": "0 0 16px rgba(34,211,238,0.25)", "purpose": "Primary action and focus indicator lamp." },
+      { "name": "glow-gold", "value": "0 0 12px rgba(245,158,11,0.25)", "purpose": "Attention-state indicator lamp." },
+      { "name": "glow-red", "value": "0 0 12px rgba(239,68,68,0.25)", "purpose": "Critical-state indicator lamp." }
+    ],
+    "motion": [
+      { "name": "state-transition", "value": "all 0.2s ease", "purpose": "Default for buttons, nav items, badges, inputs." },
+      { "name": "modal-slide-up", "value": "0.22s ease", "purpose": "Modal entrance: translateY(18px)->0 + opacity 0->1." },
+      { "name": "toast-in", "value": "0.4s cubic-bezier(0.16,1,0.3,1)", "purpose": "Toast entrance: translateY(40px) scale(.92)->0 scale(1)." },
+      { "name": "toast-out", "value": "0.28s cubic-bezier(0.4,0,1,1)", "purpose": "Toast exit." },
+      { "name": "reduced-motion", "value": "prefers-reduced-motion: reduce -> drop translateY lift, keep color/border change", "purpose": "Mandatory fallback for every animated property." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px", "purpose": "Phones; collapse stat-grid to fewer columns." },
+      { "name": "md", "value": "900px", "purpose": "Tablet; POS grid shifts, sidebar collapses to icons." },
+      { "name": "lg", "value": "1200px", "purpose": "Desktop; default 4-column stat-grid and pos-layout two-pane." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The confirm action. Counter Teal fill, black text, one strong glow. One per region.",
+      "html": "<button class=\"ds-btn-primary\">Enregistrer</button>",
+      "css": ".ds-btn-primary{background:var(--teal,#22d3ee);color:#000;border:none;border-radius:8px;padding:8px 16px;font:600 13px/1 'Manrope',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .2s;box-shadow:0 0 16px rgba(34,211,238,.25);position:relative;overflow:hidden}.ds-btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1),transparent);opacity:0;transition:opacity .2s}.ds-btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(34,211,238,.25)}.ds-btn-primary:hover::before{opacity:1}.ds-btn-primary:focus-visible{outline:2px solid var(--teal,#22d3ee);outline-offset:2px}@media(prefers-reduced-motion:reduce){.ds-btn-primary:hover{transform:none}}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action. Transparent, hairline border, glass fill on hover.",
+      "html": "<button class=\"ds-btn-ghost\">Annuler</button>",
+      "css": ".ds-btn-ghost{background:transparent;color:var(--text2,#8b97ab);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 16px;font:500 13px/1 'Manrope',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .2s}.ds-btn-ghost:hover{background:rgba(255,255,255,.03);color:var(--text,#e8edf5);border-color:var(--teal,#22d3ee)}.ds-btn-ghost:focus-visible{outline:2px solid var(--teal,#22d3ee);outline-offset:2px}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action. Red-dim tint fill, Rupture Red text, red-glow border.",
+      "html": "<button class=\"ds-btn-danger\">Supprimer</button>",
+      "css": ".ds-btn-danger{background:rgba(239,68,68,.10);color:var(--red,#ef4444);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:8px 16px;font:500 13px/1 'Manrope',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .2s}.ds-btn-danger:hover{background:rgba(239,68,68,.25);box-shadow:0 0 12px rgba(239,68,68,.25)}.ds-btn-danger:focus-visible{outline:2px solid var(--red,#ef4444);outline-offset:2px}"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Glass pill with leading icon; soft teal focus glow.",
+      "html": "<div class=\"ds-search\"><span class=\"ds-search-icon\">•</span><input type=\"text\" placeholder=\"Rechercher...\" /></div>",
+      "css": ".ds-search{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:7px 13px;min-width:260px;backdrop-filter:blur(8px);transition:border-color .2s,box-shadow .2s}.ds-search:focus-within{border-color:var(--teal,#22d3ee);box-shadow:0 0 12px rgba(34,211,238,.25)}.ds-search-icon{color:var(--text3,#5a6678);font-size:10px}.ds-search input{background:none;border:none;outline:none;color:var(--text,#e8edf5);font:13px 'Manrope',sans-serif;width:100%}.ds-search input::placeholder{color:var(--text3,#5a6678)}"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "stat-card",
+      "description": "KPI card with a 2px semantic top stripe + matching glow encoding the metric family.",
+      "html": "<div class=\"ds-stat ds-stat-teal\"><div class=\"ds-stat-label\">CA DU MOIS</div><div class=\"ds-stat-value\">1 250 000</div><div class=\"ds-stat-sub\">Aujourd'hui : 84 000</div></div>",
+      "css": ".ds-stat{background:var(--card,#0c0c10);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;transition:all .25s;backdrop-filter:blur(8px)}.ds-stat:hover{transform:translateY(-3px);box-shadow:0 2px 12px rgba(0,0,0,.35);border-color:rgba(255,255,255,.08)}.ds-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0}.ds-stat-teal::before{background:linear-gradient(90deg,#22d3ee,rgba(34,211,238,.25));box-shadow:0 0 12px rgba(34,211,238,.25)}.ds-stat-label{font:500 10px/1 'Manrope',sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--text3,#5a6678);margin-bottom:10px}.ds-stat-value{font:600 30px/1 'Manrope',sans-serif;color:#22d3ee;margin-bottom:5px}.ds-stat-sub{font:12px 'Manrope',sans-serif;color:var(--text3,#5a6678)}@media(prefers-reduced-motion:reduce){.ds-stat:hover{transform:none}}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Resting content surface. Flat at rest, hairline border, header with bottom divider.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><div class=\"ds-card-title\">Stock critique</div><button class=\"ds-btn-ghost\">Voir tout</button></div><div class=\"ds-card-pad\">Contenu</div></div>",
+      "css": ".ds-card{background:var(--card,#0c0c10);border:1px solid rgba(255,255,255,.05);border-radius:14px;overflow:hidden;backdrop-filter:blur(8px);transition:border-color .2s}.ds-card:hover{border-color:rgba(255,255,255,.08)}.ds-card-header{padding:16px 20px 13px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between;gap:12px}.ds-card-title{font:600 17px/1.3 'Manrope',sans-serif;color:var(--text,#e8edf5)}.ds-card-pad{padding:20px;color:var(--text2,#8b97ab);font:13px 'Manrope',sans-serif}"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Status readout. Tint-on-dark: dim fill, full accent text, low-alpha accent border.",
+      "html": "<span class=\"ds-badge ds-badge-gold\">Stock bas</span> <span class=\"ds-badge ds-badge-red\">Rupture</span> <span class=\"ds-badge ds-badge-green\">Disponible</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;font:500 11px/1 'Manrope',sans-serif;letter-spacing:.3px;white-space:nowrap}.ds-badge-green{background:rgba(34,211,238,.10);color:#22d3ee;border:1px solid rgba(34,211,238,.25)}.ds-badge-gold{background:rgba(245,158,11,.10);color:#f59e0b;border:1px solid rgba(245,158,11,.25)}.ds-badge-red{background:rgba(239,68,68,.10);color:#ef4444;border:1px solid rgba(239,68,68,.25)}.ds-badge-gray{background:rgba(255,255,255,.03);color:var(--text2,#8b97ab);border:1px solid rgba(255,255,255,.05)}"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Active sidebar item: teal-dim fill, Counter Teal text, 2px left bar with glow.",
+      "html": "<a class=\"ds-nav-item ds-nav-active\"><span class=\"ds-nav-icon ds-nav-icon-teal\">●</span><span>Tableau de bord</span></a>",
+      "css": ".ds-nav-item{display:flex;align-items:center;gap:11px;padding:7px 12px;border-radius:8px;font:500 13px 'Manrope',sans-serif;color:var(--text2,#8b97ab);cursor:pointer;transition:all .2s;margin-bottom:2px}.ds-nav-item:hover{background:rgba(255,255,255,.03);color:var(--text,#e8edf5)}.ds-nav-active{background:rgba(34,211,238,.10);color:#22d3ee;padding-left:10px;border-left:2px solid #22d3ee;position:relative}.ds-nav-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0}.ds-nav-icon-teal{color:#5eead4;background:radial-gradient(circle,#14b8a6,#0d9488);box-shadow:0 0 12px #14b8a6}.ds-nav-active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:2px;height:60%;background:#22d3ee;border-radius:1px;box-shadow:0 0 8px rgba(34,211,238,.25)}"
+    },
+    {
+      "name": "Modal",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Centered overlay dialog, slide-up entrance, modal-landing shadow, 14px radius.",
+      "html": "<div class=\"ds-modal-overlay\"><div class=\"ds-modal\"><div class=\"ds-modal-header\"><div class=\"ds-modal-title\">Modifier le médicament</div><button class=\"ds-modal-close\">×</button></div><div class=\"ds-modal-body\">Champs du formulaire</div><div class=\"ds-modal-footer\"><button class=\"ds-btn-ghost\">Annuler</button><button class=\"ds-btn-primary\">Enregistrer</button></div></div></div>",
+      "css": ".ds-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:200}.ds-modal{background:var(--card,#0c0c10);border:1px solid rgba(255,255,255,.08);border-radius:14px;width:580px;max-height:90vh;overflow-y:auto;backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,.45);animation:ds-slide-up .22s ease}.ds-modal-header{padding:18px 22px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between}.ds-modal-title{font:600 19px/1.2 'Manrope',sans-serif;color:var(--text,#e8edf5)}.ds-modal-close{background:none;border:none;color:var(--text3,#5a6678);font-size:19px;cursor:pointer;border-radius:6px;transition:all .15s}.ds-modal-close:hover{color:var(--text,#e8edf5);background:rgba(255,255,255,.03)}.ds-modal-body{padding:22px}.ds-modal-footer{padding:14px 22px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:10px;justify-content:flex-end}.ds-btn-primary{background:var(--teal,#22d3ee);color:#000;border:none;border-radius:8px;padding:8px 16px;font:600 13px/1 'Manrope',sans-serif;cursor:pointer;box-shadow:0 0 16px rgba(34,211,238,.25)}.ds-btn-ghost{background:transparent;color:var(--text2,#8b97ab);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 16px;font:500 13px/1 'Manrope',sans-serif;cursor:pointer}@keyframes ds-slide-up{from{transform:translateY(18px);opacity:0}to{transform:translateY(0);opacity:1}}@media(prefers-reduced-motion:reduce){.ds-modal{animation:none}}"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "PS5-style toast, bottom-right, circular icon tile with semantic glow + progress bar.",
+      "html": "<div class=\"ds-toast ds-toast-success\"><div class=\"ds-toast-body\"><div class=\"ds-toast-icon\">✓</div><div class=\"ds-toast-msg\">Vente enregistrée avec succès.</div></div><div class=\"ds-toast-progress\"></div></div>",
+      "css": ".ds-toast{display:flex;flex-direction:column;min-width:300px;max-width:420px;border-radius:12px;overflow:hidden;background:rgba(20,20,30,.90);backdrop-filter:blur(24px) saturate(1.5);border:1px solid rgba(255,255,255,.10);box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.04);font:500 13.5px 'Manrope',sans-serif;color:#e8edf5;animation:ds-toast-in .4s cubic-bezier(.16,1,.3,1) forwards}.ds-toast-body{display:flex;align-items:center;gap:14px;padding:16px 20px}.ds-toast-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}.ds-toast-success .ds-toast-icon{background:rgba(34,211,238,.10);color:#22d3ee;box-shadow:0 0 12px rgba(34,211,238,.25)}.ds-toast-msg{flex:1;line-height:1.45}.ds-toast-progress{height:3px;width:100%;transform-origin:left;border-radius:0 0 12px 12px;background:#22d3ee}@keyframes ds-toast-in{0%{transform:translateY(40px) scale(.92);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}@media(prefers-reduced-motion:reduce){.ds-toast{animation:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Clinical Dashboard",
+    "overview": "PharmaCare is a dark clinical monitoring surface for a pharmacy. The room is bright; the screen is a counter or office PC used for long shifts, often while a customer waits. The interface behaves like a medical instrument panel: a near-black field, vital-sign color coding, and exact monospaced readouts. Every glow is an indicator light, not decoration; every color says something specific about state. Density is high but never tips into the cluttered legacy ERP. Hierarchy and whitespace keep the eye on the next action. The surface is futuristic only insofar as 'futuristic' means precise and legible under pressure; it explicitly rejects the over-glowy gamer UI (RGB spectacle, decorative gradients, glow that competes with text) and the toy/bright consumer app (playful colors, cartoonish shapes). This is a tool you trust with medicine and money. One well-tuned family, Manrope, in weight contrast, with DM Mono carrying every number and reference so money and quantities line up exactly. Restraint reads as trustworthiness: one glow per focal point, one clear action per moment.",
+    "keyCharacteristics": [
+      "Near-black instrument field (#09090b) with tonal surface layering, not flat black.",
+      "Five-color vital-sign palette where each hue is a fixed semantic readout, never styling.",
+      "Disciplined glow as state indicator, capped at one focal point per region.",
+      "Monospaced numbers and references; everything you count lines up.",
+      "Tactile micro-interactions: a 1px lift on hover, a soft focus glow on inputs. Reduced motion is honored.",
+      "Single typeface (Manrope) across display and body, with DM Mono reserved for data."
+    ],
+    "rules": [
+      { "name": "The Vital-Sign Rule", "body": "Each hue means one thing. Counter Teal = money/active, Apothecary Gold = attention, Rupture Red = critical, Ledger Blue = activity, Fiscal Violet = annual. Never recolor a component for variety; if you need a new state, add a semantic role, not a new shade.", "section": "colors" },
+      { "name": "The One Glow Rule", "body": "Counter Teal carries the system's glow on primary actions and focus. Accents may use their own dim glow only on the single element signaling that state. Never let two glows compete in the same region.", "section": "colors" },
+      { "name": "The Tint-on-Dark Rule", "body": "Accent chips and buttons render as a dim tint of the accent (~10% alpha) with the full-strength accent as text and a low-alpha accent border. Never fill a chip with the full-strength accent on the dark field; it screams.", "section": "colors" },
+      { "name": "The Numbers-Line-Up Rule", "body": "Every money value, quantity, and reference is DM Mono. If two numbers sit in the same column, they must share the same monospaced font so the digits align vertically. Never set money in proportional Manrope.", "section": "typography" },
+      { "name": "The Label-Only Uppercase Rule", "body": "Tracked uppercase is reserved for 10px labels. Never set a sentence, a heading, or body copy in uppercase.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest, separated by hairline borders and the neutral ramp. Shadows appear only as a response to state (hover, modal landing, toast). Never add an ambient shadow to a resting card.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Counter Teal for exactly one primary action per region and let it carry the only strong glow.",
+      "Do render accent chips as a 10% tint fill with full-strength accent text and a low-alpha accent border (Tint-on-Dark Rule).",
+      "Do set every money value, quantity, and reference in DM Mono so digits line up (Numbers-Line-Up Rule).",
+      "Do convey resting depth with the neutral ramp and hairline borders; reserve shadows for hover, modal landing, and toasts (Flat-By-Default Rule).",
+      "Do honor prefers-reduced-motion: drop the translateY lift to a color/border change, keep the focus glow.",
+      "Do map each hue to its fixed semantic role and reuse it everywhere that role appears (Vital-Sign Rule).",
+      "Do keep tracked uppercase to 10px labels only — stat labels, form labels, table headers, nav sections."
+    ],
+    "donts": [
+      "Don't let two glows compete in the same region — one focal glow, then dim the rest (One Glow Rule). This is the line between 'clinical dashboard' and the over-glowy gamer UI that PRODUCT.md rejects.",
+      "Don't fill chips, badges, or non-primary buttons with full-strength accent on the dark field — always the dim tint.",
+      "Don't set body copy, headings, or sentences in uppercase or in gradient text. The topbar-title gradient is the single exception.",
+      "Don't use a border-left greater than 1px as a colored stripe on cards or callouts. The nav-item active bar and the stat-card top stripe are the sanctioned exceptions; everywhere else use full borders or tints.",
+      "Don't build the dense 90s-style ERP table: no tiny text, no zero whitespace, no flat hierarchy. Density comes with hierarchy and breathing room, or it doesn't come.",
+      "Don't reach for bright playful colors, cartoonish rounding, or decorative gradients — the surface must feel like a tool you trust with medicine and money, not a toy consumer app.",
+      "Don't set Ink Muted (#8b97ab) or Ink Faint (#5a6678) as body copy without verifying 4.5:1 contrast; they are for secondary metadata and labels, not reading text.",
+      "Don't add ambient shadows to resting cards, or introduce a second display typeface. One family, weight contrast."
+    ]
+  }
+}

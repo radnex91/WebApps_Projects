@@ -62,7 +62,7 @@ showFlash();
   <div class="card-header">
     <div class="card-title">Inventaire des médicaments</div>
     <div class="flex gap-8" style="flex-wrap:wrap;">
-      <div class="search-box" style="flex:2;min-width:280px;">
+      <div class="search-box" style="flex:2;min-width:420px;max-width:640px;">
         <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
         <input type="text" id="search-stock" placeholder="Rechercher un médicament...">
       </div>

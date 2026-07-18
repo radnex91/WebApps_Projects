@@ -170,6 +170,11 @@ function _rateLimitGlobalGuard(): void {
     if ($done) return;
     $done = true;
 
+    // Pas de rate limiting en ligne de commande (scripts CLI, PHPUnit, vérifs d'install).
+    if (PHP_SAPI === 'cli' || PHP_SAPI === 'cli-server') {
+        return;
+    }
+
     // On ne throttle pas les assets statiques ni les réponses déjà envoyées
     $uri = $_SERVER['REQUEST_URI'] ?? '';
     if (preg_match('#\.(css|js|png|jpe?g|gif|svg|ico|woff2?|ttf|map)$#i', $uri)) {
