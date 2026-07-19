@@ -207,7 +207,7 @@ $ROUTES = [
         'add' => 'new', 'edit' => 'edit', 'bon' => 'bon', 'livrer_form' => 'livrer',
     ]],
     'retours'             => ['base' => 'retours', 'actions' => [
-        'new' => 'new', 'create' => 'create', 'detail' => 'detail',
+        'new' => 'new', 'detail' => 'detail',
     ]],
     'magasin'             => ['base' => 'magasin', 'onglet' => [
         'stock' => 'stock', 'reception' => 'reception', 'historique' => 'historique',
