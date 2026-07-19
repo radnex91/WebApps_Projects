@@ -12,15 +12,15 @@ $moisLabels = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août
 // ── Navigation links (réutilisée partout) ──────────────────
 ob_start(); ?>
 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
-  <a href="?action=saisie" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">✍️</span> Saisie manuelle</a>
-  <a href="?action=journal" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">📖</span> Journal</a>
-  <a href="?action=balance" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">⚖️</span> Balance</a>
-  <a href="?action=resultat" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">📊</span> Compte de résultat</a>
-  <a href="?action=bilan" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🏦</span> Bilan</a>
-  <a href="?action=grand-livre" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🔍</span> Grand livre</a>
+  <a href="<?= url('comptabilite', ['action'=>'saisie']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">✍️</span> Saisie manuelle</a>
+  <a href="<?= url('comptabilite', ['action'=>'journal']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">📖</span> Journal</a>
+  <a href="<?= url('comptabilite', ['action'=>'balance']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">⚖️</span> Balance</a>
+  <a href="<?= url('comptabilite', ['action'=>'resultat']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">📊</span> Compte de résultat</a>
+  <a href="<?= url('comptabilite', ['action'=>'bilan']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🏦</span> Bilan</a>
+  <a href="<?= url('comptabilite', ['action'=>'grand-livre']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🔍</span> Grand livre</a>
   <?php if (hasPermission('comptabilite.plan')): ?>
-  <a href="?action=cloture" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🔒</span> Clôture</a>
-  <a href="?action=plan" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">⚙️</span> Plan comptable</a>
+  <a href="<?= url('comptabilite', ['action'=>'cloture']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🔒</span> Clôture</a>
+  <a href="<?= url('comptabilite', ['action'=>'plan']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">⚙️</span> Plan comptable</a>
   <?php endif; ?>
 </div>
 <?php $navLinks = ob_get_clean();
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'saisie_save') {
 
     if (!$libelle || !count($comptes)) {
         flash('Libellé obligatoire et au moins une ligne.', 'error');
-        header('Location: ?action=saisie'); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'saisie'])); exit;
     }
 
     $lignes = [];
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'saisie_save') {
 
     if (count($lignes) < 2) {
         flash('Minimum 2 lignes (débit et crédit).', 'error');
-        header('Location: ?action=saisie'); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'saisie'])); exit;
     }
 
     try {
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'saisie_save') {
         $db->rollBack();
         flash('Erreur : ' . $e->getMessage(), 'error');
     }
-    header('Location: ?action=saisie'); exit;
+    header('Location: ' . url('comptabilite', ['action'=>'saisie'])); exit;
 }
 
 // ── POST : Nouveau compte comptable ─────────────────────────
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_new') {
 
     if (!$compte || !$intitule || !$classe) {
         flash('Compte, intitulé et classe requis.', 'error');
-        header('Location: ?action=plan_edit'); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'plan_edit'])); exit;
     }
 
     // Vérifier unicité
@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_new') {
     $stmt->execute([$compte]);
     if ($stmt->fetch()) {
         flash('Ce code compte existe déjà.', 'error');
-        header('Location: ?action=plan_edit'); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'plan_edit'])); exit;
     }
 
     $parentId = null;
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_new') {
     $db->prepare("INSERT INTO plan_comptable (compte, intitule, classe, nature, compte_parent) VALUES (?, ?, ?, ?, ?)")
        ->execute([$compte, $intitule, $classe, $nature, $parentId]);
     flash('Compte créé avec succès.', 'success');
-    header('Location: ?action=plan'); exit;
+    header('Location: ' . url('comptabilite', ['action'=>'plan'])); exit;
 }
 
 // ── POST : Modifier intitulé d'un compte ─────────────────
@@ -112,12 +112,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_update' && isset(
     $intitule = trim($_POST['intitule'] ?? '');
     if (!$intitule) {
         flash('L\'intitulé est requis.', 'error');
-        header('Location: ?action=plan_edit&id=' . $editId); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'plan_edit','id'=>$editId])); exit;
     }
     $db->prepare("UPDATE plan_comptable SET intitule = ? WHERE id = ?")
        ->execute([$intitule, $editId]);
     flash('Intitulé mis à jour.', 'success');
-    header('Location: ?action=plan'); exit;
+    header('Location: ' . url('comptabilite', ['action'=>'plan'])); exit;
 }
 
 // ── POST : Clôture d'exercice (détermination du résultat) ────
@@ -127,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'cloture_exec') {
     $exId = (int)($_POST['exercice_id'] ?? 0);
     if (!$exId) {
         flash('Exercice invalide.', 'error');
-        header('Location: ?action=cloture'); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'cloture'])); exit;
     }
     try {
         $db->beginTransaction();
@@ -147,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'cloture_exec') {
         if ($db->inTransaction()) $db->rollBack();
         flash('Clôture impossible : ' . $e->getMessage(), 'error');
     }
-    header('Location: ?action=cloture'); exit;
+    header('Location: ' . url('comptabilite', ['action'=>'cloture'])); exit;
 }
 
 // ── Exercice courant ───────────────────────────────────────
@@ -175,7 +175,7 @@ if ($action === 'plan'):
 <div class="card">
   <div class="card-header">
     <div class="card-title">Plan comptable OHADA</div>
-    <a href="?action=plan_edit" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Nouveau compte</a>
+    <a href="<?= url('comptabilite', ['action'=>'plan_edit']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Nouveau compte</a>
   </div>
   <div class="table-wrap">
     <table>
@@ -193,7 +193,7 @@ if ($action === 'plan'):
           <td><span class="badge badge-gray"><?= $classes[$cl] ?? $cl ?></span></td>
           <td><?= $natureLabels[$c['nature']] ?? $c['nature'] ?></td>
           <td>
-            <a href="?action=plan_edit&id=<?= $c['id'] ?>" class="btn btn-ghost btn-xs" title="Modifier l'intitulé"><?= icon('edit',13) ?></a>
+            <a href="<?= url('comptabilite', ['action'=>'plan_edit','id'=>$c['id']]) ?>" class="btn btn-ghost btn-xs" title="Modifier l'intitulé"><?= icon('edit',13) ?></a>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -212,7 +212,7 @@ if ($action === 'plan_edit'):
         $stmtE = $db->prepare("SELECT * FROM plan_comptable WHERE id = ?");
         $stmtE->execute([$editId]);
         $editCpt = $stmtE->fetch();
-        if (!$editCpt) { flash('Compte introuvable.', 'error'); header('Location: ?action=plan'); exit; }
+        if (!$editCpt) { flash('Compte introuvable.', 'error'); header('Location: ' . url('comptabilite', ['action'=>'plan'])); exit; }
     }
     $title  = $editCpt ? 'Modifier le compte' : 'Nouveau compte comptable';
     $actionUrl = $editCpt ? '?action=plan_update&id=' . $editId : '?action=plan_new';
@@ -224,7 +224,7 @@ if ($action === 'plan_edit'):
 <div class="card" style="max-width:600px;margin:0 auto;">
   <div class="card-header">
     <div class="card-title"><?= e($title) ?></div>
-    <a href="?action=plan" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+    <a href="<?= url('comptabilite', ['action'=>'plan']) ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
   </div>
   <form method="POST" action="<?= $actionUrl ?>">
     <input type="hidden" name="csrf" value="<?= csrf() ?>">
@@ -271,7 +271,7 @@ if ($action === 'plan_edit'):
       </div>
     </div>
     <div class="modal-footer">
-      <a href="?action=plan" class="btn btn-ghost">Annuler</a>
+      <a href="<?= url('comptabilite', ['action'=>'plan']) ?>" class="btn btn-ghost">Annuler</a>
       <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> <?= $editCpt ? 'Enregistrer' : 'Créer' ?></button>
     </div>
   </form>

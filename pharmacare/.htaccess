@@ -96,6 +96,7 @@ ServerSignature Off
 
     # Comptabilité (action=) — plan_edit avec id avant le générique
     RewriteRule ^comptabilite/plan/(\d+)/?$            modules/comptabilite.php?action=plan_edit&id=$1 [L,QSA]
+    RewriteRule ^comptabilite/plan_edit/?$             modules/comptabilite.php?action=plan_edit [L,QSA]
     RewriteRule ^comptabilite/(saisie|journal|balance|resultat|bilan|grand-livre|cloture|plan)/?$ modules/comptabilite.php?action=$1 [L,QSA]
     RewriteRule ^comptabilite/?$                        modules/comptabilite.php [L,QSA]
 

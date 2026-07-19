@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
 
         if (!$lignesValides) {
             flash('Aucune ligne valide pour le transfert.', 'error');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         }
 
         try {
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             if ($insuffisants) {
                 $db->rollBack();
                 flash('Stock magasin insuffisant : ' . implode(' ; ', $insuffisants), 'error');
-                header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+                header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
             }
 
             // Créer l'entête de transfert
@@ -86,11 +86,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             $db->commit();
             auditLog('magasin.transfert', sprintf('Transfert %s : %d ligne(s) vers pharmacie', $ref, count($lignesValides)));
             flash('Transfert ' . $ref . ' effectué — stock pharmacie approvisionné.');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=historique'); exit;
+            header('Location: ' . url('magasin', ['onglet'=>'historique'])); exit;
         } catch (Exception $e) {
             $db->rollBack();
             flash('Erreur lors du transfert : ' . $e->getMessage(), 'error');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         }
     }
 
@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
 
         if (!$lignesValides) {
             flash('Aucune ligne valide pour le retour.', 'error');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         }
 
         try {
@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             if ($insuffisants) {
                 $db->rollBack();
                 flash('Stock pharmacie insuffisant : ' . implode(' ; ', $insuffisants), 'error');
-                header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+                header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
             }
 
             $stmtNom        = $db->prepare("SELECT nom FROM produits WHERE id=?");
@@ -147,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
                     // garde-fou concurrence
                     $db->rollBack();
                     flash('Stock pharmacie modifié entre-temps pour un produit. Réessayez.', 'error');
-                    header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+                    header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
                 }
                 $stmtIncMag->execute([$qte, $pid]);
 
@@ -158,11 +158,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             $db->commit();
             auditLog('magasin.retour', sprintf('Retour pharmacie→magasin : %d ligne(s)%s', count($lignesValides), $note ? ' (' . $note . ')' : ''));
             flash('Retour vers magasin effectué (' . count($lignesValides) . ' produit(s)).');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         } catch (Exception $e) {
             $db->rollBack();
             flash('Erreur lors du retour : ' . $e->getMessage(), 'error');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         }
     }
 
@@ -175,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
 
         if ($pid <= 0 || $qte === 0) {
             flash('Produit ou quantité invalide.', 'error');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=reception'); exit;
+            header('Location: ' . url('magasin', ['onglet'=>'reception'])); exit;
         }
 
         try {
@@ -190,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
                 if ($cur + $delta < 0) {
                     $db->rollBack();
                     flash('Ajustement impossible : stock magasin négatif.', 'error');
-                    header('Location: ' . APP_URL . '/modules/magasin.php?onglet=reception'); exit;
+                    header('Location: ' . url('magasin', ['onglet'=>'reception'])); exit;
                 }
             }
             $db->prepare("UPDATE produits SET stock_magasin = stock_magasin + ? WHERE id = ?")->execute([$delta, $pid]);
@@ -202,16 +202,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             $db->commit();
             auditLog('magasin.' . $type, sprintf('Produit #%d, delta %+d (%s)', $pid, $delta, $libelle));
             flash('Mouvement magasin enregistré (' . $type . ').');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=stock'); exit;
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         } catch (Exception $e) {
             $db->rollBack();
             flash('Erreur : ' . $e->getMessage(), 'error');
-            header('Location: ' . APP_URL . '/modules/magasin.php?onglet=reception'); exit;
+            header('Location: ' . url('magasin', ['onglet'=>'reception'])); exit;
         }
     }
 
     flash('Action inconnue.', 'error');
-    header('Location: ' . APP_URL . '/modules/magasin.php'); exit;
+    header('Location: ' . url('magasin')); exit;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -297,11 +297,11 @@ showFlash();
 <div class="card no-print" style="margin-bottom:16px;">
   <div class="card-pad" style="padding:6px 12px;">
     <div class="flex gap-8" style="flex-wrap:wrap;">
-      <a href="?onglet=stock"      class="btn btn-sm <?= $onglet==='stock'?'btn-primary':'btn-ghost' ?>"><?= icon('box',14) ?> Stock magasin</a>
+      <a href="<?= url('magasin', ['onglet'=>'stock']) ?>"      class="btn btn-sm <?= $onglet==='stock'?'btn-primary':'btn-ghost' ?>"><?= icon('box',14) ?> Stock magasin</a>
       <?php if (hasPermission('magasin.gerer')): ?>
-      <a href="?onglet=reception"  class="btn btn-sm <?= $onglet==='reception'?'btn-primary':'btn-ghost' ?>"><?= icon('plus',14) ?> Réception / Ajustement</a>
+      <a href="<?= url('magasin', ['onglet'=>'reception']) ?>"  class="btn btn-sm <?= $onglet==='reception'?'btn-primary':'btn-ghost' ?>"><?= icon('plus',14) ?> Réception / Ajustement</a>
       <?php endif; ?>
-      <a href="?onglet=historique" class="btn btn-sm <?= $onglet==='historique'?'btn-primary':'btn-ghost' ?>"><?= icon('history',14) ?> Historique</a>
+      <a href="<?= url('magasin', ['onglet'=>'historique']) ?>" class="btn btn-sm <?= $onglet==='historique'?'btn-primary':'btn-ghost' ?>"><?= icon('history',14) ?> Historique</a>
     </div>
   </div>
 </div>
@@ -752,7 +752,7 @@ function submitRetour(e) {
         <input type="text" name="motif" placeholder="Origine de la réception / raison de l'ajustement" style="width:100%;">
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px;">
-        <a href="?onglet=stock" class="btn btn-ghost">Annuler</a>
+        <a href="<?= url('magasin', ['onglet'=>'stock']) ?>" class="btn btn-ghost">Annuler</a>
         <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> Enregistrer</button>
       </div>
     </form>

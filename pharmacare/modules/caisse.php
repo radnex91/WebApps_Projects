@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
         $db->prepare("INSERT INTO caisses (nom) VALUES (?)")->execute([$nom]);
         flash('Poste créé avec succès.', 'success');
     }
-    header('Location: ' . APP_URL . '/modules/caisse.php'); exit;
+    header('Location: ' . url('caisse')); exit;
 }
 
 // ── POST : clôture de caisse (Z) ────────────────────────────
@@ -78,12 +78,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
 
     if (!$session || $session['statut'] !== 'ouverte') {
         flash('Session invalide ou déjà fermée.', 'error');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     if ((int)$session['caissier_id'] !== currentUser()['id'] && !hasPermission('caisse.gerer')) {
         flash('Vous ne pouvez pas clôturer cette caisse.', 'error');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     // Admin forcé → motif obligatoire
@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
         $motifForce = trim($_POST['motif_force'] ?? '');
         if ($motifForce === '') {
             flash('Motif obligatoire pour une fermeture forcée.', 'error');
-            header('Location: ?action=z&id=' . $sessionId); exit;
+            header('Location: ' . url('caisse', ['action'=>'z','id'=>$sessionId])); exit;
         }
         $db->prepare("INSERT INTO mouvements_caisse (session_id, type, montant, motif, moyen) VALUES (?, 'sortie', 0, ?, 'espèces')")
            ->execute([$sessionId, 'Fermeture forcée admin : ' . $motifForce]);
@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
     $auditDetail = sprintf('Clôture caisse #%d : attendu=%s, réel=%s, écart=%s%s', $sessionId, fmtMoney($soldeAttendu), fmtMoney($soldeReel), fmtMoney($ecart), !empty($estForce) ? ' [FORCÉE]' : '');
     auditLog('caisse.close', $auditDetail, $sessionId);
     flash('Caisse clôturée. Écart : ' . fmtMoney($ecart) . '.', $ecart === 0.0 ? 'success' : 'info');
-    header('Location: ?'); exit;
+    header('Location: ' . url('caisse')); exit;
 }
 
 // ── POST : ouverture de caisse ──────────────────────────────
@@ -123,21 +123,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
     $stmt->execute([$caisseId]);
     if (!$stmt->fetch()) {
         flash('Poste invalide.', 'error');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     $stmt = $db->prepare("SELECT id FROM sessions_caisse WHERE caisse_id = ? AND statut = 'ouverte'");
     $stmt->execute([$caisseId]);
     if ($stmt->fetch()) {
         flash('Ce poste a déjà une session ouverte.', 'error');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     $stmt = $db->prepare("SELECT id FROM sessions_caisse WHERE caissier_id = ? AND statut = 'ouverte'");
     $stmt->execute([currentUser()['id']]);
     if ($stmt->fetch()) {
         flash('Vous avez déjà une session de caisse ouverte.', 'error');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     $db->prepare("
@@ -167,13 +167,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
         } catch (Exception $ex) {
             $db->rollBack();
             flash('Caisse ouverte mais écriture comptable du fond échouée : ' . $ex->getMessage(), 'error');
-            header('Location: ?'); exit;
+            header('Location: ' . url('caisse')); exit;
         }
     }
 
     auditLog('caisse.open', sprintf('Ouverture caisse #%d : fond %s', (int)$newSessionId, fmtMoney($fond)), (int)$newSessionId);
     flash('Caisse ouverte avec un fond initial de ' . fmtMoney($fond) . '.', 'success');
-    header('Location: ?'); exit;
+    header('Location: ' . url('caisse')); exit;
 }
 
 // ── POST : mouvement manuel ─────────────────────────────────
@@ -187,14 +187,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
 
     if ($montant <= 0 || $motif === '') {
         flash('Montant et motif obligatoires.', 'error');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     $stmt = $db->prepare("SELECT id FROM sessions_caisse WHERE id = ? AND statut = 'ouverte' AND caissier_id = ?");
     $stmt->execute([$sessionId, currentUser()['id']]);
     if (!$stmt->fetch()) {
         flash('Session invalide.', 'error');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     $labelType = $typeMvt === 'entrée' ? 'Dépôt' : 'Retrait';
@@ -234,12 +234,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
         flash('Erreur mouvement caisse : ' . $e->getMessage(), 'error');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     auditLog('caisse.mouvement', sprintf('%s : %s (%s)', $labelType, fmtMoney($montant), $motif), $sessionId);
     flash($labelType . ' de ' . fmtMoney($montant) . ' enregistré.', 'success');
-    header('Location: ?'); exit;
+    header('Location: ' . url('caisse')); exit;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -252,7 +252,7 @@ if ($action === 'ouvrir'):
     $dejaOuverte->execute([currentUser()['id']]);
     if ($maSession = $dejaOuverte->fetch()) {
         flash('Vous avez déjà une session ouverte sur « ' . e($maSession['nom']) . ' ».' , 'info');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     $toutesCaisses = $db->query("
@@ -270,7 +270,7 @@ if ($action === 'ouvrir'):
     }
     if ($aucuneDispo) {
         flash('Tous les postes de caisse sont actuellement occupés.', 'info');
-        header('Location: ?'); exit;
+        header('Location: ' . url('caisse')); exit;
     }
 
     layout_head('Ouverture de Caisse', 'caisse');
@@ -320,7 +320,7 @@ if ($action === 'ouvrir'):
         <input type="number" name="fond_initial" value="0" min="0" step="1" required style="font-size:18px;font-weight:600;">
       </div>
       <div style="display:flex;gap:10px;margin-top:20px;">
-        <a href="?" class="btn btn-ghost" style="flex:1;justify-content:center;">Annuler</a>
+        <a href="<?= url('caisse') ?>" class="btn btn-ghost" style="flex:1;justify-content:center;">Annuler</a>
         <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;gap:6px;" id="btn-ouvrir" disabled>
           <?= icon('unlock',14) ?> Ouvrir la caisse
         </button>
@@ -358,7 +358,7 @@ if ($action === 'x'):
     ");
     $stmt->execute([$sessionId]);
     $session = $stmt->fetch();
-    if (!$session) { flash('Session introuvable.', 'error'); header('Location: ?'); exit; }
+    if (!$session) { flash('Session introuvable.', 'error'); header('Location: ' . url('caisse')); exit; }
 
     $solde = soldeSession($db, $sessionId);
 
@@ -479,8 +479,8 @@ if ($action === 'x'):
     </div>
     <?php endif; ?>
     <div style="display:flex;gap:10px;margin-top:20px;">
-      <a href="?" class="btn btn-ghost" style="flex:1;justify-content:center;">Retour</a>
-      <a href="?action=rapport_session&id=<?= (int)$sessionId ?>" class="btn btn-ghost" style="flex:1;justify-content:center;gap:6px;">
+      <a href="<?= url('caisse') ?>" class="btn btn-ghost" style="flex:1;justify-content:center;">Retour</a>
+      <a href="<?= url('caisse', ['action'=>'rapport_session','id'=>$sessionId]) ?>" class="btn btn-ghost" style="flex:1;justify-content:center;gap:6px;">
         <?= icon('file-text',14) ?> Rapport A4
       </a>
       <button class="btn btn-ghost btn-sm" onclick="printSection('x-content')" style="gap:6px;">
@@ -506,7 +506,7 @@ if ($action === 'z'):
     $stmt->execute([$sessionId]);
     $session = $stmt->fetch();
     if (!$session || $session['statut'] !== 'ouverte') {
-        flash('Session invalide ou déjà fermée.', 'error'); header('Location: ?'); exit;
+        flash('Session invalide ou déjà fermée.', 'error'); header('Location: ' . url('caisse')); exit;
     }
 
     $soldeAttendu = soldeSession($db, $sessionId);
@@ -589,8 +589,8 @@ if ($action === 'z'):
       <?php endif; ?>
 
       <div style="display:flex;gap:10px;">
-        <a href="?" class="btn btn-ghost" style="flex:1;justify-content:center;padding:10px;">Annuler</a>
-        <a href="?action=rapport_session&id=<?= (int)$session['id'] ?>" class="btn btn-ghost" style="gap:6px;padding:10px 14px;">
+        <a href="<?= url('caisse') ?>" class="btn btn-ghost" style="flex:1;justify-content:center;padding:10px;">Annuler</a>
+        <a href="<?= url('caisse', ['action'=>'rapport_session','id'=>$session['id']]) ?>" class="btn btn-ghost" style="gap:6px;padding:10px 14px;">
           <?= icon('file-text',14) ?> Rapport A4
         </a>
         <button type="button" class="btn btn-ghost" onclick="printSection('z-content')" style="gap:6px;padding:10px 14px;">
@@ -679,7 +679,7 @@ if ($action === 'rapport_session'):
     ");
     $stmt->execute([$sessionId]);
     $session = $stmt->fetch();
-    if (!$session) { flash('Session introuvable.', 'error'); header('Location: ?'); exit; }
+    if (!$session) { flash('Session introuvable.', 'error'); header('Location: ' . url('caisse')); exit; }
 
     $soldeAttendu = soldeSession($db, $sessionId);
 
@@ -873,7 +873,7 @@ if ($action === 'rapport_session'):
 
       </div>
       <div style="display:flex;gap:10px;margin-top:30px;justify-content:center;">
-        <a href="?" class="btn btn-ghost" style="padding:10px 20px;">Retour</a>
+        <a href="<?= url('caisse') ?>" class="btn btn-ghost" style="padding:10px 20px;">Retour</a>
         <button class="btn btn-primary" onclick="printRapport()" style="gap:6px;padding:10px 20px;">
           <?= icon('print', 14) ?> Imprimer le rapport
         </button>
@@ -934,7 +934,7 @@ if ($action === 'rapport_session'):
 <div class="card">
   <div class="card-header">
     <div class="card-title">Historique des sessions</div>
-    <a href="?" class="btn btn-ghost btn-sm">← Dashboard</a>
+    <a href="<?= url('caisse') ?>" class="btn btn-ghost btn-sm">← Dashboard</a>
   </div>
   <div class="card-pad" style="padding-bottom:10px;">
     <form method="GET" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
@@ -953,7 +953,7 @@ if ($action === 'rapport_session'):
         <input type="date" name="date" value="<?= e($filtreDate) ?>" onchange="this.form.submit()">
       </div>
       <?php if ($filtreCaisse !== '' || $filtreDate !== ''): ?>
-      <a href="?action=historique" class="btn btn-ghost btn-xs" style="align-self:end;margin-bottom:2px;">Réinitialiser</a>
+      <a href="<?= url('caisse', ['action'=>'historique']) ?>" class="btn btn-ghost btn-xs" style="align-self:end;margin-bottom:2px;">Réinitialiser</a>
       <?php endif; ?>
     </form>
   </div>
@@ -982,7 +982,7 @@ if ($action === 'rapport_session'):
           <td style="text-align:right;font-weight:600;color:<?= $ecartColor ?>;"><?= $s['ecart'] !== null ? fmtMoney((float)$s['ecart']) : '—' ?></td>
           <td>
             <?php if ($s['statut'] === 'fermée'): ?>
-              <a href="?action=rapport_session&id=<?= (int)$s['id'] ?>" class="btn btn-ghost btn-xs" style="gap:4px;">
+              <a href="<?= url('caisse', ['action'=>'rapport_session','id'=>$s['id']]) ?>" class="btn btn-ghost btn-xs" style="gap:4px;">
                 <?= icon('file-text',12) ?> Rapport
               </a>
             <?php else: ?>
@@ -1048,7 +1048,7 @@ if ($fermetureAuto && $heureDepassee && !empty($sessionsOuvertes)):
         <input type="text" name="nom" placeholder="ex: Caisse 4" required>
       </div>
       <div style="display:flex;gap:10px;">
-        <a href="?" class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;">Annuler</a>
+        <a href="<?= url('caisse') ?>" class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;">Annuler</a>
         <button type="submit" class="btn btn-primary btn-sm" style="flex:1;justify-content:center;">Créer</button>
       </div>
     </form>
@@ -1061,11 +1061,11 @@ if ($fermetureAuto && $heureDepassee && !empty($sessionsOuvertes)):
     <div class="card-title">Dashboard des caisses</div>
     <div style="display:flex;gap:8px;">
       <?php if (hasPermission('caisse.ouvrir')): ?>
-      <a href="?action=ouvrir" class="btn btn-primary btn-sm" style="gap:6px;">
+      <a href="<?= url('caisse', ['action'=>'ouvrir']) ?>" class="btn btn-primary btn-sm" style="gap:6px;">
         <?= icon('plus',14) ?> Ouvrir une caisse
       </a>
       <?php endif; ?>
-      <a href="?action=historique" class="btn btn-ghost btn-sm" style="gap:6px;">
+      <a href="<?= url('caisse', ['action'=>'historique']) ?>" class="btn btn-ghost btn-sm" style="gap:6px;">
         <?= icon('history',14) ?> Historique
       </a>
       <?php if (hasPermission('caisse.gerer')): ?>
@@ -1106,17 +1106,17 @@ if ($fermetureAuto && $heureDepassee && !empty($sessionsOuvertes)):
           <td style="text-align:right;font-weight:600;font-family:'DM Mono',monospace;"><?= $estOuverte ? fmtMoney($solde) : '—' ?></td>
           <td style="text-align:center;">
             <?php if ($estOuverte): ?>
-              <a href="?action=x&id=<?= (int)$session['id'] ?>" class="btn btn-ghost btn-xs" title="Relevé de caisse sans clôture" style="gap:4px;">
+              <a href="<?= url('caisse', ['action'=>'x','id'=>$session['id']]) ?>" class="btn btn-ghost btn-xs" title="Relevé de caisse sans clôture" style="gap:4px;">
                 <?= icon('eye',13) ?> Relevé
               </a>
               <?php $peutCloturer = (int)$session['caissier_id'] === currentUser()['id'] || hasPermission('caisse.gerer'); ?>
               <?php if ($peutCloturer): ?>
-              <a href="?action=z&id=<?= (int)$session['id'] ?>" class="btn btn-ghost btn-xs" title="Clôturer la caisse" style="gap:4px;color:var(--red);">
+              <a href="<?= url('caisse', ['action'=>'z','id'=>$session['id']]) ?>" class="btn btn-ghost btn-xs" title="Clôturer la caisse" style="gap:4px;color:var(--red);">
                 <?= icon('lock',13) ?> Clôturer
               </a>
               <?php endif; ?>
               <?php if ((int)$session['caissier_id'] === currentUser()['id']): ?>
-              <a href="?action=mouvement&id=<?= (int)$session['id'] ?>" class="btn btn-ghost btn-xs" title="Ajouter un mouvement" style="gap:4px;">
+              <a href="<?= url('caisse', ['action'=>'mouvement','id'=>$session['id']]) ?>" class="btn btn-ghost btn-xs" title="Ajouter un mouvement" style="gap:4px;">
                 <?= icon('plus',13) ?> Mvt
               </a>
               <?php endif; ?>
@@ -1159,7 +1159,7 @@ if ($fermetureAuto && $heureDepassee && !empty($sessionsOuvertes)):
         <input type="text" name="motif" placeholder="ex: Achat fournitures, Retrait banque..." required>
       </div>
       <div style="display:flex;gap:10px;">
-        <a href="?" class="btn btn-ghost" style="flex:1;justify-content:center;">Annuler</a>
+        <a href="<?= url('caisse') ?>" class="btn btn-ghost" style="flex:1;justify-content:center;">Annuler</a>
         <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;gap:6px;">
           <?= icon('save',14) ?> Enregistrer
         </button>

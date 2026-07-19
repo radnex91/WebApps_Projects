@@ -25,6 +25,11 @@ final class CleanUrlLinksTest extends TestCase
             'modules/clients.php',
             'modules/fournisseurs.php',
             'modules/utilisateurs.php',
+            'modules/magasin.php',
+            'modules/comptabilite.php',
+            'modules/caisse.php',
+            'modules/marketing.php',
+            'modules/remise_codes.php',
         ];
     }
 

@@ -11,7 +11,7 @@ $id     = (int)($_GET['id'] ?? 0);
 $fideliteActive = fideliteActive();
 if (!$fideliteActive && in_array($action, ['fidelite', 'add-points'], true)) {
     flash('Le module fidélité client est désactivé.', 'error');
-    header('Location: ' . APP_URL . '/modules/marketing.php'); exit;
+    header('Location: ' . url('marketing')); exit;
 }
 
 // ── POST : créer / modifier une campagne promo ────────────────
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add-promo','edi
 
     if ($nom === '' || $valeur <= 0 || !$date_debut || !$date_fin) {
         flash('Tous les champs obligatoires sont requis.', 'error');
-        header('Location: ' . APP_URL . '/modules/marketing.php?action=' . ($action === 'edit-promo' ? 'edit-promo&id='.$id : 'add-promo')); exit;
+        header('Location: ' . url('marketing', $action === 'edit-promo' ? ['action'=>'edit-promo','id'=>$id] : ['action'=>'add-promo'])); exit;
     }
 
     try {
@@ -51,11 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add-promo','edi
         }
         $db->commit();
         flash('Campagne ' . ($action === 'edit-promo' ? 'modifiée' : 'créée') . '.', 'success');
-        header('Location: ' . APP_URL . '/modules/marketing.php'); exit;
+        header('Location: ' . url('marketing')); exit;
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
         flash('Erreur : ' . $e->getMessage(), 'error');
-        header('Location: ' . APP_URL . '/modules/marketing.php?action=add-promo'); exit;
+        header('Location: ' . url('marketing', ['action'=>'add-promo'])); exit;
     }
 }
 
@@ -69,12 +69,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'add-points') {
 
     if ($clientId <= 0 || $points <= 0) {
         flash('Client et points requis.', 'error');
-        header('Location: ' . APP_URL . '/modules/marketing.php?action=fidelite'); exit;
+        header('Location: ' . url('marketing', ['action'=>'fidelite'])); exit;
     }
     $db->prepare("INSERT INTO fidelite_points (client_id, points, type, note) VALUES (?,?, 'gagné',?)")
        ->execute([$clientId, $points, $note]);
     flash($points . ' points ajoutés au client.', 'success');
-    header('Location: ' . APP_URL . '/modules/marketing.php?action=fidelite'); exit;
+    header('Location: ' . url('marketing', ['action'=>'fidelite'])); exit;
 }
 
 // ── GET : désactiver / activer une campagne ──────────────────
@@ -86,7 +86,7 @@ if ($action === 'toggle' && $id && hasPermission('marketing.promos')) {
     $new = $current ? 0 : 1;
     $db->prepare("UPDATE campagnes_promo SET actif=? WHERE id=?")->execute([$new, $id]);
     flash($new ? 'Campagne activée.' : 'Campagne désactivée.', 'success');
-    header('Location: ' . APP_URL . '/modules/marketing.php'); exit;
+    header('Location: ' . url('marketing')); exit;
 }
 
 // ── Titre ──────────────────────────────────────────────────
@@ -168,7 +168,7 @@ $produitsList = $db->query("SELECT id, nom FROM produits WHERE actif=1 ORDER BY 
       </div>
     </div>
     <div class="modal-footer">
-      <a href="<?= APP_URL ?>/modules/marketing.php" class="btn btn-ghost">Annuler</a>
+      <a href="<?= url('marketing') ?>" class="btn btn-ghost">Annuler</a>
       <button type="submit" class="btn btn-primary"><?= $isEdit ? 'Enregistrer' : 'Créer la campagne' ?></button>
     </div>
   </form>
@@ -225,7 +225,7 @@ $totalPointsUtilises = array_sum(array_column($clients, 'points_utilises'));
     ?>
       <tr>
         <td style="color:var(--text2);"><?= $i++ ?></td>
-        <td><a href="<?= APP_URL ?>/modules/clients.php?action=detail&id=<?= $c['id'] ?>" style="font-weight:500;text-decoration:none;color:var(--text);"><?= e($c['nom']) ?></a></td>
+        <td><a href="<?= url('clients', ['action'=>'detail','id'=>$c['id']], $c['nom'] ?? null) ?>" style="font-weight:500;text-decoration:none;color:var(--text);"><?= e($c['nom']) ?></a></td>
         <td style="color:var(--text2);"><?= e($c['telephone'] ?: '—') ?></td>
         <td class="fw-mono" style="color:var(--teal);">+<?= fmtInt((int)$c['points_gagnes']) ?></td>
         <td class="fw-mono" style="color:var(--red);"><?= (int)$c['points_utilises'] > 0 ? '-'.fmtInt((int)$c['points_utilises']) : '—' ?></td>
@@ -338,7 +338,7 @@ $topClients = $db->query("
 <div class="page-header">
   <h1>Marketing</h1>
   <?php if (hasPermission('marketing.promos')): ?>
-  <a href="<?= APP_URL ?>/modules/marketing.php?action=add-promo" class="btn btn-primary"><?= icon('plus',14) ?> Nouvelle campagne</a>
+  <a href="<?= url('marketing', ['action'=>'add-promo']) ?>" class="btn btn-primary"><?= icon('plus',14) ?> Nouvelle campagne</a>
   <?php endif; ?>
 </div>
 
@@ -363,10 +363,10 @@ $topClients = $db->query("
     <div class="card-header"><div class="card-title">Actions</div></div>
     <div class="card-pad" style="display:flex;flex-direction:column;gap:8px;">
       <?php if (hasPermission('marketing.promos')): ?>
-      <a href="<?= APP_URL ?>/modules/marketing.php?action=add-promo" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('plus',14) ?> Créer une campagne</a>
+      <a href="<?= url('marketing', ['action'=>'add-promo']) ?>" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('plus',14) ?> Créer une campagne</a>
       <?php endif; ?>
       <?php if (hasPermission('marketing.fidelite') && $fideliteActive): ?>
-      <a href="<?= APP_URL ?>/modules/marketing.php?action=fidelite" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('users',14) ?> Gérer la fidélité</a>
+      <a href="<?= url('marketing', ['action'=>'fidelite']) ?>" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('users',14) ?> Gérer la fidélité</a>
       <?php endif; ?>
     </div>
   </div>
@@ -376,7 +376,7 @@ $topClients = $db->query("
 <div class="card">
   <div class="card-header">
     <div class="card-title">Top 5 clients fidélité</div>
-    <a href="<?= APP_URL ?>/modules/marketing.php?action=fidelite" class="btn btn-ghost btn-sm">Voir tout</a>
+    <a href="<?= url('marketing', ['action'=>'fidelite']) ?>" class="btn btn-ghost btn-sm">Voir tout</a>
   </div>
   <table class="table">
     <thead><tr><th>#</th><th>Client</th><th>Solde points</th></tr></thead>
@@ -397,7 +397,7 @@ $topClients = $db->query("
   <div class="card-header">
     <div class="card-title">Campagnes promotionnelles</div>
     <?php if (hasPermission('marketing.promos')): ?>
-    <a href="<?= APP_URL ?>/modules/marketing.php?action=add-promo" class="btn btn-ghost btn-sm"><?= icon('plus',14) ?> Ajouter</a>
+    <a href="<?= url('marketing', ['action'=>'add-promo']) ?>" class="btn btn-ghost btn-sm"><?= icon('plus',14) ?> Ajouter</a>
     <?php endif; ?>
   </div>
   <?php if (count($campagnes) === 0): ?>
@@ -433,8 +433,8 @@ $topClients = $db->query("
         <td>
           <div style="display:flex;gap:4px;">
             <?php if (hasPermission('marketing.promos')): ?>
-            <a href="<?= APP_URL ?>/modules/marketing.php?action=edit-promo&id=<?= $c['id'] ?>" class="btn btn-ghost" style="padding:4px 6px;" title="Modifier"><?= icon('edit',14) ?></a>
-            <a href="<?= APP_URL ?>/modules/marketing.php?action=toggle&id=<?= $c['id'] ?>&csrf=<?= csrf() ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--text2);" title="<?= $c['actif'] ? 'Désactiver' : 'Activer' ?>"><?= icon($c['actif'] ? 'x' : 'check',14) ?></a>
+            <a href="<?= url('marketing', ['action'=>'edit-promo','id'=>$c['id']]) ?>" class="btn btn-ghost" style="padding:4px 6px;" title="Modifier"><?= icon('edit',14) ?></a>
+            <a href="<?= url('marketing', ['action'=>'toggle','id'=>$c['id'],'csrf'=>csrf()]) ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--text2);" title="<?= $c['actif'] ? 'Désactiver' : 'Activer' ?>"><?= icon($c['actif'] ? 'x' : 'check',14) ?></a>
             <?php endif; ?>
           </div>
         </td>
