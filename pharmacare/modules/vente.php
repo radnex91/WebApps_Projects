@@ -44,7 +44,7 @@ if (hasPermission('caisse.ouvrir')) {
 
     if (!$sessionActive) {
         flash('Vous devez ouvrir une caisse avant de pouvoir vendre.', 'error');
-        header('Location: ' . APP_URL . '/modules/caisse.php?action=ouvrir'); exit;
+        header('Location: ' . url('caisse', ['action' => 'ouvrir'])); exit;
     }
 }
 
@@ -61,14 +61,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         flash('Trop de ventes enregistrées (limite anti-abus). Réessayez dans '
             . $retry . ' s.', 'error');
         auditLog('vente.ratelimit', sprintf('Vente bloquée (rate limit) user #%d, retry %ds', $uid, $retry));
-        header('Location: ' . APP_URL . '/modules/vente.php'); exit;
+        header('Location: ' . url('vente')); exit;
     }
 
     $cartRaw = json_decode($_POST['cart_data'], true);
 
     if (!$cartRaw || count($cartRaw) === 0) {
         flash('Le panier est vide.', 'error');
-        header('Location: ' . APP_URL . '/modules/vente.php'); exit;
+        header('Location: ' . url('vente')); exit;
     }
 
     // Vérifier que le mode de paiement est valide
@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         $clientNom = trim($_POST['client_nom_saisie'] ?? '');
         if ($clientNom === '') {
             flash('Le nom du client est obligatoire en vente libre.', 'error');
-            header('Location: ' . APP_URL . '/modules/vente.php'); exit;
+            header('Location: ' . url('vente')); exit;
         }
     }
 
@@ -108,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
     // la créance en comptabilité : on bloquerait en caisse ce qui n'est pas encaissé).
     if ($modePaiement === 'crédit' && !$clientId) {
         flash('Un client enregistré est requis pour une vente à crédit.', 'error');
-        header('Location: ' . APP_URL . '/modules/vente.php'); exit;
+        header('Location: ' . url('vente')); exit;
     }
 
     $db->beginTransaction();
@@ -291,12 +291,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
 
         $db->commit();
         auditLog('vente.create', sprintf('Vente %s : %d articles, %s %s (%s)', $ref, count($cartRaw), fmtMoney($total), $modePaiement, $clientNom ?: '—'), (int)$vid, $ref);
-        header('Location: ' . APP_URL . '/modules/vente.php?receipt=' . urlencode($ref)); exit;
+        header('Location: ' . url('vente', ['receipt' => $ref])); exit;
 
     } catch (Exception $e) {
         $db->rollBack();
         flash('Erreur : ' . $e->getMessage(), 'error');
-        header('Location: ' . APP_URL . '/modules/vente.php'); exit;
+        header('Location: ' . url('vente')); exit;
     }
 }
 
@@ -1059,7 +1059,7 @@ function toggleCreditMode(checkbox) {
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-receipt')">
         Fermer
       </button>
-      <a href="<?= APP_URL ?>/modules/ventes_hist.php" class="btn btn-ghost btn-sm">
+      <a href="<?= url('ventes_hist') ?>" class="btn btn-ghost btn-sm">
         <?= icon('history',13) ?> Historique
       </a>
       <button class="btn btn-outline-teal btn-sm" onclick="printReceipt80()">

@@ -136,7 +136,7 @@ showFlash();
         <input type="date" name="fin" value="<?= e($dateFin) ?>" style="padding:7px 11px;font-size:13px;">
       </div>
       <button type="submit" class="btn btn-primary btn-sm"><?= icon('filter',13) ?> Filtrer</button>
-      <a href="?" class="btn btn-ghost btn-sm"><?= icon('refresh',13) ?> Réinitialiser</a>
+      <a href="<?= url('rapports_caissier') ?>" class="btn btn-ghost btn-sm"><?= icon('refresh',13) ?> Réinitialiser</a>
     </form>
   </div>
 </div>
@@ -223,7 +223,7 @@ $modeInfo = [
         $mBadge = $modeInfo[$r['mode_paiement']] ?? ['badge-gray', $r['mode_paiement']];
       ?>
       <tr>
-        <td class="fw-mono"><a href="<?= APP_URL ?>/modules/ventes_hist.php?debut=<?= urlencode($dateDebut) ?>&fin=<?= urlencode($dateFin) ?>" style="color:var(--teal2);text-decoration:none;"><?= e($r['reference']) ?></a></td>
+        <td class="fw-mono"><a href="<?= url('ventes_hist', ['debut'=>$dateDebut,'fin'=>$dateFin]) ?>" style="color:var(--teal2);text-decoration:none;"><?= e($r['reference']) ?></a></td>
         <td><?= e($r['client_nom'] ?: '—') ?></td>
         <td><?= $r['nb_articles'] ?></td>
         <td class="fw-mono c-teal"><?= fmtMoney((float)$r['total']) ?></td>
@@ -235,7 +235,7 @@ $modeInfo = [
     </table>
     <?php if ((int)$stats['nb_ventes'] > 10): ?>
     <div style="padding:12px 16px;text-align:center;border-top:1px solid var(--border);">
-      <a href="<?= APP_URL ?>/modules/ventes_hist.php?debut=<?= urlencode($dateDebut) ?>&fin=<?= urlencode($dateFin) ?>" style="font-size:13px;font-weight:500;color:var(--teal2);text-decoration:none;"><?= icon('history',13) ?> Voir tout l'historique →</a>
+      <a href="<?= url('ventes_hist', ['debut'=>$dateDebut,'fin'=>$dateFin]) ?>" style="font-size:13px;font-weight:500;color:var(--teal2);text-decoration:none;"><?= icon('history',13) ?> Voir tout l'historique →</a>
     </div>
     <?php endif; ?>
     <?php else: ?>

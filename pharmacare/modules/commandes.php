@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($action === 'add' || $action === '
         $existing = $check->fetch();
         if ($existing && in_array($existing['statut'], ['livrée', 'annulée'])) {
             flash('Cette commande ne peut plus être modifiée.', 'error');
-            header('Location: ' . APP_URL . '/modules/commandes.php'); exit;
+            header('Location: ' . url('commandes')); exit;
         }
     }
     $fourn_id = !empty($_POST['fournisseur_id']) ? (int)$_POST['fournisseur_id'] : null;
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($action === 'add' || $action === '
         $db->rollBack();
         flash('Erreur : ' . $e->getMessage(), 'error');
     }
-    header('Location: ' . APP_URL . '/modules/commandes.php'); exit;
+    header('Location: ' . url('commandes')); exit;
 }
 
 $statutMap = [
@@ -85,7 +85,7 @@ if ($action === 'livrer' && $id && hasPermission('commandes.modifier') && $_SERV
     $checks = $_POST['checks'] ?? [];
     if (empty($checks)) {
         flash('Veuillez cocher au moins une case de vérification.', 'error');
-        header('Location: ' . APP_URL . '/modules/commandes.php?action=livrer_form&id=' . $id); exit;
+        header('Location: ' . url('commandes', ['action'=>'livrer_form','id'=>$id])); exit;
     }
     $validationNote = implode(' ; ', $checks);
     if ($noteLivraison) $validationNote .= ' — ' . $noteLivraison;
@@ -160,7 +160,7 @@ if ($action === 'livrer' && $id && hasPermission('commandes.modifier') && $_SERV
     } else {
         flash('Impossible de valider cette commande.', 'error');
     }
-    header('Location: ' . APP_URL . '/modules/commandes.php'); exit;
+    header('Location: ' . url('commandes')); exit;
 }
 
 // ── Formulaire de validation livraison ─────────────────────────
@@ -170,7 +170,7 @@ if ($action === 'livrer_form' && $id && hasPermission('commandes.modifier')) {
     $cmd = $stmt->fetch();
     if (!$cmd || !in_array($cmd['statut'], ['en_attente', 'en_cours'])) {
         flash('Impossible de valider cette commande.', 'error');
-        header('Location: ' . APP_URL . '/modules/commandes.php'); exit;
+        header('Location: ' . url('commandes')); exit;
     }
     $lignes = $db->prepare("SELECT cl.*, p.nom AS pnom FROM commande_lignes cl LEFT JOIN produits p ON cl.produit_id = p.id WHERE cl.commande_id=? ORDER BY cl.id");
     $lignes->execute([$id]);
@@ -185,7 +185,7 @@ if ($action === 'livrer_form' && $id && hasPermission('commandes.modifier')) {
     <div class="card" style="max-width:600px;margin:0 auto;">
       <div class="card-header">
         <div class="card-title">Valider la livraison</div>
-        <a href="<?= APP_URL ?>/modules/commandes.php" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+        <a href="<?= url('commandes') ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
       </div>
       <div class="card-pad">
         <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
@@ -251,7 +251,7 @@ if ($action === 'livrer_form' && $id && hasPermission('commandes.modifier')) {
             ⚠️ La validation entraîne l'entrée en stock des produits commandés et ne peut pas être annulée.
           </div>
           <div class="modal-footer" style="padding:0;">
-            <a href="<?= APP_URL ?>/modules/commandes.php" class="btn btn-ghost">Annuler</a>
+            <a href="<?= url('commandes') ?>" class="btn btn-ghost">Annuler</a>
             <button type="submit" class="btn btn-primary" id="btn-livrer"><?= icon('check',14) ?> Confirmer la livraison</button>
           </div>
         </form>
@@ -280,7 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
         $db->prepare("DELETE FROM commandes WHERE id=?")->execute([$delId]);
         flash('Commande supprimée.');
     }
-    header('Location: ' . APP_URL . '/modules/commandes.php'); exit;
+    header('Location: ' . url('commandes')); exit;
 }
 
 // ── Formulaire ajout / modification ─────────────────────────
@@ -291,7 +291,7 @@ if (in_array($action, ['add', 'edit'])) {
         $checkRow = $stmtCheck->fetch();
         if ($checkRow && in_array($checkRow['statut'], ['livrée', 'annulée'])) {
             flash('Cette commande ne peut plus être modifiée.', 'error');
-            header('Location: ' . APP_URL . '/modules/commandes.php'); exit;
+            header('Location: ' . url('commandes')); exit;
         }
     }
     $c = ['id'=>'','fournisseur_id'=>'','statut'=>'en_attente','date_commande'=>date('Y-m-d'),'date_livraison'=>'','note'=>''];
@@ -312,7 +312,7 @@ if (in_array($action, ['add', 'edit'])) {
     <div class="card" style="max-width:780px;margin:0 auto;">
       <div class="card-header">
         <div class="card-title"><?= $id ? 'Modifier commande' : 'Nouvelle commande' ?></div>
-        <a href="<?= APP_URL ?>/modules/commandes.php" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+        <a href="<?= url('commandes') ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
       </div>
       <form method="POST" id="cmd-form">
         <input type="hidden" name="csrf" value="<?= csrf() ?>">
@@ -377,7 +377,7 @@ if (in_array($action, ['add', 'edit'])) {
           </div>
         </div>
         <div class="modal-footer">
-          <a href="<?= APP_URL ?>/modules/commandes.php" class="btn btn-ghost">Annuler</a>
+          <a href="<?= url('commandes') ?>" class="btn btn-ghost">Annuler</a>
           <?php if ($id && hasPermission('commandes.modifier')): ?>
           <button type="button" class="btn btn-danger" onclick="confirmDeletePost('delete','<?= (int)$id ?>','Supprimer cette commande ?')"><?= icon('trash',14) ?> Supprimer</button>
           <?php endif; ?>
@@ -576,7 +576,7 @@ if ($action === 'bon' && $id) {
         WHERE c.id = ?");
     $stmt->execute([$id]);
     $cmd = $stmt->fetch();
-    if (!$cmd) { flash('Commande introuvable.', 'error'); header('Location: ' . APP_URL . '/modules/commandes.php'); exit; }
+    if (!$cmd) { flash('Commande introuvable.', 'error'); header('Location: ' . url('commandes')); exit; }
 
     $lignes = $db->prepare("SELECT cl.*, p.nom AS pnom FROM commande_lignes cl LEFT JOIN produits p ON cl.produit_id = p.id WHERE cl.commande_id=? ORDER BY cl.id");
     $lignes->execute([$id]);
@@ -638,7 +638,7 @@ if ($action === 'bon' && $id) {
     <div class="page">
       <div class="no-print">
         <button class="btn-print" onclick="window.print()">🖨️ Imprimer</button>
-        <a href="<?= APP_URL ?>/modules/commandes.php" style="margin-left:8px;font-size:13px;color:#64748b;">← Retour</a>
+        <a href="<?= url('commandes') ?>" style="margin-left:8px;font-size:13px;color:#64748b;">← Retour</a>
       </div>
 
       <div class="header">
@@ -758,7 +758,7 @@ showFlash();
   <div class="card-header">
     <div class="card-title">Commandes fournisseurs</div>
     <?php if (hasPermission('commandes.creer')): ?>
-    <a href="?action=add" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Nouvelle commande</a>
+    <a href="<?= url('commandes', ['action'=>'add']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Nouvelle commande</a>
     <?php endif; ?>
   </div>
   <div class="table-wrap">
@@ -787,10 +787,10 @@ showFlash();
           <?php if (hasPermission('commandes.modifier')): ?>
           <td>
             <div class="flex gap-8">
-              <a href="?action=bon&id=<?= $c['id'] ?>" class="btn btn-ghost btn-xs" title="Bon de livraison">🖨️</a>
+              <a href="<?= url('commandes', ['action'=>'bon','id'=>$c['id']]) ?>" class="btn btn-ghost btn-xs" title="Bon de livraison">🖨️</a>
               <?php if (in_array($c['statut'], ['en_attente', 'en_cours'])): ?>
-              <a href="?action=livrer_form&id=<?= $c['id'] ?>" class="btn btn-primary btn-xs"><?= icon('check',13) ?> Livrer</a>
-              <a href="?action=edit&id=<?= $c['id'] ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?></a>
+              <a href="<?= url('commandes', ['action'=>'livrer_form','id'=>$c['id']]) ?>" class="btn btn-primary btn-xs"><?= icon('check',13) ?> Livrer</a>
+              <a href="<?= url('commandes', ['action'=>'edit','id'=>$c['id']]) ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?></a>
               <?php elseif ($c['statut'] === 'livrée'): ?>
               <span class="badge badge-green">Terminée</span>
               <?php else: ?>

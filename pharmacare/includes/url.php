@@ -28,6 +28,7 @@ $ROUTES = [
         'historique' => 'historique', 'mouvement' => 'mouvement',
     ]],
     'stock'               => ['base' => 'stock'],
+    'stock_ajust'         => ['base' => 'stock-ajust'],
     'produits'            => ['base' => 'produits', 'idSlug' => true, 'actions' => [
         'add' => 'new', 'edit' => 'edit',
     ]],

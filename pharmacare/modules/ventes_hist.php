@@ -122,7 +122,7 @@ showFlash();
       </div>
       <div class="form-group" style="margin:0;justify-content:flex-end;">
         <label>&nbsp;</label>
-        <a href="?" class="btn btn-ghost btn-sm"><?= icon('refresh',13) ?> Réinitialiser</a>
+        <a href="<?= url('ventes_hist') ?>" class="btn btn-ghost btn-sm"><?= icon('refresh',13) ?> Réinitialiser</a>
       </div>
     </form>
   </div>

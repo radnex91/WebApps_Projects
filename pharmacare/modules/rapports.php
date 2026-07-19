@@ -292,7 +292,7 @@ showFlash();
       <div style="font-family:var(--font-title);font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;color:var(--text2);">
         <?= icon('calendar',16) ?> Sélection de la période
       </div>
-      <a href="?" class="btn btn-ghost btn-sm" style="gap:6px;"><?= icon('refresh',13) ?> Réinitialiser</a>
+      <a href="<?= url('rapports') ?>" class="btn btn-ghost btn-sm" style="gap:6px;"><?= icon('refresh',13) ?> Réinitialiser</a>
     </div>
 
     <!-- Raccourcis préréglés -->

@@ -16,13 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['barcode_lookup'])) {
         $stmtLookup->execute([$ref]);
         $found = $stmtLookup->fetch();
         if ($found) {
-            header('Location: ' . APP_URL . '/modules/stock_ajust.php?id=' . (int)$found['id']); exit;
+            header('Location: ' . url('stock_ajust', ['id'=>(int)$found['id']])); exit;
         } else {
             flash('Aucun produit trouvé avec la référence : ' . e($ref), 'error');
-            header('Location: ' . APP_URL . '/modules/stock_ajust.php'); exit;
+            header('Location: ' . url('stock_ajust')); exit;
         }
     }
-    header('Location: ' . APP_URL . '/modules/stock_ajust.php'); exit;
+    header('Location: ' . url('stock_ajust')); exit;
 }
 
 // ── Si aucun produit sélectionné, afficher le formulaire de recherche ──
@@ -33,7 +33,7 @@ if (!$id) {
     <div class="card" style="max-width:520px;margin:40px auto;">
       <div class="card-header">
         <div class="card-title">Recherche par code-barres</div>
-        <a href="<?= APP_URL ?>/modules/stock.php" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+        <a href="<?= url('stock') ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
       </div>
       <div class="card-pad">
         <form method="POST">
@@ -51,7 +51,7 @@ if (!$id) {
         </form>
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
           <div class="text-sm" style="color:var(--text3);margin-bottom:8px;">Ou chercher par nom :</div>
-          <form method="GET" action="<?= APP_URL ?>/modules/stock.php" style="display:flex;gap:8px;">
+          <form method="GET" action="<?= url('stock') ?>" style="display:flex;gap:8px;">
             <input type="text" name="q" placeholder="Nom du médicament..." style="flex:1;">
             <button type="submit" class="btn btn-ghost"><?= icon('search',14) ?></button>
           </form>
@@ -64,7 +64,7 @@ if (!$id) {
 $stmt = $db->prepare("SELECT p.*, c.nom AS cat FROM produits p LEFT JOIN categories c ON p.categorie_id=c.id WHERE p.id=?");
 $stmt->execute([$id]);
 $produit = $stmt->fetch();
-if (!$produit) { flash('Produit introuvable.','error'); header('Location: ' . APP_URL . '/modules/stock.php'); exit; }
+if (!$produit) { flash('Produit introuvable.','error'); header('Location: ' . url('stock')); exit; }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
@@ -117,11 +117,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->commit();
             auditLog('stock.adjust', sprintf('%s %s : %d → %d (%s : %s)', ucfirst($type), e($produit['nom']), $ancienStock, $newStock, $type, $motif ?: '—'), $id, $produit['reference'] ?? null);
             flash("Stock mis à jour : $newStock unités.");
-            header('Location: ' . APP_URL . '/modules/stock.php'); exit;
+            header('Location: ' . url('stock')); exit;
         } catch (Exception $e) {
             $db->rollBack();
             flash('Erreur : ' . $e->getMessage(), 'error');
-            header('Location: ' . APP_URL . '/modules/stock_ajust.php?id=' . $id); exit;
+            header('Location: ' . url('stock_ajust', ['id'=>$id])); exit;
         }
     }
 }
@@ -149,7 +149,7 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title">Ajuster le stock</div>
-      <a href="<?= APP_URL ?>/modules/stock.php" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+      <a href="<?= url('stock') ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
     </div>
     <div class="card-pad">
       <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:16px;margin-bottom:18px;">

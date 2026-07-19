@@ -18,12 +18,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->prepare("DELETE FROM categories WHERE id=?")->execute([$did]);
             flash('Catégorie supprimée.');
         }
-        header('Location: ' . APP_URL . '/modules/categories.php'); exit;
+        header('Location: ' . url('categories')); exit;
     }
     $nom     = trim($_POST['nom'] ?? '');
     $couleur = preg_match('/^#[0-9a-f]{6}$/i', $_POST['couleur']??'') ? $_POST['couleur'] : '#00c9a7';
     $cid     = (int)($_POST['id'] ?? 0);
-    if ($nom === '') { flash('Le nom est requis.','error'); header('Location: ' . APP_URL . '/modules/categories.php'); exit; }
+    if ($nom === '') { flash('Le nom est requis.','error'); header('Location: ' . url('categories')); exit; }
     if ($cid) {
         $db->prepare("UPDATE categories SET nom=?,couleur=? WHERE id=?")->execute([$nom,$couleur,$cid]);
         flash('Catégorie mise à jour.');
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->prepare("INSERT INTO categories (nom,couleur) VALUES (?,?)")->execute([$nom,$couleur]);
         flash('Catégorie ajoutée.');
     }
-    header('Location: ' . APP_URL . '/modules/categories.php'); exit;
+    header('Location: ' . url('categories')); exit;
 }
 
 $categories = $db->query("

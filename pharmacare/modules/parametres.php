@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($toSave as $k => $v) $stmt->execute([$k, $v, $v]);
 
     flash('Paramètres enregistrés avec succès.');
-    header('Location: ' . APP_URL . '/modules/parametres.php'); exit;
+    header('Location: ' . url('parametres')); exit;
 }
 
 $p       = getAllParams();

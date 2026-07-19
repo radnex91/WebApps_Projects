@@ -22,6 +22,8 @@ ServerSignature Off
     RewriteRule ^vente/?$              modules/vente.php [L,QSA]
     RewriteRule ^caisse/?$             modules/caisse.php [L,QSA]
     RewriteRule ^stock/?$               modules/stock.php [L,QSA]
+    RewriteRule ^stock-ajust/(\d+)/?$   modules/stock_ajust.php?id=$1 [L,QSA]
+    RewriteRule ^stock-ajust/?$         modules/stock_ajust.php [L,QSA]
     RewriteRule ^fournisseurs/?$        modules/fournisseurs.php [L,QSA]
     RewriteRule ^commandes/?$          modules/commandes.php [L,QSA]
     RewriteRule ^retours/?$            modules/retours.php [L,QSA]

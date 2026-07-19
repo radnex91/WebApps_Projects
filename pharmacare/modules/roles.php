@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
         $db->prepare("DELETE FROM roles WHERE id = ?")->execute([$delId]);
         flash("Rôle « {$role['libelle']} » supprimé. Les utilisateurs ont été réassignés au rôle Caissier.");
     }
-    header('Location: ' . APP_URL . '/modules/roles.php'); exit;
+    header('Location: ' . url('roles')); exit;
 }
 
 // ── POST : mise à jour des permissions ────────────────────
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== 'add' && hasPermission(
         }
         flash('Permissions mises à jour.');
     }
-    header('Location: ' . APP_URL . '/modules/roles.php'); exit;
+    header('Location: ' . url('roles')); exit;
 }
 
 // ── Ajout d'un rôle personnalisé ──────────────────────────
@@ -96,7 +96,7 @@ if ($action === 'add' && hasPermission('roles.gerer') && $_SERVER['REQUEST_METHO
         }
         flash("Rôle « $libelle » créé.");
     }
-    header('Location: ' . APP_URL . '/modules/roles.php'); exit;
+    header('Location: ' . url('roles')); exit;
 }
 
 // ── Données pour les modales ─────────────────────────────────

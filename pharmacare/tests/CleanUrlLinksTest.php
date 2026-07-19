@@ -30,6 +30,18 @@ final class CleanUrlLinksTest extends TestCase
             'modules/caisse.php',
             'modules/marketing.php',
             'modules/remise_codes.php',
+            'modules/commandes.php',
+            'modules/retours.php',
+            'modules/stock.php',
+            'modules/stock_ajust.php',
+            'modules/rapports.php',
+            'modules/rapports_caissier.php',
+            'modules/ventes_hist.php',
+            'modules/vente.php',
+            'modules/roles.php',
+            'modules/categories.php',
+            'modules/parametres.php',
+            'modules/remise_approbateurs.php',
         ];
     }
 

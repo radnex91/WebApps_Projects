@@ -66,20 +66,20 @@ showFlash();
         <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
         <input type="text" id="search-stock" placeholder="Rechercher un médicament...">
       </div>
-      <select onchange="location.href='?filtre='+this.value+'&cat=<?= urlencode($cat) ?>'" style="padding:6px 12px;font-size:12px;width:auto;">
+      <select onchange="location.href='<?= url('stock') ?>?filtre='+this.value+'&cat=<?= urlencode($cat) ?>'" style="padding:6px 12px;font-size:12px;width:auto;">
         <option value="tous"    <?= $filtre==='tous'   ?'selected':'' ?>>Tous</option>
         <option value="alerte"  <?= $filtre==='alerte' ?'selected':'' ?>>Stock bas</option>
         <option value="rupture" <?= $filtre==='rupture'?'selected':'' ?>>Rupture</option>
         <option value="ok"      <?= $filtre==='ok'     ?'selected':'' ?>>Disponible</option>
       </select>
-      <select onchange="location.href='?filtre=<?= urlencode($filtre) ?>&cat='+encodeURIComponent(this.value)" style="padding:6px 12px;font-size:12px;width:auto;">
+      <select onchange="location.href='<?= url('stock') ?>?filtre=<?= urlencode($filtre) ?>&cat='+encodeURIComponent(this.value)" style="padding:6px 12px;font-size:12px;width:auto;">
         <option value="">Toutes catégories</option>
         <?php foreach ($categories as $c): ?>
         <option value="<?= e($c) ?>" <?= $cat===$c?'selected':'' ?>><?= e($c) ?></option>
         <?php endforeach; ?>
       </select>
       <?php if (hasPermission('produits.ajouter')): ?>
-      <a href="<?= APP_URL ?>/modules/produits.php?action=add" class="btn btn-primary btn-sm">
+      <a href="<?= url('produits', ['action'=>'add']) ?>" class="btn btn-primary btn-sm">
         <?= icon('plus',14) ?> Médicament
       </a>
       <?php endif; ?>
@@ -124,10 +124,10 @@ showFlash();
           <?php if (hasPermission('stock.ajuster') || hasPermission('produits.modifier')): ?>
           <td>
             <div class="flex gap-8">
-              <a href="<?= APP_URL ?>/modules/produits.php?action=edit&id=<?= $p['id'] ?>" class="btn btn-ghost btn-xs">
+              <a href="<?= url('produits', ['action'=>'edit','id'=>$p['id']], $p['nom'] ?? null) ?>" class="btn btn-ghost btn-xs">
                 <?= icon('edit',13) ?>
               </a>
-              <a href="<?= APP_URL ?>/modules/stock_ajust.php?id=<?= $p['id'] ?>" class="btn btn-gold btn-xs">
+              <a href="<?= url('stock_ajust', ['id'=>$p['id']]) ?>" class="btn btn-gold btn-xs">
                 <?= icon('refresh',13) ?> Ajuster
               </a>
             </div>
