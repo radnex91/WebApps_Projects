@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/rate_limit.php';
 require_once __DIR__ . '/audit.php';
+require_once __DIR__ . '/url.php';
 
 // ── Timeout d'inactivité (30 minutes) ──────────────────────
 define('SESSION_TIMEOUT_SECONDS', 900);  // 15 min
