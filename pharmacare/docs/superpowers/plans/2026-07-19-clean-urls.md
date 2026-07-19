@@ -506,7 +506,7 @@ Inside the existing `<IfModule mod_rewrite.c>` block, immediately after the four
     RewriteRule ^marketing/?$                          modules/marketing.php [L,QSA]
 
     # Remise-codes (action + id)
-    RewriteRule ^remise-codes/(\d+)/?$                 modules/remise_codes.php?action=show&id=$1 [L,QSA]
+    RewriteRule ^remise-codes/(\d+)/show/?$            modules/remise_codes.php?action=show&id=$1 [L,QSA]
     RewriteRule ^remise-codes/generer/?$               modules/remise_codes.php?action=generer [L,QSA]
     RewriteRule ^remise-codes/?$                       modules/remise_codes.php [L,QSA]
 
