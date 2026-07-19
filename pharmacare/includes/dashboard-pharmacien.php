@@ -121,7 +121,7 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title">Stock critique</div>
-      <a href="<?= APP_URL ?>/modules/stock.php" class="btn btn-ghost btn-xs">Voir tout</a>
+      <a href="<?= url('stock') ?>" class="btn btn-ghost btn-xs">Voir tout</a>
     </div>
     <?php if ($critique): foreach ($critique as $p): ?>
     <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">

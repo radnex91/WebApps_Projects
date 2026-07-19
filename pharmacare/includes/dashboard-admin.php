@@ -311,7 +311,7 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title">Stock critique</div>
-      <a href="<?= APP_URL ?>/modules/stock.php" class="btn btn-ghost btn-xs">Voir tout</a>
+      <a href="<?= url('stock') ?>" class="btn btn-ghost btn-xs">Voir tout</a>
     </div>
     <?php if ($critique): foreach ($critique as $p): ?>
     <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
@@ -332,7 +332,7 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title">Dernières ventes</div>
-      <a href="<?= APP_URL ?>/modules/ventes_hist.php" class="btn btn-ghost btn-xs">Historique</a>
+      <a href="<?= url('ventes_hist') ?>" class="btn btn-ghost btn-xs">Historique</a>
     </div>
     <div class="table-wrap">
       <table>
@@ -373,7 +373,7 @@ showFlash();
     </div>
   </div>
 
-  <a href="<?= APP_URL ?>/modules/commandes.php" class="card" style="display:block;text-decoration:none;color:inherit;">
+  <a href="<?= url('commandes') ?>" class="card" style="display:block;text-decoration:none;color:inherit;">
     <div class="card-header">
       <div class="card-title">Commandes en cours</div>
       <span class="badge badge-blue"><?= $cmd_en_cours ?></span>

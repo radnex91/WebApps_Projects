@@ -58,7 +58,7 @@ showFlash();
     <div class="stat-value c-gold"><?= fmtMoney($ca_jour) ?></div>
     <div class="stat-sub">CA personnel</div>
   </div>
-  <a href="<?= APP_URL ?>/modules/vente.php" class="stat-card s-blue" style="display:block;text-decoration:none;cursor:pointer;">
+  <a href="<?= url('vente') ?>" class="stat-card s-blue" style="display:block;text-decoration:none;cursor:pointer;">
     <div class="stat-icon" style="color:var(--blue);opacity:.25;"><?= icon('cart',28) ?></div>
     <div class="stat-label">Point de Vente</div>
     <div class="stat-value c-blue" style="font-size:20px;">Nouvelle vente</div>
