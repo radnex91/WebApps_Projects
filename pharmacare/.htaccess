@@ -11,6 +11,94 @@ ServerSignature Off
     RewriteRule ^\.git - [F]
     RewriteRule ^config/\.rate_limit/ - [F]
 
+    # ── Clean URLs : /<segment> → modules/<file>.php?<query> ──
+    # Cibles relatives (pas de / initial) : fonctionne en sous-dossier (dev) et racine (prod).
+    # Slug décoratif optionnel (?:-[^/]+)?  — seul l'ID est capturé.
+    # QSA préserve les paramètres résiduels (csrf, q, page, debut, fin, mode…).
+
+    # Pages sans query
+    RewriteRule ^dashboard/?$          dashboard.php [L,QSA]
+    RewriteRule ^logout/?$             logout.php [L,QSA]
+    RewriteRule ^vente/?$              modules/vente.php [L,QSA]
+    RewriteRule ^caisse/?$             modules/caisse.php [L,QSA]
+    RewriteRule ^stock/?$               modules/stock.php [L,QSA]
+    RewriteRule ^fournisseurs/?$        modules/fournisseurs.php [L,QSA]
+    RewriteRule ^commandes/?$          modules/commandes.php [L,QSA]
+    RewriteRule ^retours/?$            modules/retours.php [L,QSA]
+    RewriteRule ^marketing/?$          modules/marketing.php [L,QSA]
+    RewriteRule ^ventes-hist/?$        modules/ventes_hist.php [L,QSA]
+    RewriteRule ^rapports/?$           modules/rapports.php [L,QSA]
+    RewriteRule ^rapports-caissier/?$   modules/rapports_caissier.php [L,QSA]
+    RewriteRule ^utilisateurs/?$       modules/utilisateurs.php [L,QSA]
+    RewriteRule ^remise-approbateurs/?$ modules/remise_approbateurs.php [L,QSA]
+    RewriteRule ^remise-codes/?$       modules/remise_codes.php [L,QSA]
+    RewriteRule ^roles/?$               modules/roles.php [L,QSA]
+    RewriteRule ^categories/?$         modules/categories.php [L,QSA]
+    RewriteRule ^parametres/?$         modules/parametres.php [L,QSA]
+
+    # Produits (id-slug + action)
+    RewriteRule ^produits/new/?$                       modules/produits.php?action=add [L,QSA]
+    RewriteRule ^produits/(\d+)(?:-[^/]+)?/edit/?$      modules/produits.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^produits/?$                            modules/produits.php [L,QSA]
+
+    # Fournisseurs (id-slug + action)
+    RewriteRule ^fournisseurs/new/?$                    modules/fournisseurs.php?action=add [L,QSA]
+    RewriteRule ^fournisseurs/(\d+)(?:-[^/]+)?/delete/?$ modules/fournisseurs.php?action=delete&id=$1 [L,QSA]
+    RewriteRule ^fournisseurs/(\d+)(?:-[^/]+)?/edit/?$  modules/fournisseurs.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^fournisseurs/?$                       modules/fournisseurs.php [L,QSA]
+
+    # Clients (id-slug + action ; detail sans suffixe)
+    RewriteRule ^clients/new/?$                        modules/clients.php?action=add [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/edit/?$       modules/clients.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/reglement/?$ modules/clients.php?action=reglement&id=$1 [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/disable/?$   modules/clients.php?action=disable&id=$1 [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/enable/?$    modules/clients.php?action=enable&id=$1 [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/?$          modules/clients.php?action=detail&id=$1 [L,QSA]
+    RewriteRule ^clients/?$                            modules/clients.php [L,QSA]
+
+    # Utilisateurs (id-slug + action)
+    RewriteRule ^utilisateurs/new/?$                   modules/utilisateurs.php?action=add [L,QSA]
+    RewriteRule ^utilisateurs/(\d+)(?:-[^/]+)?/edit/?$ modules/utilisateurs.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^utilisateurs/(\d+)(?:-[^/]+)?/?$       modules/utilisateurs.php [L,QSA]
+
+    # Commandes (id + action, pas de slug)
+    RewriteRule ^commandes/new/?$                      modules/commandes.php?action=add [L,QSA]
+    RewriteRule ^commandes/(\d+)/bon/?$                modules/commandes.php?action=bon&id=$1 [L,QSA]
+    RewriteRule ^commandes/(\d+)/livrer/?$             modules/commandes.php?action=livrer_form&id=$1 [L,QSA]
+    RewriteRule ^commandes/(\d+)/edit/?$               modules/commandes.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^commandes/(\d+)/?$                    modules/commandes.php [L,QSA]
+
+    # Retours (id + action)
+    RewriteRule ^retours/new/?$                       modules/retours.php?action=new [L,QSA]
+    RewriteRule ^retours/(\d+)/detail/?$               modules/retours.php?action=detail&id=$1 [L,QSA]
+    RewriteRule ^retours/?$                            modules/retours.php [L,QSA]
+
+    # Caisse (action + id)
+    RewriteRule ^caisse/ouvrir/?$                      modules/caisse.php?action=ouvrir [L,QSA]
+    RewriteRule ^caisse/(historique|mouvement)/?$      modules/caisse.php?action=$1 [L,QSA]
+    RewriteRule ^caisse/(\d+)/(x|z|rapport_session)/?$ modules/caisse.php?action=$2&id=$1 [L,QSA]
+
+    # Magasin (onglet=)
+    RewriteRule ^magasin/(stock|reception|historique)/?$ modules/magasin.php?onglet=$1 [L,QSA]
+    RewriteRule ^magasin/?$                            modules/magasin.php [L,QSA]
+
+    # Marketing (action + id)
+    RewriteRule ^marketing/new/?$                      modules/marketing.php?action=add-promo [L,QSA]
+    RewriteRule ^marketing/(\d+)/edit/?$               modules/marketing.php?action=edit-promo&id=$1 [L,QSA]
+    RewriteRule ^marketing/fidelite/?$                  modules/marketing.php?action=fidelite [L,QSA]
+    RewriteRule ^marketing/add-points/?$               modules/marketing.php?action=add-points [L,QSA]
+    RewriteRule ^marketing/?$                          modules/marketing.php [L,QSA]
+
+    # Remise-codes (action + id)
+    RewriteRule ^remise-codes/(\d+)/?$                 modules/remise_codes.php?action=show&id=$1 [L,QSA]
+    RewriteRule ^remise-codes/generer/?$               modules/remise_codes.php?action=generer [L,QSA]
+    RewriteRule ^remise-codes/?$                       modules/remise_codes.php [L,QSA]
+
+    # Comptabilité (action=) — plan_edit avec id avant le générique
+    RewriteRule ^comptabilite/plan/(\d+)/?$            modules/comptabilite.php?action=plan_edit&id=$1 [L,QSA]
+    RewriteRule ^comptabilite/(saisie|journal|balance|resultat|bilan|grand-livre|cloture|plan)/?$ modules/comptabilite.php?action=$1 [L,QSA]
+    RewriteRule ^comptabilite/?$                        modules/comptabilite.php [L,QSA]
+
     # Redirection HTTP → HTTPS (décommenter après activation TLS)
     # RewriteCond %{HTTPS} off
     # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
