@@ -51,6 +51,8 @@ function icon(string $name, int $size = 18, string $extra = ''): string {
         'calculator'   => '<rect x="5" y="2" width="14" height="20" rx="2"/><rect x="8" y="5" width="8" height="3" rx="1"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/><line x1="8" y1="20" x2="8" y2="20"/><line x1="12" y1="20" x2="12" y2="20"/><line x1="16" y1="20" x2="16" y2="20"/>',
         'shield'       => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
         'stethoscope'  => '<path d="M4 3v5a4 4 0 0 0 8 0V3"/><path d="M6 3h4"/><path d="M8 12v3a5 5 0 0 0 10 0v-1"/><circle cx="18" cy="13" r="2"/><circle cx="21" cy="16" r="2"/>',
+        'percent'      => '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+        'key'          => '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"/>',
     ];
     $path = $icons[$name] ?? $icons['settings'];
     return '<svg width="'.$s.'" height="'.$s.'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" '.$extra.'>'.$path.'</svg>';
@@ -98,6 +100,12 @@ function layout_head(string $title, string $activePage = ''): void {
     // Alertes stock magasin (dépôt central)
     try { $alertesMagasin = getDB()->query("SELECT COUNT(*) FROM produits WHERE stock_magasin <= seuil_magasin AND actif=1")->fetchColumn(); }
     catch (Exception $e) { $alertesMagasin = 0; }
+    // L'utilisateur courant est-il approbateur de remise (accès génération de codes) ?
+    try {
+        $_stAppr = getDB()->prepare("SELECT 1 FROM remise_approbateurs WHERE utilisateur_id=? AND actif=1");
+        $_stAppr->execute([currentUser()['id']]);
+        $estApprobateur = (bool)$_stAppr->fetchColumn();
+    } catch (Exception $e) { $estApprobateur = false; }
     ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -178,19 +186,24 @@ document.addEventListener('click',function(e){
     </a>
     <?php endif; ?>
     <?php if(hasPermission('vente.creer')): ?>
-    <a href="<?= APP_URL ?>/modules/vente.php" class="nav-item <?= $activePage==='vente'?'active':'' ?>">
+    <a href="<?= url('vente') ?>" class="nav-item <?= $activePage==='vente'?'active':'' ?>">
       <span class="nav-icon i-green"><?= icon('bag',14) ?></span> Point de Vente
     </a>
     <?php endif; ?>
+    <?php if (!empty($estApprobateur)): ?>
+    <a href="<?= url('remise_codes') ?>" class="nav-item <?= $activePage==='remise_codes'?'active':'' ?>">
+      <span class="nav-icon i-gold"><?= icon('percent',14) ?></span> Codes de remise
+    </a>
+    <?php endif; ?>
     <?php if(hasPermission('caisse.voir') || hasPermission('caisse.ouvrir')): ?>
-    <a href="<?= APP_URL ?>/modules/caisse.php" class="nav-item <?= $activePage==='caisse'?'active':'' ?>">
+    <a href="<?= url('caisse') ?>" class="nav-item <?= $activePage==='caisse'?'active':'' ?>">
       <span class="nav-icon i-gold"><?= icon('cash-register',14) ?></span> Caisses
     </a>
     <?php endif; ?>
     <?php if(hasPermission('stock.voir') || hasPermission('produits.voir') || hasPermission('fournisseurs.voir') || hasPermission('commandes.voir')): ?>
     <div class="nav-section">Gestion</div>
     <?php if(hasPermission('stock.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/stock.php" class="nav-item <?= $activePage==='stock'?'active':'' ?>">
+    <a href="<?= url('stock') ?>" class="nav-item <?= $activePage==='stock'?'active':'' ?>">
       <span class="nav-icon i-orange"><?= icon('boxes',14) ?></span> Stock
       <?php if($alertes > 0): ?>
         <span class="nav-badge"><?= $alertes ?></span>
@@ -198,27 +211,32 @@ document.addEventListener('click',function(e){
     </a>
     <?php endif; ?>
     <?php if(hasPermission('produits.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/produits.php" class="nav-item <?= $activePage==='produits'?'active':'' ?>">
+    <a href="<?= url('produits') ?>" class="nav-item <?= $activePage==='produits'?'active':'' ?>">
       <span class="nav-icon i-cyan"><?= icon('capsule',14) ?></span> Médicaments
     </a>
     <?php endif; ?>
     <?php if(hasPermission('fournisseurs.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/fournisseurs.php" class="nav-item <?= $activePage==='fournisseurs'?'active':'' ?>">
+    <a href="<?= url('fournisseurs') ?>" class="nav-item <?= $activePage==='fournisseurs'?'active':'' ?>">
       <span class="nav-icon i-blue"><?= icon('truck',14) ?></span> Fournisseurs
     </a>
     <?php endif; ?>
     <?php if(hasPermission('clients.voir') && fideliteActive()): ?>
-    <a href="<?= APP_URL ?>/modules/clients.php" class="nav-item <?= $activePage==='clients'?'active':'' ?>">
+    <a href="<?= url('clients') ?>" class="nav-item <?= $activePage==='clients'?'active':'' ?>">
       <span class="nav-icon i-cyan"><?= icon('users',14) ?></span> Clients
     </a>
     <?php endif; ?>
     <?php if(hasPermission('commandes.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/commandes.php" class="nav-item <?= $activePage==='commandes'?'active':'' ?>">
+    <a href="<?= url('commandes') ?>" class="nav-item <?= $activePage==='commandes'?'active':'' ?>">
       <span class="nav-icon i-purple"><?= icon('clipboard',14) ?></span> Commandes
     </a>
     <?php endif; ?>
+    <?php if(hasPermission('retours.gerer')): ?>
+    <a href="<?= url('retours') ?>" class="nav-item <?= $activePage==='retours'?'active':'' ?>">
+      <span class="nav-icon i-red"><?= icon('refresh',14) ?></span> Retours caisse
+    </a>
+    <?php endif; ?>
     <?php if(hasPermission('magasin.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/magasin.php" class="nav-item <?= $activePage==='magasin'?'active':'' ?>">
+    <a href="<?= url('magasin') ?>" class="nav-item <?= $activePage==='magasin'?'active':'' ?>">
       <span class="nav-icon i-orange"><?= icon('warehouse',14) ?></span> Magasin
       <?php if($alertesMagasin > 0): ?>
         <span class="nav-badge nav-badge-gold"><?= $alertesMagasin ?></span>
@@ -226,7 +244,7 @@ document.addEventListener('click',function(e){
     </a>
     <?php endif; ?>
     <?php if(hasPermission('marketing.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/marketing.php" class="nav-item <?= $activePage==='marketing'?'active':'' ?>">
+    <a href="<?= url('marketing') ?>" class="nav-item <?= $activePage==='marketing'?'active':'' ?>">
       <span class="nav-icon i-pink"><?= icon('megaphone',14) ?></span> Marketing
     </a>
     <?php endif; ?>
@@ -234,49 +252,55 @@ document.addEventListener('click',function(e){
     <?php if(hasPermission('ventes_hist.voir') || hasPermission('rapports.voir') || hasPermission('rapports_caissier.voir')): ?>
     <div class="nav-section">Rapports</div>
     <?php if(hasPermission('ventes_hist.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/ventes_hist.php" class="nav-item <?= $activePage==='historique'?'active':'' ?>">
+    <a href="<?= url('ventes_hist') ?>" class="nav-item <?= $activePage==='historique'?'active':'' ?>">
       <span class="nav-icon i-gold"><?= icon('history',14) ?></span> Historique ventes
     </a>
     <?php endif; ?>
     <?php if(hasPermission('rapports.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/rapports.php" class="nav-item <?= $activePage==='rapports'?'active':'' ?>">
+    <a href="<?= url('rapports') ?>" class="nav-item <?= $activePage==='rapports'?'active':'' ?>">
       <span class="nav-icon i-pink"><?= icon('chart',14) ?></span> Rapports
     </a>
     <?php endif; ?>
     <?php if(hasPermission('rapports_caissier.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/rapports_caissier.php" class="nav-item <?= $activePage==='rapports_caissier'?'active':'' ?>">
+    <a href="<?= url('rapports_caissier') ?>" class="nav-item <?= $activePage==='rapports_caissier'?'active':'' ?>">
       <span class="nav-icon i-cyan"><?= icon('trending',14) ?></span> Mes Rapports
     </a>
     <?php endif; ?>
     <?php if(hasPermission('comptabilite.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/comptabilite.php" class="nav-item <?= $activePage==='comptabilite'?'active':'' ?>">
+    <a href="<?= url('comptabilite') ?>" class="nav-item <?= $activePage==='comptabilite'?'active':'' ?>">
       <span class="nav-icon i-teal"><?= icon('calculator',14) ?></span> Comptabilité
     </a>
     <?php endif; ?>
     <?php endif; ?>
     <?php
     $showAdmin = hasPermission('utilisateurs.voir') || hasPermission('categories.voir')
-              || hasPermission('parametres.voir') || hasPermission('roles.voir');
+              || hasPermission('parametres.voir') || hasPermission('roles.voir')
+              || hasPermission('remise.approbateurs.gerer');
     ?>
     <?php if ($showAdmin): ?>
     <div class="nav-section">Administration</div>
     <?php if(hasPermission('utilisateurs.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/utilisateurs.php" class="nav-item <?= $activePage==='utilisateurs'?'active':'' ?>">
+    <a href="<?= url('utilisateurs') ?>" class="nav-item <?= $activePage==='utilisateurs'?'active':'' ?>">
       <span class="nav-icon i-blue"><?= icon('users',14) ?></span> Utilisateurs
     </a>
     <?php endif; ?>
+    <?php if(hasPermission('remise.approbateurs.gerer')): ?>
+    <a href="<?= url('remise_approbateurs') ?>" class="nav-item <?= $activePage==='remise_approbateurs'?'active':'' ?>">
+      <span class="nav-icon i-cyan"><?= icon('key',14) ?></span> Approbateurs de remise
+    </a>
+    <?php endif; ?>
     <?php if(hasPermission('roles.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/roles.php" class="nav-item <?= $activePage==='roles'?'active':'' ?>">
+    <a href="<?= url('roles') ?>" class="nav-item <?= $activePage==='roles'?'active':'' ?>">
       <span class="nav-icon i-purple"><?= icon('shield',14) ?></span> Rôles & Permissions
     </a>
     <?php endif; ?>
     <?php if(hasPermission('categories.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/categories.php" class="nav-item <?= $activePage==='categories'?'active':'' ?>">
+    <a href="<?= url('categories') ?>" class="nav-item <?= $activePage==='categories'?'active':'' ?>">
       <span class="nav-icon i-orange"><?= icon('tag',14) ?></span> Catégories
     </a>
     <?php endif; ?>
     <?php if(hasPermission('parametres.voir')): ?>
-    <a href="<?= APP_URL ?>/modules/parametres.php" class="nav-item <?= $activePage==='parametres'?'active':'' ?>">
+    <a href="<?= url('parametres') ?>" class="nav-item <?= $activePage==='parametres'?'active':'' ?>">
       <span class="nav-icon i-slate"><?= icon('settings',14) ?></span> Paramètres
     </a>
     <?php endif; ?>
@@ -322,7 +346,7 @@ document.addEventListener('click',function(e){
         foreach ($alertProds as $ap):
             $isRupture = $ap['stock'] == 0;
         ?>
-        <a href="<?= APP_URL ?>/modules/produits.php?action=edit&id=<?= $ap['id'] ?>" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:background .15s;" onmouseover="this.style.background='var(--glass)'" onmouseout="this.style.background='transparent'">
+        <a href="<?= url('produits', ['action'=>'edit','id'=>$ap['id']], $ap['nom'] ?? null) ?>" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:background .15s;" onmouseover="this.style.background='var(--glass)'" onmouseout="this.style.background='transparent'">
           <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:<?= $isRupture ? 'var(--red)' : 'var(--gold)' ?>;box-shadow:0 0 6px <?= $isRupture ? 'var(--red-glow)' : 'var(--gold-glow)' ?>;"></div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?= e($ap['nom']) ?></div>
@@ -337,7 +361,7 @@ document.addEventListener('click',function(e){
         <?php if ($alertes > 15): ?>
         <div style="padding:10px 16px;text-align:center;font-size:12px;color:var(--text3);">+ <?= $alertes - 15 ?> autre<?= ($alertes - 15) > 1 ? 's' : '' ?></div>
         <?php endif; ?>
-        <a href="<?= APP_URL ?>/modules/stock.php?filtre=alerte" style="display:block;padding:10px 16px;text-align:center;font-size:12px;font-weight:600;color:var(--red);border-top:1px solid var(--border);text-decoration:none;">Voir toutes les alertes →</a>
+        <a href="<?= url('stock', ['filtre'=>'alerte']) ?>" style="display:block;padding:10px 16px;text-align:center;font-size:12px;font-weight:600;color:var(--red);border-top:1px solid var(--border);text-decoration:none;">Voir toutes les alertes →</a>
       </div>
     </div>
     <?php endif; ?>
@@ -363,7 +387,7 @@ document.addEventListener('click',function(e){
         foreach ($alertMagProds as $ap):
             $isRupture = $ap['stock_magasin'] == 0;
         ?>
-        <a href="<?= APP_URL ?>/modules/magasin.php?onglet=stock" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:background .15s;" onmouseover="this.style.background='var(--glass)'" onmouseout="this.style.background='transparent'">
+        <a href="<?= url('magasin', ['onglet'=>'stock']) ?>" style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:background .15s;" onmouseover="this.style.background='var(--glass)'" onmouseout="this.style.background='transparent'">
           <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:<?= $isRupture ? 'var(--red)' : 'var(--gold)' ?>;box-shadow:0 0 6px <?= $isRupture ? 'var(--red-glow)' : 'var(--gold-glow)' ?>;"></div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?= e($ap['nom']) ?></div>
@@ -378,7 +402,7 @@ document.addEventListener('click',function(e){
         <?php if ($alertesMagasin > 15): ?>
         <div style="padding:10px 16px;text-align:center;font-size:12px;color:var(--text3);">+ <?= $alertesMagasin - 15 ?> autre<?= ($alertesMagasin - 15) > 1 ? 's' : '' ?></div>
         <?php endif; ?>
-        <a href="<?= APP_URL ?>/modules/magasin.php?onglet=stock" style="display:block;padding:10px 16px;text-align:center;font-size:12px;font-weight:600;color:var(--gold);border-top:1px solid var(--border);text-decoration:none;">Voir le stock magasin →</a>
+        <a href="<?= url('magasin', ['onglet'=>'stock']) ?>" style="display:block;padding:10px 16px;text-align:center;font-size:12px;font-weight:600;color:var(--gold);border-top:1px solid var(--border);text-decoration:none;">Voir le stock magasin →</a>
       </div>
     </div>
     <?php endif; ?>
