@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (hasPermission('fournisseurs.ajoute
 
     if ($nom === '') {
         flash('Le nom du fournisseur est requis.', 'error');
-        header('Location: ' . APP_URL . '/modules/fournisseurs.php?action=' . ($id ? "edit&id=$id" : 'add')); exit;
+        header('Location: ' . ($id ? url('fournisseurs', ['action'=>'edit','id'=>$id]) : url('fournisseurs', ['action'=>'add']))); exit;
     }
 
     if ($id) {
@@ -31,13 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (hasPermission('fournisseurs.ajoute
            ->execute([$nom,$contact,$tel,$email,$adresse,$ville,$actif]);
         flash('Fournisseur ajouté.');
     }
-    header('Location: ' . APP_URL . '/modules/fournisseurs.php'); exit;
+    header('Location: ' . url('fournisseurs')); exit;
 }
 
 if ($action === 'delete' && $id && hasPermission('fournisseurs.supprimer')) {
     $db->prepare("UPDATE fournisseurs SET actif=0 WHERE id=?")->execute([$id]);
     flash('Fournisseur désactivé.');
-    header('Location: ' . APP_URL . '/modules/fournisseurs.php'); exit;
+    header('Location: ' . url('fournisseurs')); exit;
 }
 
 if (in_array($action, ['add', 'edit'])) {
@@ -53,7 +53,7 @@ if (in_array($action, ['add', 'edit'])) {
     <div class="card" style="max-width:720px;margin:0 auto;">
       <div class="card-header">
         <div class="card-title"><?= $id ? 'Modifier fournisseur' : 'Nouveau fournisseur' ?></div>
-        <a href="<?= APP_URL ?>/modules/fournisseurs.php" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+        <a href="<?= url('fournisseurs') ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
       </div>
       <form method="POST">
         <input type="hidden" name="csrf" value="<?= csrf() ?>">
@@ -92,7 +92,7 @@ if (in_array($action, ['add', 'edit'])) {
           </div>
         </div>
         <div class="modal-footer">
-          <a href="<?= APP_URL ?>/modules/fournisseurs.php" class="btn btn-ghost">Annuler</a>
+          <a href="<?= url('fournisseurs') ?>" class="btn btn-ghost">Annuler</a>
           <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> Enregistrer</button>
         </div>
       </form>
@@ -114,7 +114,7 @@ showFlash();
   <div class="card-header">
     <div class="card-title">Fournisseurs</div>
     <?php if (hasPermission('fournisseurs.ajouter')): ?>
-    <a href="?action=add" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter</a>
+    <a href="<?= url('fournisseurs', ['action'=>'add']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter</a>
     <?php endif; ?>
   </div>
   <div class="table-wrap">
@@ -139,9 +139,9 @@ showFlash();
           <?php if (hasPermission('fournisseurs.modifier') || hasPermission('fournisseurs.supprimer')): ?>
           <td>
             <div class="flex gap-8">
-              <a href="?action=edit&id=<?= $f['id'] ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?></a>
+              <a href="<?= url('fournisseurs', ['action'=>'edit','id'=>$f['id']], $f['nom'] ?? null) ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?></a>
               <?php if (hasPermission('fournisseurs.supprimer') && $f['nb_produits'] == 0): ?>
-              <button class="btn btn-danger btn-xs" onclick="confirmDelete('?action=delete&id=<?= $f['id'] ?>','Désactiver ce fournisseur ?')">
+              <button class="btn btn-danger btn-xs" onclick="confirmDelete('<?= url('fournisseurs', ['action'=>'delete','id'=>$f['id']], $f['nom'] ?? null) ?>','Désactiver ce fournisseur ?')">
                 <?= icon('trash',13) ?>
               </button>
               <?php endif; ?>

@@ -21,6 +21,10 @@ final class CleanUrlLinksTest extends TestCase
             'includes/dashboard-admin.php',
             'includes/dashboard-caissier.php',
             'includes/dashboard-pharmacien.php',
+            'modules/produits.php',
+            'modules/clients.php',
+            'modules/fournisseurs.php',
+            'modules/utilisateurs.php',
         ];
     }
 

@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->prepare("UPDATE utilisateurs SET actif = 1-actif WHERE id=?")->execute([$tid]);
             flash('Statut mis à jour.');
         }
-        header('Location: ' . APP_URL . '/modules/utilisateurs.php'); exit;
+        header('Location: ' . url('utilisateurs')); exit;
     }
 
     $nom    = trim($_POST['nom']    ?? '');
@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$nom || !$prenom || !$email || !$login) {
         flash('Tous les champs obligatoires doivent être remplis.', 'error');
-        header('Location: ' . APP_URL . '/modules/utilisateurs.php?action=' . ($id?"edit&id=$id":'add')); exit;
+        header('Location: ' . ($id ? url('utilisateurs', ['action'=>'edit','id'=>$id]) : url('utilisateurs', ['action'=>'add']))); exit;
     }
 
     if ($id) {
@@ -58,12 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         flash('Utilisateur mis à jour.');
     } else {
-        if ($pass === '') { flash('Le mot de passe est requis.','error'); header('Location: ?action=add'); exit; }
+        if ($pass === '') { flash('Le mot de passe est requis.','error'); header('Location: ' . url('utilisateurs', ['action'=>'add'])); exit; }
         $db->prepare("INSERT INTO utilisateurs (nom,prenom,email,login,mot_de_passe,role_id,actif) VALUES (?,?,?,?,?,?,?)")
            ->execute([$nom,$prenom,$email,$login,password_hash($pass,PASSWORD_BCRYPT),$roleId,$actif]);
         flash("Utilisateur $prenom $nom créé.");
     }
-    header('Location: ' . APP_URL . '/modules/utilisateurs.php'); exit;
+    header('Location: ' . url('utilisateurs')); exit;
 }
 
 
@@ -82,7 +82,7 @@ if (in_array($action, ['add','edit'])) {
     <div class="card" style="max-width:680px;margin:0 auto;">
       <div class="card-header">
         <div class="card-title"><?= $id ? 'Modifier utilisateur' : 'Nouvel utilisateur' ?></div>
-        <a href="<?= APP_URL ?>/modules/utilisateurs.php" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+        <a href="<?= url('utilisateurs') ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
       </div>
       <form method="POST">
         <input type="hidden" name="csrf" value="<?= csrf() ?>">
@@ -115,7 +115,7 @@ if (in_array($action, ['add','edit'])) {
           </div>
         </div>
         <div class="modal-footer">
-          <a href="<?= APP_URL ?>/modules/utilisateurs.php" class="btn btn-ghost">Annuler</a>
+          <a href="<?= url('utilisateurs') ?>" class="btn btn-ghost">Annuler</a>
           <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> Enregistrer</button>
         </div>
       </form>
@@ -140,7 +140,7 @@ showFlash();
 <div class="card">
   <div class="card-header">
     <div class="card-title">Gestion des utilisateurs</div>
-    <a href="?action=add" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter utilisateur</a>
+    <a href="<?= url('utilisateurs', ['action'=>'add']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter utilisateur</a>
   </div>
   <div class="table-wrap">
     <table>
@@ -164,7 +164,7 @@ showFlash();
           <td><span class="badge <?= $u['actif']?'badge-green':'badge-red' ?>"><?= $u['actif']?'Actif':'Inactif' ?></span></td>
           <td>
             <div class="flex gap-8">
-              <a href="?action=edit&id=<?= $u['id'] ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?> Modifier</a>
+              <a href="<?= url('utilisateurs', ['action'=>'edit','id'=>$u['id']], trim(($u['prenom'] ?? '').' '.($u['nom'] ?? '')) ?: null) ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?> Modifier</a>
               <?php if ($u['id'] != $currentUid): ?>
               <button type="button"
                  class="btn <?= $u['actif']?'btn-danger':'btn-gold' ?> btn-xs"

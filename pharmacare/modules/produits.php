@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
         $db->prepare("UPDATE produits SET actif=0 WHERE id=?")->execute([$delId]);
         flash('Médicament archivé.');
     }
-    header('Location: ' . APP_URL . '/modules/produits.php'); exit;
+    header('Location: ' . url('produits')); exit;
 }
 
 // ── Sauvegarde (ajout / modification) ───────────────────────
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pid        = (int)($_POST['id'] ?? 0);
     if (!hasPermission($pid ? 'produits.modifier' : 'produits.ajouter')) {
         flash('Accès refusé.', 'error');
-        header('Location: ' . APP_URL . '/modules/produits.php'); exit;
+        header('Location: ' . url('produits')); exit;
     }
     $nom        = trim($_POST['nom'] ?? '');
     $reference  = trim($_POST['reference'] ?? '');
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($nom === '') {
         flash('Le nom du médicament est requis.', 'error');
-        header('Location: ' . APP_URL . '/modules/produits.php?action=' . ($pid ? "edit&id=$pid" : 'add')); exit;
+        header('Location: ' . ($pid ? url('produits', ['action'=>'edit','id'=>$pid]) : url('produits', ['action'=>'add']))); exit;
     }
 
     if ($pid) {
@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
            ->execute([$nom,$reference,$cat_id,$fourn_id,$description,$stock,$seuil,$prix_achat,$prix_vente,$expiry]);
         flash('Médicament ajouté avec succès.');
     }
-    header('Location: ' . APP_URL . '/modules/produits.php'); exit;
+    header('Location: ' . url('produits')); exit;
 }
 
 $categories   = $db->query("SELECT * FROM categories ORDER BY nom")->fetchAll();
@@ -73,7 +73,7 @@ if (in_array($action, ['add','edit'])) {
     <div class="card" style="max-width:820px;margin:0 auto;">
       <div class="card-header">
         <div class="card-title"><?= $id ? 'Modifier médicament' : 'Nouveau médicament' ?></div>
-        <a href="<?= APP_URL ?>/modules/produits.php" class="btn btn-ghost btn-sm">
+        <a href="<?= url('produits') ?>" class="btn btn-ghost btn-sm">
           <?= icon('chevron-left',14) ?> Retour
         </a>
       </div>
@@ -133,7 +133,7 @@ if (in_array($action, ['add','edit'])) {
           </div>
         </div>
         <div class="modal-footer">
-          <a href="<?= APP_URL ?>/modules/produits.php" class="btn btn-ghost">Annuler</a>
+          <a href="<?= url('produits') ?>" class="btn btn-ghost">Annuler</a>
           <button type="submit" class="btn btn-primary">
             <?= icon('save',14) ?> Enregistrer
           </button>
@@ -187,7 +187,7 @@ showFlash();
         </div>
       </form>
       <?php if (hasPermission('produits.ajouter')): ?>
-      <a href="?action=add" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter</a>
+      <a href="<?= url('produits', ['action'=>'add']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter</a>
       <?php endif; ?>
     </div>
   </div>
@@ -220,7 +220,7 @@ showFlash();
           <?php if (hasPermission('produits.modifier') || hasPermission('produits.archiver')): ?>
           <td>
             <div class="flex gap-8">
-              <a href="?action=edit&id=<?= $p['id'] ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?></a>
+              <a href="<?= url('produits', ['action'=>'edit','id'=>$p['id']], $p['nom'] ?? null) ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?></a>
               <button class="btn btn-danger btn-xs"
                 onclick="confirmDeletePost('delete','<?= (int)$p['id'] ?>','Archiver ce médicament ?')">
                 <?= icon('trash',13) ?>

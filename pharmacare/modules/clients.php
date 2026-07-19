@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit'], t
     if ($nom === '') {
         flash('Le nom du client est requis.', 'error');
         $redirect = ($action === 'edit' && $id) ? '?action=edit&id='.$id : '?action=add';
-        header('Location: ' . APP_URL . '/modules/clients.php'.$redirect); exit;
+        header('Location: ' . url('clients') . $redirect); exit;
     }
 
     try {
@@ -32,11 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit'], t
                ->execute([$nom, $telephone]);
             flash('Client créé.', 'success');
         }
-        header('Location: ' . APP_URL . '/modules/clients.php'); exit;
+        header('Location: ' . url('clients')); exit;
     } catch (Exception $e) {
         flash('Erreur : ' . $e->getMessage(), 'error');
         $redirect = ($action === 'edit' && $id) ? '?action=edit&id='.$id : '?action=add';
-        header('Location: ' . APP_URL . '/modules/clients.php'.$redirect); exit;
+        header('Location: ' . url('clients') . $redirect); exit;
     }
 }
 
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'reglement') {
 
     if ($clientId <= 0 || $montant <= 0) {
         flash('Client et montant requis.', 'error');
-        header('Location: ' . APP_URL . '/modules/clients.php?action=detail&id='.$clientId); exit;
+        header('Location: ' . url('clients', ['action'=>'detail','id'=>$clientId])); exit;
     }
 
     try {
@@ -115,11 +115,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'reglement') {
 
         $db->commit();
         flash('Règlement enregistré et dettes mises à jour.', 'success');
-        header('Location: ' . APP_URL . '/modules/clients.php?action=detail&id='.$clientId); exit;
+        header('Location: ' . url('clients', ['action'=>'detail','id'=>$clientId], $nomClient ?? null)); exit;
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
         flash('Erreur : ' . $e->getMessage(), 'error');
-        header('Location: ' . APP_URL . '/modules/clients.php?action=detail&id='.$clientId); exit;
+        header('Location: ' . url('clients', ['action'=>'detail','id'=>$clientId], $nomClient ?? null)); exit;
     }
 }
 
@@ -128,7 +128,7 @@ if ($action === 'disable' && $id && hasPermission('clients.supprimer')) {
     if (($_GET['csrf'] ?? '') !== ($_SESSION['csrf'] ?? '')) die('Requête invalide (CSRF).');
     $db->prepare("UPDATE clients SET actif=0 WHERE id=?")->execute([$id]);
     flash('Client désactivé.', 'success');
-    header('Location: ' . APP_URL . '/modules/clients.php'); exit;
+    header('Location: ' . url('clients')); exit;
 }
 
 // ── GET : réactiver un client ─────────────────────────────────
@@ -136,7 +136,7 @@ if ($action === 'enable' && $id && hasPermission('clients.supprimer')) {
     if (($_GET['csrf'] ?? '') !== ($_SESSION['csrf'] ?? '')) die('Requête invalide (CSRF).');
     $db->prepare("UPDATE clients SET actif=1 WHERE id=?")->execute([$id]);
     flash('Client réactivé.', 'success');
-    header('Location: ' . APP_URL . '/modules/clients.php'); exit;
+    header('Location: ' . url('clients')); exit;
 }
 
 // ── Rendu ────────────────────────────────────────────────────
@@ -217,13 +217,13 @@ if ($detteRestante <= 0 && $totalCreditVentes > 0) {
 
 <div class="page-header">
   <div style="display:flex;align-items:center;gap:12px;">
-    <a href="<?= APP_URL ?>/modules/clients.php" class="btn btn-ghost" style="padding:4px 8px;"><?= icon('chevron-left',16) ?></a>
+    <a href="<?= url('clients') ?>" class="btn btn-ghost" style="padding:4px 8px;"><?= icon('chevron-left',16) ?></a>
     <h1 style="margin:0;"><?= e($client['nom']) ?></h1>
     <?= $badgeDette ?>
   </div>
   <div style="display:flex;gap:8px;">
     <?php if (hasPermission('clients.modifier')): ?>
-    <a href="<?= APP_URL ?>/modules/clients.php?action=edit&id=<?= $client['id'] ?>" class="btn btn-outline"><?= icon('edit',14) ?> Modifier</a>
+    <a href="<?= url('clients', ['action'=>'edit','id'=>$client['id']], $client['nom'] ?? null) ?>" class="btn btn-outline"><?= icon('edit',14) ?> Modifier</a>
     <?php endif; ?>
   </div>
 </div>
@@ -393,7 +393,7 @@ $isEdit = ($editClient !== null);
       </div>
     </div>
     <div class="modal-footer">
-      <a href="<?= APP_URL ?>/modules/clients.php" class="btn btn-ghost">Annuler</a>
+      <a href="<?= url('clients') ?>" class="btn btn-ghost">Annuler</a>
       <button type="submit" class="btn btn-primary"><?= $isEdit ? 'Enregistrer' : 'Créer le client' ?></button>
     </div>
   </form>
@@ -452,7 +452,7 @@ $clients = $db->query("
       ?>
       <tr>
         <td>
-          <a href="<?= APP_URL ?>/modules/clients.php?action=detail&id=<?= $c['id'] ?>" style="font-weight:500;text-decoration:none;color:var(--text);">
+          <a href="<?= url('clients', ['action'=>'detail','id'=>$c['id']], $c['nom'] ?? null) ?>" style="font-weight:500;text-decoration:none;color:var(--text);">
             <?= e($c['nom']) ?>
           </a>
         </td>
@@ -463,15 +463,15 @@ $clients = $db->query("
         <td><?= $statusBadge ?></td>
         <td>
           <div style="display:flex;gap:4px;">
-            <a href="<?= APP_URL ?>/modules/clients.php?action=detail&id=<?= $c['id'] ?>" class="btn btn-ghost" style="padding:4px 6px;" title="Détail"><?= icon('eye',14) ?></a>
+            <a href="<?= url('clients', ['action'=>'detail','id'=>$c['id']], $c['nom'] ?? null) ?>" class="btn btn-ghost" style="padding:4px 6px;" title="Détail"><?= icon('eye',14) ?></a>
             <?php if (hasPermission('clients.modifier')): ?>
-            <a href="<?= APP_URL ?>/modules/clients.php?action=edit&id=<?= $c['id'] ?>" class="btn btn-ghost" style="padding:4px 6px;" title="Modifier"><?= icon('edit',14) ?></a>
+            <a href="<?= url('clients', ['action'=>'edit','id'=>$c['id']], $c['nom'] ?? null) ?>" class="btn btn-ghost" style="padding:4px 6px;" title="Modifier"><?= icon('edit',14) ?></a>
             <?php endif; ?>
             <?php if (hasPermission('clients.supprimer')): ?>
               <?php if ($c['actif']): ?>
-              <a href="<?= APP_URL ?>/modules/clients.php?action=disable&id=<?= $c['id'] ?>&csrf=<?= csrf() ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--red);" title="Désactiver" onclick="showConfirm('Désactiver ce client ?','Ce client ne pourra plus être sélectionné lors des ventes.',function(){window.location.href=this.href;}.bind(this));return false;"><?= icon('trash',14) ?></a>
+              <a href="<?= url('clients', ['action'=>'disable','id'=>$c['id'],'csrf'=>csrf()], $c['nom'] ?? null) ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--red);" title="Désactiver" onclick="showConfirm('Désactiver ce client ?','Ce client ne pourra plus être sélectionné lors des ventes.',function(){window.location.href=this.href;}.bind(this));return false;"><?= icon('trash',14) ?></a>
               <?php else: ?>
-              <a href="<?= APP_URL ?>/modules/clients.php?action=enable&id=<?= $c['id'] ?>&csrf=<?= csrf() ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--teal);" title="Réactiver"><?= icon('refresh',14) ?></a>
+              <a href="<?= url('clients', ['action'=>'enable','id'=>$c['id'],'csrf'=>csrf()], $c['nom'] ?? null) ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--teal);" title="Réactiver"><?= icon('refresh',14) ?></a>
               <?php endif; ?>
             <?php endif; ?>
           </div>
