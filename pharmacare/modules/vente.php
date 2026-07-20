@@ -48,6 +48,32 @@ if (hasPermission('caisse.ouvrir')) {
     }
 }
 
+// ── AJAX : vérifier un code de remise (retourne le taux lié) ──
+// Le caissier saisit un code → on renvoie {ok, pct, auteur_id} ou {ok:false, error}
+if (isset($_GET['ajax_remise']) && $_GET['ajax_remise'] === '1') {
+    header('Content-Type: application/json; charset=utf-8');
+    $code   = trim(strtoupper($_GET['code'] ?? ''));
+    $auteur = (int)($_GET['auteur'] ?? 0);
+    if ($code === '') { echo json_encode(['ok' => false, 'error' => 'Code vide']); exit; }
+    $st = $db->prepare("SELECT c.id, c.remise_pct, c.created_by, c.used, c.expires_at,
+                               u.prenom, u.nom AS u_nom
+                        FROM codes_remise c
+                        JOIN utilisateurs u ON u.id = c.created_by
+                        WHERE c.code = ? LIMIT 1");
+    $st->execute([$code]);
+    $row = $st->fetch();
+    if (!$row) { echo json_encode(['ok' => false, 'error' => 'Code introuvable']); exit; }
+    if ((int)$row['used'] === 1) { echo json_encode(['ok' => false, 'error' => 'Code déjà utilisé']); exit; }
+    if (strtotime($row['expires_at']) <= time()) { echo json_encode(['ok' => false, 'error' => 'Code expiré']); exit; }
+    echo json_encode([
+        'ok'        => true,
+        'pct'       => (float)$row['remise_pct'],
+        'auteur_id' => (int)$row['created_by'],
+        'auteur'    => trim($row['prenom'] . ' ' . $row['u_nom']),
+    ]);
+    exit;
+}
+
 // ── Traitement vente POST ──────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
     verifyCsrf();
@@ -164,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
             }
             if ($remisePct > 0) {
                 // Valider le code : non utilisé, non expiré, émis par l'auteur indiqué
-                $stCode = $db->prepare("SELECT id, expires_at, used FROM codes_remise
+                $stCode = $db->prepare("SELECT id, remise_pct, expires_at, used FROM codes_remise
                                         WHERE code = ? AND created_by = ?
                                         AND used = 0 AND expires_at > NOW() LIMIT 1");
                 $stCode->execute([$code, $auteur]);
@@ -172,6 +198,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
                 if (!$codeRow) {
                     throw new Exception('Code de remise invalide, expiré ou déjà utilisé.');
                 }
+                // Le taux fait foi : c'est celui choisi par l'approbateur à la génération.
+                // On ignore la valeur saisie par le caissier et on prend celle du code.
+                $remisePct     = (float)$codeRow['remise_pct'];
                 $remiseMontant = round($subtotal * $remisePct / 100, 2);  // HT
                 $autorisePar   = $auteur;
             }
@@ -628,44 +657,69 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
       </div>
     </div>
 
-    <!-- ── Bloc remise % (visible seulement si user peut approuver) ── -->
+    <!-- ── Bloc remise (visible par tous, caissier ne saisit que le code) ── -->
     <?php
-    // L'utilisateur peut saisir une remise s'il est approbateur.
+    // Approbateur = peut saisir taux + générer code.
     $stAppr = $db->prepare("SELECT 1 FROM remise_approbateurs WHERE utilisateur_id=? AND actif=1");
     $stAppr->execute([currentUser()['id']]);
-    $peutRemise = $stAppr->fetch() ? true : false;
+    $estApprobateur = $stAppr->fetch() ? true : false;
     $maxRemise  = (float)getParam('remise_max_pct', '100');
     ?>
-    <?php if ($peutRemise): ?>
     <div style="margin-top:12px;padding:10px;border-radius:8px;border:1px solid #334155;background:rgba(148,163,184,.05);">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <label style="margin:0;font-size:12px;color:var(--text2);">Remise %</label>
-        <span style="font-size:10px;color:var(--text3);">max <?= $maxRemise ?>%</span>
+      <!-- Ligne 1 : Auteur (pleine largeur pour les noms longs) -->
+      <div style="margin-bottom:6px;">
+        <label style="display:block;margin:0 0 4px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Autorisé par</label>
+        <?php if ($estApprobateur): ?>
+          <input type="text" id="autorise-par-nom" value="<?= e(currentUser()['prenom'].' '.currentUser()['nom']) ?> (moi)"
+                 readonly
+                 style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#94a3b8;font-size:13px;">
+          <input type="hidden" id="autorise-par" name="autorise_par" value="<?= (int)currentUser()['id'] ?>">
+        <?php else: ?>
+          <select id="autorise-par" name="autorise_par"
+                  style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-size:13px;">
+            <option value="">— Choisir l'autorité —</option>
+            <?php
+            $approuveurs = $db->query("SELECT u.id, u.prenom, u.nom FROM remise_approbateurs r
+                                      JOIN utilisateurs u ON u.id = r.utilisateur_id
+                                      WHERE r.actif = 1 AND u.actif = 1 ORDER BY u.nom, u.prenom")->fetchAll();
+            foreach ($approuveurs as $a): ?>
+              <option value="<?= (int)$a['id'] ?>"><?= e($a['prenom'] . ' ' . $a['nom']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        <?php endif; ?>
       </div>
-      <input type="number" id="remise-pct" name="remise_pct" min="0" max="<?= $maxRemise ?>"
-             step="0.01" value="0" placeholder="0"
-             style="width:100%;padding:8px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-family:'DM Mono',monospace;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
-        <select id="autorise-par" name="autorise_par"
-                style="padding:8px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-size:12px;">
-          <option value="">— Auteur —</option>
-          <?php
-          $approuveurs = $db->query("SELECT u.id, u.prenom, u.nom FROM remise_approbateurs r
-                                     JOIN utilisateurs u ON u.id = r.utilisateur_id
-                                     WHERE r.actif = 1 AND u.actif = 1 ORDER BY u.nom")->fetchAll();
-          foreach ($approuveurs as $a): ?>
-            <option value="<?= (int)$a['id'] ?>"><?= e($a['prenom'] . ' ' . $a['nom']) ?></option>
-          <?php endforeach; ?>
-        </select>
-        <input type="text" id="code-remise" name="code_remise" maxlength="10"
-               placeholder="Code (ex: ABC123)"
-               style="padding:8px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;">
+
+      <!-- Ligne 2 : Remise % + Code côte à côte -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <label style="display:block;margin:0 0 4px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Remise %</label>
+          <?php if ($estApprobateur): ?>
+            <input type="number" id="remise-pct" name="remise_pct" min="0" max="<?= $maxRemise ?>"
+                   step="0.01" value="0" placeholder="0"
+                   style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-family:'DM Mono',monospace;text-align:center;">
+          <?php else: ?>
+            <input type="text" id="remise-pct-display" value="—" readonly
+                   style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#94a3b8;font-family:'DM Mono',monospace;text-align:center;">
+            <input type="hidden" id="remise-pct" name="remise_pct" value="0">
+            <div style="font-size:9px;color:var(--text3);text-align:center;margin-top:2px;">via code</div>
+          <?php endif; ?>
+        </div>
+        <div>
+          <label style="display:block;margin:0 0 4px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Code remise</label>
+          <input type="text" id="code-remise" name="code_remise" maxlength="10"
+                 placeholder="ABC123"
+                 style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-family:'DM Mono',monospace;font-size:13px;text-transform:uppercase;text-align:center;">
+        </div>
       </div>
+
       <div style="margin-top:6px;font-size:10px;color:var(--text3);">
-        <?= icon('info', 10) ?> Code à usage unique — générez-le via <a href="<?= url('remise_codes') ?>" target="_blank" style="color:var(--teal2);">Codes de remise</a>
+        <?php if ($estApprobateur): ?>
+          <?= icon('info', 10) ?> Saisissez le % + générez un code via <a href="<?= url('remise_codes') ?>" target="_blank" style="color:var(--teal2);">Codes de remise</a>
+        <?php else: ?>
+          <?= icon('info', 10) ?> Saisissez le code fourni par l'autorité. Le % s'applique automatiquement.
+        <?php endif; ?>
       </div>
     </div>
-    <?php endif; ?>
 
       <div style="height:12px;"></div>
 

@@ -499,6 +499,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', renderCart);
   });
+
+  // ── Auto-remplissage du % quand le caissier saisit un code ──
+  // Le caissier ne peut pas saisir le taux manuellement : il tape le code,
+  // on fetch le taux lié au code (et on verrouille l'auteur si necessaire).
+  const codeInput = document.getElementById('code-remise');
+  if (codeInput) {
+    codeInput.addEventListener('change', function() {
+      const code = this.value.trim().toUpperCase();
+      if (!code) return;
+      const auteurEl = document.getElementById('autorise-par');
+      const auteur = auteurEl ? auteurEl.value : '';
+      const dispEl = document.getElementById('remise-pct-display');
+      const hidEl  = document.getElementById('remise-pct');
+      fetch(APP_URL + '/modules/vente.php?ajax_remise=1&code=' + encodeURIComponent(code) + '&auteur=' + encodeURIComponent(auteur))
+        .then(r => r.json())
+        .then(d => {
+          if (d.ok) {
+            if (hidEl)  hidEl.value = d.pct;
+            if (dispEl) dispEl.value = d.pct + '%';
+            if (d.auteur_id && auteurEl && !auteurEl.value) {
+              auteurEl.value = d.auteur_id;
+            }
+            showNotif('Remise ' + d.pct + '% appliquée (code ' + code + ')', 'success');
+          } else {
+            if (hidEl)  hidEl.value = 0;
+            if (dispEl) dispEl.value = '—';
+            showNotif(d.error || 'Code de remise invalide', 'error');
+          }
+          renderCart();
+        })
+        .catch(() => {
+          if (hidEl)  hidEl.value = 0;
+          if (dispEl) dispEl.value = '—';
+          showNotif('Impossible de vérifier le code (réseau).', 'error');
+          renderCart();
+        });
+    });
+  }
+
   const posForm = document.getElementById('pos-form');
   if (posForm) {
     posForm.addEventListener('submit', function(e) {

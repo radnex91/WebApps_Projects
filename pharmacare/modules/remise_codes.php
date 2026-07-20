@@ -36,16 +36,24 @@ function genererCodeRemise(PDO $db): string {
 // ── POST : générer un nouveau code ───────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'generer') {
     verifyCsrf();
+    $remisePct = (float)($_POST['remise_pct'] ?? 0);
+    $maxPct    = (float)getParam('remise_max_pct', '100');
+    if ($remisePct < 0)      $remisePct = 0;
+    if ($remisePct > $maxPct) $remisePct = $maxPct;
+    if ($remisePct <= 0) {
+        flash('Le taux de remise doit être supérieur à 0.', 'error');
+        header('Location: ' . url('remise_codes')); exit;
+    }
     try {
         $db->beginTransaction();
         $code = genererCodeRemise($db);
-        $stmt = $db->prepare("INSERT INTO codes_remise (code, created_by, expires_at)
-                              VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))");
-        $stmt->execute([$code, currentUser()['id'], $ttl]);
+        $stmt = $db->prepare("INSERT INTO codes_remise (code, created_by, expires_at, remise_pct)
+                              VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?)");
+        $stmt->execute([$code, currentUser()['id'], $ttl, $remisePct]);
         $cid = (int)$db->lastInsertId();
         $db->commit();
-        auditLog('remise.code', 'Génération code remise ' . $code . ' (validité ' . $ttl . ' min)', null, $code);
-        flash('Code ' . $code . ' généré — valide ' . $ttl . ' min.', 'success');
+        auditLog('remise.code', 'Génération code remise ' . $code . ' (' . $remisePct . '%, validité ' . $ttl . ' min)', null, $code);
+        flash('Code ' . $code . ' généré — remise ' . $remisePct . '%, valide ' . $ttl . ' min.', 'success');
         header('Location: ' . url('remise_codes', ['action'=>'show','id'=>$cid])); exit;
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
@@ -93,6 +101,9 @@ showFlash();
                   padding:24px 40px;border-radius:12px;display:inline-block;margin-bottom:16px;">
         <?= e($code['code']) ?>
       </div>
+      <div style="font-size:20px;font-weight:700;color:var(--teal2);margin-bottom:8px;">
+        Remise : <?= (float)$code['remise_pct'] ?>%
+      </div>
       <div style="font-size:14px;color:var(--text2);">
         <?php if ($code['used']): ?>
           ✅ <strong>Utilisé</strong> sur la vente <?= e($code['vente_ref'] ?? '—') ?> (remise <?= (float)$code['used_remise_pct'] ?>%)
@@ -107,9 +118,8 @@ showFlash();
         le <?= e(date('d/m/Y H:i', strtotime($code['created_at']))) ?>
       </div>
       <div style="margin-top:18px;color:var(--text2);font-size:13px;max-width:520px;margin-left:auto;margin-right:auto;">
-        Communiquez ce code à la caisse. Le caissier le saisit au moment de la vente
-        et sélectionne votre nom comme autorité — la remise sera appliquée et ce code
-        sera marqué utilisé (à usage unique).
+        Communiquez ce code <strong>et le taux de <?= (float)$code['remise_pct'] ?>%</strong> à la caisse.
+        Le caissier saisit le code : le taux et l'autorité sont appliqués automatiquement.
       </div>
     </div>
   </div>
@@ -119,14 +129,19 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title"><?= icon('key',18) ?> Codes d'autorisation de remise</div>
-      <form method="POST" action="?action=generer" style="margin:0;">
+      <form method="POST" action="?action=generer" style="margin:0;display:flex;gap:8px;align-items:center;">
         <input type="hidden" name="csrf" value="<?= csrf() ?>">
-        <button type="submit" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Générer un code</button>
+        <input type="number" name="remise_pct" min="0.01" max="<?= (float)getParam('remise_max_pct','100') ?>"
+               step="0.01" value="5" placeholder="%" required
+               style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;
+                      background:var(--surface);color:var(--text);font-family:'DM Mono',monospace;text-align:center;">
+        <span style="font-size:13px;color:var(--text2);">%</span>
+        <button type="submit" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Générer</button>
       </form>
     </div>
     <div class="table-wrap" style="padding:22px;">
       <table>
-        <thead><tr><th>Code</th><th>Généré par</th><th>Créé le</th><th>Expire</th><th>Statut</th><th>Vente</th><th></th></tr></thead>
+        <thead><tr><th>Code</th><th>Remise</th><th>Généré par</th><th>Créé le</th><th>Expire</th><th>Statut</th><th>Vente</th><th></th></tr></thead>
         <tbody>
         <?php
           $codes = $db->query("SELECT c.*, u.prenom, u.nom AS u_nom,
@@ -144,6 +159,7 @@ showFlash();
         ?>
           <tr>
             <td class="fw-mono" style="font-weight:700;letter-spacing:2px;"><?= e($c['code']) ?></td>
+            <td style="font-weight:600;color:var(--teal2);"><?= (float)$c['remise_pct'] ?>%</td>
             <td><?= e(trim($c['prenom'].' '.$c['u_nom'])) ?></td>
             <td><?= e(date('d/m/Y H:i', strtotime($c['created_at']))) ?></td>
             <td><?= e(date('d/m/Y H:i', strtotime($c['expires_at']))) ?></td>
@@ -153,7 +169,7 @@ showFlash();
           </tr>
         <?php endforeach; ?>
         <?php if (!$codes): ?>
-          <tr><td colspan="7"><div class="empty">Aucun code généré. Cliquez sur « Générer un code ».</div></td></tr>
+           <tr><td colspan="8"><div class="empty">Aucun code généré. Cliquez sur « Générer ».</div></td></tr>
         <?php endif; ?>
         </tbody>
       </table>
