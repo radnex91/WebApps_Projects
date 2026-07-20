@@ -24,11 +24,19 @@ function startSession(): void {
             error_reporting(E_ALL);
         }
         $timeout = sessionTimeoutSeconds();
+        // Le cookie secure ne doit PAS dépendre de IS_PROD mais du schéma réel
+        // de la requête : sur un LAN en HTTP (sans TLS), secure=true empêcherait
+        // le navigateur d'envoyer le cookie → session perdue → échec CSRF.
+        // On active secure uniquement si la requête courante est en HTTPS.
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+                || (($_SERVER['SERVER_PORT'] ?? 0) == 443);
+
         $cookieParams = [
             'lifetime' => 0,
             'path'     => '/',
             'domain'   => '',
-            'secure'   => IS_PROD,
+            'secure'   => $isHttps,
             'httponly' => true,
             'samesite' => 'Lax',
         ];
