@@ -144,15 +144,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
 
         $total   = $subtotal + $tva_total;
         $ref     = genRef(getParam('prefix_vente', 'VNT'));
-        $recuRaw = (float)($_POST['montant_recu'] ?? 0);
-        $monnaie = max(0, $recuRaw - $total);
+
+        // ── Remise % (méthode brute : remise rendue en espèces) ──
+        $remisePct    = 0;
+        $remiseMontant = 0;
+        $autorisePar  = null;
+        $code         = '';  // initialisé pour éviter un undefined hors du bloc if
+        if (isset($_POST['remise_pct']) && (float)$_POST['remise_pct'] > 0) {
+            $remisePct = (float)$_POST['remise_pct'];
+            $maxPct    = (float)getParam('remise_max_pct', '100');
+            if ($remisePct < 0)      $remisePct = 0;
+            if ($remisePct > $maxPct) $remisePct = $maxPct;
+
+            // Vérifier l'autorisation : code + auteur
+            $code    = trim($_POST['code_remise'] ?? '');
+            $auteur  = (int)($_POST['autorise_par'] ?? 0);
+            if ($remisePct > 0 && ($code === '' || $auteur <= 0)) {
+                throw new Exception('Remise : code d\'autorisation et auteur requis.');
+            }
+            if ($remisePct > 0) {
+                // Valider le code : non utilisé, non expiré, émis par l'auteur indiqué
+                $stCode = $db->prepare("SELECT id, expires_at, used FROM codes_remise
+                                        WHERE code = ? AND created_by = ?
+                                        AND used = 0 AND expires_at > NOW() LIMIT 1");
+                $stCode->execute([$code, $auteur]);
+                $codeRow = $stCode->fetch();
+                if (!$codeRow) {
+                    throw new Exception('Code de remise invalide, expiré ou déjà utilisé.');
+                }
+                $remiseMontant = round($subtotal * $remisePct / 100, 2);  // HT
+                $autorisePar   = $auteur;
+            }
+        }
+
+        // Recalcul avec remise (net HT → TVA → net TTC)
+        $netHt     = $subtotal - $remiseMontant;
+        $tva_total = round($netHt * $tvaRate, 2);
+        $total     = $netHt + $tva_total;        // net encaissé
+        $recuRaw   = (float)($_POST['montant_recu'] ?? 0);
+        $monnaie   = max(0, $recuRaw - $total);
 
         $stmt = $db->prepare("
             INSERT INTO ventes
                 (reference, client_nom, client_telephone, client_id, caissier_id,
                  sous_total, tva_total, total, mode_paiement, statut_paiement,
-                 montant_recu, monnaie, note)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 montant_recu, monnaie, note, remise_pct, remise_montant, autorise_par)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
         $stmt->execute([
             $ref,
@@ -167,7 +204,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
             $modePaiement === 'crédit' ? 'en_attente' : 'payé',
             $modePaiement === 'crédit' ? 0 : $recuRaw,
             $modePaiement === 'crédit' ? 0 : round($monnaie, 2),
-            trim($_POST['note'] ?? '')
+            trim($_POST['note'] ?? ''),
+            $remisePct,
+            $remiseMontant,
+            $autorisePar,
         ]);
         $vid = $db->lastInsertId();
 
@@ -260,16 +300,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
             $caisseCompte  = $mapCompte[$modePaiement] ?? $mapCompte['espèces'];
             $compteVente   = compteFindOrCreate($db, '7011', 'Ventes de médicaments', 7, 'credit');
             $compteTva     = compteFindOrCreate($db, '4411', 'TVA collectée 19.25%', 4, 'credit');
+            $lignes = [
+                [$caisseCompte, round($total, 2), 0, 'Vente ' . $ref],
+                [$compteVente,  0, round($netHt, 2), 'Vente médicaments ' . $ref],
+                [$compteTva,    0, round($tva_total, 2), 'TVA collectée ' . $ref],
+            ];
+            // Si remise : on débite 7119 (rabais/ristournes) pour le montant HT de la remise
+            if ($remiseMontant > 0) {
+                $compteRemise = compteFindOrCreate($db, '7119', 'Rabais, remises et ristournes accordés', 7, 'debit');
+                $lignes[] = [$compteRemise, round($remiseMontant, 2), 0, 'Remise ' . $remisePct . '% ' . $ref];
+            }
             ecritureCreate($db,
                 'Vente ' . $ref . ' - ' . $modeLabels[$modePaiement],
                 date('Y-m-d'),
-                [
-                    [$caisseCompte, round($total, 2), 0, 'Vente ' . $ref],
-                    [$compteVente,  0, round($subtotal, 2), 'Vente médicaments ' . $ref],
-                    [$compteTva,    0, round($tva_total, 2), 'TVA collectée ' . $ref],
-                ],
+                $lignes,
                 'vente', $ref, currentUser()['id']
             );
+        }
+
+        // ── Marquer le code de remise comme utilisé (si remise appliquée) ──
+        if ($remisePct > 0 && $autorisePar && !empty($code)) {
+            $db->prepare("UPDATE codes_remise
+                          SET used = 1, used_at = NOW(), used_vente_id = ?, used_remise_pct = ?
+                          WHERE code = ? AND used = 0")
+               ->execute([$vid, $remisePct, $code]);
         }
 
         // ── Sortie de stock au coût d'achat (inventaire intermittent OHADA) ──
@@ -554,11 +608,64 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
           <label>TVA (<?= e($tvaTaux) ?>%)</label>
           <span id="pos-tva">0 <?= e($devSym) ?></span>
         </div>
-        <div class="total-box total-main-pro">
-          <label>Total TTC</label>
-          <span id="pos-total" class="c-teal">0 <?= e($devSym) ?></span>
-        </div>
+      <div class="total-box total-main-pro">
+        <label>Total TTC</label>
+        <span id="pos-total" class="c-teal">0 <?= e($devSym) ?></span>
       </div>
+
+      <!-- Ligne remise (masquée si remise = 0) -->
+      <div class="total-box" id="remise-display" style="display:none;">
+        <label>Remise HT</label>
+        <span id="pos-remise" class="c-red">0 <?= e($devSym) ?></span>
+      </div>
+      <div class="total-box" id="remise-ttc-display" style="display:none;">
+        <label>Remise TTC</label>
+        <span id="pos-remise-ttc" class="c-red">0 <?= e($devSym) ?></span>
+      </div>
+      <div class="total-box total-main-pro" id="net-display" style="display:none;">
+        <label>Net à encaisser</label>
+        <span id="pos-net" class="c-teal">0 <?= e($devSym) ?></span>
+      </div>
+    </div>
+
+    <!-- ── Bloc remise % (visible seulement si user peut approuver) ── -->
+    <?php
+    // L'utilisateur peut saisir une remise s'il est approbateur.
+    $stAppr = $db->prepare("SELECT 1 FROM remise_approbateurs WHERE utilisateur_id=? AND actif=1");
+    $stAppr->execute([currentUser()['id']]);
+    $peutRemise = $stAppr->fetch() ? true : false;
+    $maxRemise  = (float)getParam('remise_max_pct', '100');
+    ?>
+    <?php if ($peutRemise): ?>
+    <div style="margin-top:12px;padding:10px;border-radius:8px;border:1px solid #334155;background:rgba(148,163,184,.05);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <label style="margin:0;font-size:12px;color:var(--text2);">Remise %</label>
+        <span style="font-size:10px;color:var(--text3);">max <?= $maxRemise ?>%</span>
+      </div>
+      <input type="number" id="remise-pct" name="remise_pct" min="0" max="<?= $maxRemise ?>"
+             step="0.01" value="0" placeholder="0"
+             style="width:100%;padding:8px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-family:'DM Mono',monospace;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
+        <select id="autorise-par" name="autorise_par"
+                style="padding:8px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-size:12px;">
+          <option value="">— Auteur —</option>
+          <?php
+          $approuveurs = $db->query("SELECT u.id, u.prenom, u.nom FROM remise_approbateurs r
+                                     JOIN utilisateurs u ON u.id = r.utilisateur_id
+                                     WHERE r.actif = 1 AND u.actif = 1 ORDER BY u.nom")->fetchAll();
+          foreach ($approuveurs as $a): ?>
+            <option value="<?= (int)$a['id'] ?>"><?= e($a['prenom'] . ' ' . $a['nom']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <input type="text" id="code-remise" name="code_remise" maxlength="10"
+               placeholder="Code (ex: ABC123)"
+               style="padding:8px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;">
+      </div>
+      <div style="margin-top:6px;font-size:10px;color:var(--text3);">
+        <?= icon('info', 10) ?> Code à usage unique — générez-le via <a href="<?= url('remise_codes') ?>" target="_blank" style="color:var(--teal2);">Codes de remise</a>
+      </div>
+    </div>
+    <?php endif; ?>
 
       <div style="height:12px;"></div>
 
@@ -1034,6 +1141,11 @@ function toggleCreditMode(checkbox) {
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);">
           <span>Sous-total HT</span><span><?= fmtMoney((float)$receiptData['sous_total']) ?></span>
         </div>
+        <?php if ((float)($receiptData['remise_pct'] ?? 0) > 0): ?>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--red);">
+          <span>Remise <?= (float)$receiptData['remise_pct'] ?>% (HT)</span><span>-<?= fmtMoney((float)$receiptData['remise_montant']) ?></span>
+        </div>
+        <?php endif; ?>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);">
           <span>TVA (<?= e($tvaTaux) ?>%)</span><span><?= fmtMoney((float)$receiptData['tva_total']) ?></span>
         </div>
