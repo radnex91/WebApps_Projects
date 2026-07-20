@@ -21,9 +21,9 @@ $val_stock = $db->query("SELECT COALESCE(SUM(stock * prix_vente),0) FROM produit
 $alertes  = $db->query("SELECT COUNT(*) FROM produits WHERE stock <= seuil_alerte AND actif=1")->fetchColumn();
 $ruptures = $db->query("SELECT COUNT(*) FROM produits WHERE stock=0 AND actif=1")->fetchColumn();
 
-// Ventes aujourd'hui
-$ventes_j = $db->query("SELECT COUNT(*) FROM ventes WHERE DATE(created_at)=CURDATE()")->fetchColumn();
-$ca_jour  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE DATE(created_at)=CURDATE()")->fetchColumn();
+// Ventes aujourd'hui (sargable : created_at >= aujourd'hui minuit)
+$ventes_j = $db->query("SELECT COUNT(*) FROM ventes WHERE created_at >= CURDATE()")->fetchColumn();
+$ca_jour  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= CURDATE()")->fetchColumn();
 
 // Ventes 7 derniers jours
 $ventes7 = $db->query("
@@ -90,7 +90,7 @@ $caMinDate = min(array_merge(...array_column($caBuckets, 'days')));
 $caDailyRows = $db->query("
   SELECT DATE(created_at) AS jour, COALESCE(SUM(total),0) AS total, COUNT(*) AS nb
   FROM ventes WHERE created_at >= " . $db->quote($caMinDate) . "
-  GROUP BY DATE(created_at)
+  GROUP BY jour
 ")->fetchAll(PDO::FETCH_ASSOC);
 $caDailyMap = []; $caNbMap = [];
 foreach ($caDailyRows as $r) {

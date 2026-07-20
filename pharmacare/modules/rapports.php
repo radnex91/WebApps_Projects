@@ -76,7 +76,7 @@ $stmt = $db->prepare("
            COALESCE(AVG(total), 0)             AS panier_moyen,
            COALESCE(MAX(total), 0)             AS vente_max
     FROM ventes
-    WHERE DATE(created_at) BETWEEN ? AND ?
+    WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
 ");
 $stmt->execute([$dateDebut, $dateFin]);
 $stats = $stmt->fetch();
@@ -87,7 +87,7 @@ $stmtPrev = $db->prepare("
            COALESCE(SUM(total), 0)             AS ca_total,
            COALESCE(AVG(total), 0)             AS panier_moyen
     FROM ventes
-    WHERE DATE(created_at) BETWEEN ? AND ?
+    WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
 ");
 $stmtPrev->execute([$prevStart, $prevEnd]);
 $prev = $stmtPrev->fetch();
@@ -100,8 +100,8 @@ $panierDelta = pctChange((float)$stats['panier_moyen'], (float)$prev['panier_moy
 $stmtJour = $db->prepare("
     SELECT DATE(created_at) AS d, COALESCE(SUM(total),0) AS total, COUNT(*) AS nb
     FROM ventes
-    WHERE DATE(created_at) BETWEEN ? AND ?
-    GROUP BY DATE(created_at) ORDER BY d
+    WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+    GROUP BY d ORDER BY d
 ");
 $stmtJour->execute([$dateDebut, $dateFin]);
 $rowsJour = $stmtJour->fetchAll();
@@ -204,7 +204,7 @@ $maxProdCa = $top_prod ? max(array_column($top_prod, 'ca')) : 1;
 $stmtMode = $db->prepare("
     SELECT mode_paiement, SUM(total) AS total, COUNT(*) AS nb
     FROM ventes
-    WHERE DATE(created_at) BETWEEN ? AND ?
+    WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
     GROUP BY mode_paiement ORDER BY total DESC
 ");
 $stmtMode->execute([$dateDebut, $dateFin]);

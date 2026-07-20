@@ -52,7 +52,7 @@ $stmt = $db->prepare("
            COALESCE(AVG(total), 0)             AS panier_moyen,
            COALESCE(MAX(total), 0)             AS vente_max
     FROM ventes
-    WHERE caissier_id = ? AND DATE(created_at) BETWEEN ? AND ?
+    WHERE caissier_id = ? AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
 ");
 $stmt->execute([$userId, $dateDebut, $dateFin]);
 $stats = $stmt->fetch();
@@ -63,7 +63,7 @@ $stmtPrev = $db->prepare("
            COALESCE(SUM(total), 0)             AS ca_total,
            COALESCE(AVG(total), 0)             AS panier_moyen
     FROM ventes
-    WHERE caissier_id = ? AND DATE(created_at) BETWEEN ? AND ?
+    WHERE caissier_id = ? AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
 ");
 $stmtPrev->execute([$userId, $prevStart, $prevEnd]);
 $prev = $stmtPrev->fetch();
@@ -95,7 +95,7 @@ function trendPct($delta) {
 $stmtMode = $db->prepare("
     SELECT mode_paiement, COUNT(*) AS nb, COALESCE(SUM(total), 0) AS total
     FROM ventes
-    WHERE caissier_id = ? AND DATE(created_at) BETWEEN ? AND ?
+    WHERE caissier_id = ? AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
     GROUP BY mode_paiement ORDER BY total DESC
 ");
 $stmtMode->execute([$userId, $dateDebut, $dateFin]);

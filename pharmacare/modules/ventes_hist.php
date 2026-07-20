@@ -12,12 +12,12 @@ $mode      = $_GET['mode']  ?? '';
 $estAdmin  = isAdmin();
 
 // WHERE avec alias v. pour les requêtes avec jointures
-$whereV = "DATE(v.created_at) BETWEEN " . $db->quote($dateDebut) . " AND " . $db->quote($dateFin);
+$whereV = "v.created_at >= " . $db->quote($dateDebut) . " AND v.created_at < DATE_ADD(" . $db->quote($dateFin) . ", INTERVAL 1 DAY)";
 if ($mode) $whereV .= " AND v.mode_paiement=" . $db->quote($mode);
 if (!$estAdmin) $whereV .= " AND v.caissier_id=" . (int)$_SESSION['user_id'];
 
 // WHERE sans alias pour requête simple
-$whereS = "DATE(created_at) BETWEEN " . $db->quote($dateDebut) . " AND " . $db->quote($dateFin);
+$whereS = "created_at >= " . $db->quote($dateDebut) . " AND created_at < DATE_ADD(" . $db->quote($dateFin) . ", INTERVAL 1 DAY)";
 if ($mode) $whereS .= " AND mode_paiement=" . $db->quote($mode);
 if (!$estAdmin) $whereS .= " AND caissier_id=" . (int)$_SESSION['user_id'];
 
@@ -203,6 +203,8 @@ const appNom     = <?= json_encode($appNom, JSON_UNESCAPED_UNICODE | JSON_HEX_TA
 const tvaTaux    = <?= json_encode($tvaTaux, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 let currentReceiptVid = null;
 
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
 function fmtDA(n) {
   const f = Math.round(n).toLocaleString('fr-FR');
   return devPos === 'before' ? devSym + ' ' + f : f + ' ' + devSym;
@@ -218,7 +220,7 @@ function showDetail(vid) {
   const rowsHtml = lignes.length
     ? lignes.map(l => `
         <tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:8px 7px;">${l.produit_nom}</td>
+          <td style="padding:8px 7px;">${escHtml(l.produit_nom)}</td>
           <td style="padding:8px 7px;text-align:right;">${l.quantite}</td>
           <td style="padding:8px 7px;text-align:right;font-family:'DM Mono',monospace;">${fmtDA(l.prix_unitaire)}</td>
           <td style="padding:8px 7px;text-align:right;font-family:'DM Mono',monospace;color:var(--teal2);">${fmtDA(l.total_ligne)}</td>
@@ -227,8 +229,8 @@ function showDetail(vid) {
 
   document.getElementById('detail-body').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;font-size:13px;">
-      <div><span style="color:var(--text3);">Client :</span> ${v.client_nom || '—'}</div>
-      <div><span style="color:var(--text3);">Paiement :</span> ${modeLabels[v.mode_paiement] || v.mode_paiement}</div>
+      <div><span style="color:var(--text3);">Client :</span> ${escHtml(v.client_nom || '—')}</div>
+      <div><span style="color:var(--text3);">Paiement :</span> ${escHtml(modeLabels[v.mode_paiement] || v.mode_paiement)}</div>
       <div><span style="color:var(--text3);">Reçu :</span> <span style="font-family:'DM Mono',monospace;">${fmtDA(v.montant_recu||0)}</span></div>
       <div><span style="color:var(--text3);">Monnaie :</span> <span style="font-family:'DM Mono',monospace;">${fmtDA(v.monnaie||0)}</span></div>
     </div>

@@ -17,14 +17,14 @@ $cmd_attente = $db->query("SELECT COUNT(*) FROM commandes WHERE statut IN ('en_a
 $ventes7 = $db->query("
   SELECT DATE(created_at) AS jour, SUM(total) AS total, COUNT(*) AS nb
   FROM ventes WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-  GROUP BY DATE(created_at) ORDER BY jour
+  GROUP BY jour ORDER BY jour
 ")->fetchAll();
 
 // Ventes 30 derniers jours (courbe d'évolution)
 $v30rows = $db->query("
   SELECT DATE(created_at) AS jour, COUNT(*) AS nb
   FROM ventes WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
-  GROUP BY DATE(created_at) ORDER BY jour
+  GROUP BY jour ORDER BY jour
 ")->fetchAll();
 $v30 = [];
 for ($i = 29; $i >= 0; $i--) {

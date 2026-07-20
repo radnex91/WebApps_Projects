@@ -207,8 +207,27 @@ function csrf(): string {
 }
 
 function verifyCsrf(): void {
-    if (($_POST['csrf'] ?? '') !== ($_SESSION['csrf'] ?? '')) {
-        die('Requête invalide (CSRF).');
+    $sent = $_POST['csrf'] ?? '';
+    $expected = $_SESSION['csrf'] ?? '';
+    if ($sent === '' || $expected === '' || !hash_equals($expected, $sent)) {
+        http_response_code(419);  // Authentication Timeout — session expirée / CSRF invalide
+        if (IS_PROD) {
+            error_log('CSRF refusé : ' . ($_SERVER['REQUEST_URI'] ?? '?') .
+                      ' IP=' . ($_SERVER['REMOTE_ADDR'] ?? '?'));
+        }
+        // Page d'erreur claire + retour automatique vers le login
+        echo '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">' .
+             '<title>Session expirée — PharmaCare</title>' .
+             '<meta http-equiv="refresh" content="3;url=' . e(APP_URL . '/index.php?timeout=1') . '">' .
+             '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;' .
+             'min-height:100vh;background:#0F172A;color:#E2E8F0;margin:0}' .
+             '.box{text-align:center;padding:40px;background:#1E293B;border-radius:12px;' .
+             'border:1px solid #334155;max-width:400px}' .
+             'h1{color:#F87171;margin:0 0 12px}p{color:#94A3B8;line-height:1.5}</style></head>' .
+             '<body><div class="box"><h1>Session expirée</h1>' .
+             '<p>Votre session a expiré pour des raisons de sécurité. ' .
+             'Vous allez être redirigé vers la page de connexion.</p></div></body></html>';
+        exit;
     }
 }
 

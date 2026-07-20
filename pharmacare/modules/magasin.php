@@ -921,6 +921,7 @@ function submitRetour(e) {
   </div>
 </div>
 <script>
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 var trfLignes = <?= json_encode($trfLignes, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 var trfData = <?= json_encode(array_column($transferts, null, 'id'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 function showTrfDetail(tid) {
@@ -929,10 +930,10 @@ function showTrfDetail(tid) {
   document.getElementById('trf-ref').textContent = t.reference;
   var lignes = trfLignes[tid] || [];
   var rows = lignes.length ? lignes.map(function(l){
-    return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 7px;">'+(l.produit_nom||'—')+'</td><td style="padding:8px 7px;text-align:right;font-family:var(--font-mono,monospace);">'+l.quantite+'</td></tr>';
+    return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 7px;">'+escHtml(l.produit_nom||'—')+'</td><td style="padding:8px 7px;text-align:right;font-family:var(--font-mono,monospace);">'+l.quantite+'</td></tr>';
   }).join('') : '<tr><td colspan="2" style="padding:16px;text-align:center;color:var(--text3);">Aucune ligne</td></tr>';
   document.getElementById('trf-body').innerHTML =
-    '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">' + new Date(t.created_at).toLocaleString('fr-FR') + (t.note ? ' — ' + t.note : '') + '</div>' +
+    '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">' + new Date(t.created_at).toLocaleString('fr-FR') + (t.note ? ' — ' + escHtml(t.note) : '') + '</div>' +
     '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border)"><th style="padding:7px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;">Produit</th><th style="padding:7px;text-align:right;color:var(--text3);font-size:10px;text-transform:uppercase;">Qté</th></tr></thead><tbody>'+rows+'</tbody></table>';
   openModal('modal-trf');
 }
