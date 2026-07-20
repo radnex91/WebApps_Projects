@@ -1,11 +1,20 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/settings.php';
 require_once __DIR__ . '/../config/rate_limit.php';
 require_once __DIR__ . '/audit.php';
 require_once __DIR__ . '/url.php';
 
-// ── Timeout d'inactivité (30 minutes) ──────────────────────
-define('SESSION_TIMEOUT_SECONDS', 900);  // 15 min
+/**
+ * Délai d'inactivité avant déconnexion auto (en secondes).
+ * Configurable par l'admin via le paramètre 'delai_inactivite_min' (en minutes).
+ * 0 = déconnexion auto désactivée. Valeur plancher de sécurité : 60 s.
+ */
+function sessionTimeoutSeconds(): int {
+    $min = (int)getParam('delai_inactivite_min', '15');
+    if ($min < 0) $min = 0;
+    return $min * 60;
+}
 
 function startSession(): void {
     if (session_status() === PHP_SESSION_NONE) {
@@ -14,6 +23,7 @@ function startSession(): void {
             ini_set('display_startup_errors', '0');
             error_reporting(E_ALL);
         }
+        $timeout = sessionTimeoutSeconds();
         $cookieParams = [
             'lifetime' => 0,
             'path'     => '/',
@@ -22,15 +32,16 @@ function startSession(): void {
             'httponly' => true,
             'samesite' => 'Lax',
         ];
-        // Durée de vie du cookie : 30 min (le garbage collector PHP gère l'expiration)
-        session_set_cookie_params(array_merge($cookieParams, ['lifetime' => SESSION_TIMEOUT_SECONDS]));
+        // Durée de vie du cookie alignée sur le délai d'inactivité (0 si désactivé)
+        session_set_cookie_params(array_merge($cookieParams, ['lifetime' => $timeout]));
         session_name(SESSION_NAME);
         session_start();
     }
 
-    // Vérifier le timeout d'inactivité
+    // Vérifier le timeout d'inactivité (0 = désactivé)
     $now = time();
-    if (isset($_SESSION['last_activity']) && ($now - $_SESSION['last_activity']) > SESSION_TIMEOUT_SECONDS) {
+    $timeout = sessionTimeoutSeconds();
+    if ($timeout > 0 && isset($_SESSION['last_activity']) && ($now - $_SESSION['last_activity']) > $timeout) {
         // Session expirée — nettoyage et redirection
         $_SESSION = [];
         if (ini_get('session.use_cookies')) {
@@ -199,31 +210,45 @@ function fmtInt(int $n): string { return number_format($n, 0, ',', ' '); }
 function today(): string { return date('Y-m-d'); }
 function genRef(string $prefix): string {
     $db   = getDB();
-    $year = date('Y');
-    $like = $prefix . '-' . $year . '-%';
+    $year = (int)date('Y');
 
+    // Séquence atomique sans race : INSERT…ON DUPLICATE KEY UPDATE avec
+    // LAST_INSERT_ID(compteur+1) incrémente et expose la valeur de façon
+    // atomique et par-connexion. Deux caissiers concurrents obtiennent deux
+    // numéros distincts, sans retry ni collision.
+    try {
+        $db->prepare("INSERT INTO compteurs_ref (prefix, annee, compteur)
+                      VALUES (?, ?, 1)
+                      ON DUPLICATE KEY UPDATE compteur = LAST_INSERT_ID(compteur + 1)")
+           ->execute([$prefix, $year]);
+        $seq = (int)$db->query("SELECT LAST_INSERT_ID()")->fetchColumn();
+        if ($seq > 0) {
+            return $prefix . '-' . $year . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT);
+        }
+    } catch (Exception $e) {
+        // table manquante → fallback MAX ci-dessous
+    }
+
+    // Fallback : MAX(reference) si la table compteurs_ref n'existe pas encore.
     $tables = [
         'VNT' => 'ventes',
         'CMD' => 'commandes',
         'TRF' => 'transferts_magasin',
     ];
     $table = $tables[$prefix] ?? 'ventes';
-
+    $like  = $prefix . '-' . $year . '-%';
     for ($attempt = 0; $attempt < 5; $attempt++) {
         $stmt = $db->prepare(
             "SELECT reference FROM `$table` WHERE reference LIKE ? ORDER BY reference DESC LIMIT 1"
         );
         $stmt->execute([$like]);
         $last = $stmt->fetchColumn();
-
         $next = 1;
         if ($last) {
             $parts = explode('-', $last);
             $next  = (int)end($parts) + 1;
         }
-
         $ref = $prefix . '-' . $year . '-' . str_pad($next, 4, '0', STR_PAD_LEFT);
-
         try {
             $check = $db->prepare("SELECT 1 FROM `$table` WHERE reference = ?");
             $check->execute([$ref]);
@@ -234,7 +259,6 @@ function genRef(string $prefix): string {
             return $ref;
         }
     }
-
     return $prefix . '-' . $year . '-' . str_pad(mt_rand(1, 99999), 5, '0', STR_PAD_LEFT);
 }
 

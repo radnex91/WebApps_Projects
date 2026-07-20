@@ -141,9 +141,47 @@ CREATE TABLE ventes (
     montant_recu    DECIMAL(10,2) DEFAULT 0,
     monnaie         DECIMAL(10,2) DEFAULT 0,
     note            TEXT,
+    remise_pct      DECIMAL(5,2) DEFAULT 0,
+    remise_montant  DECIMAL(10,2) DEFAULT 0,
+    autorise_par    INT NULL,
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (client_id) REFERENCES clients(id)
+    FOREIGN KEY (client_id) REFERENCES clients(id),
+    FOREIGN KEY (autorise_par) REFERENCES utilisateurs(id) ON DELETE SET NULL
 );
+
+-- ── Codes d'autorisation de remise (à usage unique) ─────────
+CREATE TABLE codes_remise (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    code            VARCHAR(10) UNIQUE NOT NULL,
+    created_by      INT NOT NULL,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at      DATETIME NOT NULL,
+    used            TINYINT(1) DEFAULT 0,
+    used_at         DATETIME NULL,
+    used_vente_id   INT NULL,
+    used_remise_pct DECIMAL(5,2) NULL,
+    FOREIGN KEY (created_by) REFERENCES utilisateurs(id),
+    FOREIGN KEY (used_vente_id) REFERENCES ventes(id) ON DELETE SET NULL
+);
+
+-- ── Approbateurs de remise (liste gérée par l'admin) ────────
+CREATE TABLE remise_approbateurs (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    utilisateur_id INT NOT NULL,
+    actif          TINYINT(1) DEFAULT 1,
+    added_by       INT NULL,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_utilisateur (utilisateur_id),
+    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE
+);
+
+-- ── Compteurs de numérotation (séquence atomique sans race) ──
+CREATE TABLE compteurs_ref (
+    prefix   VARCHAR(8)  NOT NULL,
+    annee    SMALLINT     NOT NULL,
+    compteur INT          NOT NULL DEFAULT 0,
+    PRIMARY KEY (prefix, annee)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Lignes de vente ────────────────────────────────────────
 CREATE TABLE vente_lignes (
@@ -156,6 +194,40 @@ CREATE TABLE vente_lignes (
     tva         DECIMAL(5,2) DEFAULT 9.00,
     total_ligne DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (vente_id) REFERENCES ventes(id) ON DELETE CASCADE,
+    FOREIGN KEY (produit_id) REFERENCES produits(id) ON DELETE SET NULL
+);
+
+-- ── Retours caisse (vente → stock) ─────────────────────────
+CREATE TABLE retours_vente (
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    reference         VARCHAR(20) UNIQUE NOT NULL,        -- RET-2026-0001
+    vente_id          INT NOT NULL,
+    utilisateur_id    INT,
+    date_retour       DATE NOT NULL,
+    montant_ht        DECIMAL(10,2) DEFAULT 0,
+    montant_tva       DECIMAL(10,2) DEFAULT 0,
+    montant_total     DECIMAL(10,2) DEFAULT 0,
+    cout_achat_total  DECIMAL(10,2) DEFAULT 0,            -- inventaire intermittent (sortie stock au coût)
+    mode_remboursement ENUM('espèces','carte','chèque','assurance','crédit') DEFAULT 'espèces',
+    note              VARCHAR(255) DEFAULT NULL,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (vente_id) REFERENCES ventes(id),
+    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE SET NULL
+);
+
+-- ── Lignes de retour ──────────────────────────────────────
+CREATE TABLE retour_vente_lignes (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    retour_id       INT NOT NULL,
+    vente_ligne_id  INT,
+    produit_id      INT,
+    produit_nom     VARCHAR(200),
+    quantite        INT NOT NULL,                          -- quantité retournée (≤ reste retournable)
+    prix_unitaire   DECIMAL(10,2) NOT NULL,
+    tva             DECIMAL(5,2) DEFAULT 0,
+    total_ligne     DECIMAL(10,2) NOT NULL,
+    cout_achat      DECIMAL(10,2) DEFAULT 0,               -- qte × prix_achat (stock au coût)
+    FOREIGN KEY (retour_id) REFERENCES retours_vente(id) ON DELETE CASCADE,
     FOREIGN KEY (produit_id) REFERENCES produits(id) ON DELETE SET NULL
 );
 
@@ -383,6 +455,8 @@ INSERT INTO permissions (code, libelle, module) VALUES
 ('dashboard.voir',       'Voir le tableau de bord',       'dashboard'),
 -- Vente
 ('vente.creer',          'Créer des ventes (Point de Vente)', 'vente'),
+('remise.approuver',     'Approuver une remise (générer un code)', 'vente'),
+('remise.approbateurs.gerer','Gérer la liste des approbateurs de remise','remise'),
 -- Stock
 ('stock.voir',           'Voir le stock',                 'stock'),
 ('stock.ajuster',        'Ajuster le stock',              'stock'),
@@ -437,7 +511,9 @@ INSERT INTO permissions (code, libelle, module) VALUES
 ('marketing.fidelite',   'Gérer la fidélité clients',     'marketing'),
 -- Magasin (dépôt central)
 ('magasin.voir',         'Voir le stock magasin',         'magasin'),
-('magasin.gerer',        'Gérer le magasin (réceptions & transferts)', 'magasin');
+('magasin.gerer',        'Gérer le magasin (réceptions & transferts)', 'magasin'),
+-- Retours caisse
+('retours.gerer',        'Gérer les retours de ventes',   'retours');
 
 -- ── Permissions par rôle ──────────────────────────────────
 
@@ -455,7 +531,9 @@ SELECT 2, id FROM permissions WHERE code IN (
     'ventes_hist.voir', 'rapports.voir',
     'clients.voir',
     'marketing.voir', 'marketing.promos',
-    'magasin.voir', 'magasin.gerer'
+    'magasin.voir', 'magasin.gerer',
+    'retours.gerer',
+    'remise.approuver'
 );
 
 -- Caissier : 9 permissions
@@ -464,14 +542,26 @@ SELECT 3, id FROM permissions WHERE code IN (
     'dashboard.voir', 'vente.creer', 'stock.voir',
     'ventes_hist.voir', 'rapports.voir',
     'rapports_caissier.voir',
-    'clients.voir', 'clients.ajouter', 'clients.paiements'
+    'clients.voir', 'clients.ajouter', 'clients.paiements',
+    'retours.gerer'
 );
+
+-- Manager : gestion de la liste des approbateurs de remise
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 4, id FROM permissions WHERE code IN ('remise.approbateurs.gerer');
 
 -- ── Utilisateurs (mot de passe : password) ────────────────
 INSERT INTO utilisateurs (nom, prenom, email, login, mot_de_passe, role_id) VALUES
 ('Administrateur', 'Système', 'admin@pharmacare.dz', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1),
 ('Maaref', 'Sabrina', 's.maaref@pharmacare.dz', 'pharmacien', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 2),
 ('Belkacemi', 'Yasmine', 'y.belkacemi@pharmacare.dz', 'caissier', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 3);
+
+-- ── Approbateurs de remise initiaux (détenteurs de remise.approuver) ──
+INSERT INTO remise_approbateurs (utilisateur_id, added_by)
+SELECT u.id, 1 FROM utilisateurs u
+JOIN role_permissions rp ON rp.role_id = u.role_id
+JOIN permissions p ON p.id = rp.permission_id
+WHERE p.code = 'remise.approuver' AND u.actif = 1;
 
 -- ── Catégories ────────────────────────────────────────────
 INSERT INTO categories (nom, couleur) VALUES
@@ -504,7 +594,10 @@ INSERT INTO parametres (cle, valeur, label, groupe) VALUES
 ('police',        'Manrope',              'Police principale',    'apparence'),
 ('police_titre',  'Manrope',              'Police titres',        'apparence'),
 ('caisse_fermeture_mode', 'manuel',       'Mode fermeture caisse','caisse'),
-('caisse_heure_fermeture','22:00',        'Heure fermeture auto', 'caisse');
+('caisse_heure_fermeture','22:00',        'Heure fermeture auto', 'caisse'),
+('delai_inactivite_min',  '15',           'Déconnexion auto (min)','sécurité'),
+('remise_code_ttl_min',  '15',           'Validité code remise (min)','ventes'),
+('remise_max_pct',       '100',          'Remise max (%)',       'ventes');
 
 -- ── Postes de caisse ──────────────────────────────────────
 INSERT INTO caisses (id, nom) VALUES
@@ -588,6 +681,7 @@ INSERT INTO plan_comptable (compte, intitule, classe, nature) VALUES
 ('7',     'Comptes de produits',       7, 'credit'),
 ('701',   'Ventes de marchandises',    7, 'credit'),
 ('7011',  'Ventes de médicaments',     7, 'credit'),
+('7119',  'Rabais, remises et ristournes accordés', 7, 'debit'),
 ('708',   'Produits des activités annexes', 7, 'credit'),
 ('751',   'Produits financiers',       7, 'credit'),
 ('758',   'Produits divers',           7, 'credit'),

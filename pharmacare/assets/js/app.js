@@ -81,7 +81,11 @@ function fmtMoney(n) {
 }
 
 // ── POS Cart ───────────────────────────────────────────────
-const CART_KEY = 'pharmacare_cart';
+// Clé namespacée par utilisateur : chaque compte a son propre panier, même
+// sur un navigateur partagé. Aucune migration de l'ancienne clé globale
+// 'pharmacare_cart' (évite toute fuite du panier d'un autre utilisateur) ;
+// on se contente de l'effacer une fois pour nettoyer l'orphelin.
+const CART_KEY = 'pharmacare_cart_' + (typeof POS_USER_ID !== 'undefined' ? POS_USER_ID : 'anon');
 let cart = {};
 
 function saveCart() {
@@ -90,6 +94,11 @@ function saveCart() {
 
 function loadCart() {
   try {
+    // Nettoyage unique de l'ancienne clé globale (pré-namespacing) pour éviter
+    // qu'un panier d'un autre compte ne traîne sur un navigateur partagé.
+    if (localStorage.getItem('pharmacare_cart') !== null) {
+      localStorage.removeItem('pharmacare_cart');
+    }
     const saved = localStorage.getItem(CART_KEY);
     if (saved) {
       cart = JSON.parse(saved);
@@ -107,6 +116,39 @@ function loadCart() {
 
 function getTvaRate() {
   return (typeof POS_TVA_RATE !== 'undefined') ? POS_TVA_RATE : 0.1925;
+}
+
+// Remise % appliquée au panier (0 si champ absent → ventes hors POS).
+function getRemisePct() {
+  const el = document.getElementById('remise-pct');
+  if (!el) return 0;
+  let v = parseFloat(el.value) || 0;
+  if (v < 0) v = 0;
+  const max = parseFloat(el.max) || 100;
+  if (v > max) v = max;
+  return v;
+}
+
+// Calcule les totaux du panier (méthode brute : remise rendue en espèces).
+//   gross      = HT brut (Σ prix×qty) — inchangé par la remise
+//   remise     = gross × pct/100            (montant HT de la remise)
+//   netHt      = gross − remise
+//   tva        = netHt × taux               (TVA sur HT net — légal)
+//   netTtc     = netHt + tva                (net encaissé / dû)
+//   grossTva   = gross × taux               (TVA sur HT brut)
+//   total      = gross + grossTva           (TTC brut FACTURÉ)
+//   remiseTtc  = remise × (1 + taux)        (remise rendue en espèces, TTC)
+function computeTotals(items) {
+  const rate     = getTvaRate();
+  const gross    = items.reduce((s, i) => s + i.price * i.qty, 0);
+  const remise   = gross * getRemisePct() / 100;
+  const netHt    = gross - remise;
+  const tva      = netHt * rate;            // TVA sur HT net
+  const netTtc   = netHt + tva;
+  const grossTva = gross * rate;
+  const total    = gross + grossTva;        // TTC brut facturé
+  const remiseTtc = remise * (1 + rate);    // rendu en espèces
+  return { gross, remise, netHt, tva, netTtc, grossTva, total, remiseTtc };
 }
 
 function addToCart(id, name, price, stockOrig) {
@@ -209,17 +251,29 @@ function renderCart() {
       </div>`).join('');
   }
 
-  // Calcul totaux
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const tva      = subtotal * getTvaRate();
-  const total    = subtotal + tva;
+  // Calcul totaux (méthode brute : remise rendue en espèces)
+  const t = computeTotals(items);
+  const { gross: subtotal, remise, tva, total, netTtc, remiseTtc } = t;
 
-  const elSub   = document.getElementById('pos-subtotal');
-  const elTva   = document.getElementById('pos-tva');
-  const elTotal = document.getElementById('pos-total');
+  const elSub    = document.getElementById('pos-subtotal');
+  const elTva    = document.getElementById('pos-tva');
+  const elTotal  = document.getElementById('pos-total');
+  const elRemise = document.getElementById('pos-remise');
+  const elRemiseTtc = document.getElementById('pos-remise-ttc');
+  const elNet    = document.getElementById('pos-net');
+  const boxRemise    = document.getElementById('remise-display');
+  const boxRemiseTtc = document.getElementById('remise-ttc-display');
+  const boxNet       = document.getElementById('net-display');
   if (elSub)   elSub.textContent   = fmtMoney(subtotal);
   if (elTva)   elTva.textContent   = fmtMoney(tva);
   if (elTotal) elTotal.textContent = fmtMoney(total);
+  if (elRemise)    elRemise.textContent    = '-' + fmtMoney(remise);
+  if (elRemiseTtc) elRemiseTtc.textContent = '-' + fmtMoney(remiseTtc);
+  if (elNet)       elNet.textContent       = fmtMoney(netTtc);
+  const showRemise = remise > 0;
+  if (boxRemise)    boxRemise.style.display    = showRemise ? '' : 'none';
+  if (boxRemiseTtc) boxRemiseTtc.style.display = showRemise ? '' : 'none';
+  if (boxNet)       boxNet.style.display       = showRemise ? '' : 'none';
 
   // Mise à jour du champ caché pour le POST
   const cartInput = document.getElementById('cart-data');
@@ -298,12 +352,11 @@ function calcMonnaie() {
   if (!recuEl || !monnaieEl) return;
 
   // Recalculer le total depuis le panier (plus fiable que parser du texte)
-  const items    = Object.values(cart);
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const total    = subtotal * (1 + getTvaRate());
-
-  const recu     = parseFloat(recuEl.value) || 0;
-  const monnaie  = recu - total;
+  const items   = Object.values(cart);
+  const t       = computeTotals(items);
+  // Monnaie = (reçu − total brut TTC) + remise TTC rendue = reçu − net TTC.
+  // Le client paie le brut et reçoit la remise (TTC) en espèces.
+  const monnaie = parseFloat(recuEl.value || 0) - t.netTtc;
 
   monnaieEl.textContent  = fmtMoney(monnaie > 0 ? monnaie : 0);
   monnaieEl.style.color  = monnaie >= 0 ? 'var(--teal2)' : 'var(--red)';
@@ -432,6 +485,35 @@ document.addEventListener('DOMContentLoaded', () => {
   // Monnaie listener
   const mr = document.getElementById('montant-recu');
   if (mr) mr.addEventListener('input', calcMonnaie);
+
+  // Nom client toujours en MAJUSCULE (saisie libre POS)
+  const cn = document.getElementById('client-nom-saisie');
+  if (cn) cn.addEventListener('input', function() {
+    const s = this.selectionStart, e = this.selectionEnd;
+    this.value = this.value.toUpperCase();
+    try { this.setSelectionRange(s, e); } catch (_) {}
+  });
+
+  // ── Remise % : recalcul dynamique + garde-fou à la soumission ──
+  ['remise-pct', 'autorise-par', 'code-remise'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', renderCart);
+  });
+  const posForm = document.getElementById('pos-form');
+  if (posForm) {
+    posForm.addEventListener('submit', function(e) {
+      const pct = getRemisePct();
+      if (pct > 0) {
+        const auteur = document.getElementById('autorise-par');
+        const code   = document.getElementById('code-remise');
+        if (!auteur || !auteur.value || !code || !code.value.trim()) {
+          e.preventDefault();
+          showNotif('Remise : indiquez l\'auteur et le code d\'autorisation.', 'error');
+          return false;
+        }
+      }
+    });
+  }
 
   // Restaurer le panier depuis localStorage
   loadCart();

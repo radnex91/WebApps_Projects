@@ -400,7 +400,7 @@ if ($action === 'journal'):
     $fin   = $_GET['fin']   ?? $finEx;
     $src   = $_GET['source'] ?? '';
     $entries = journalGet($db, $debut, $fin, $src);
-    $sources = [''=>'Toutes','vente'=>'Ventes','commande'=>'Commandes','stock'=>'Stock','caisse'=>'Caisse','cloture'=>'Clôtures','manuel'=>'Saisies manuelles'];
+    $sources = [''=>'Toutes','vente'=>'Ventes','retour'=>'Retours','commande'=>'Commandes','stock'=>'Stock','caisse'=>'Caisse','cloture'=>'Clôtures','manuel'=>'Saisies manuelles'];
     layout_head('Journal comptable', 'comptabilite'); showFlash();
 ?>
 <?= $navLinks ?>

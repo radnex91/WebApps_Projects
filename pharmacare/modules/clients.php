@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit'], t
     $permNeeded = ($action === 'add') ? 'clients.ajouter' : 'clients.modifier';
     requirePermission($permNeeded);
     verifyCsrf();
-    $nom       = trim($_POST['nom'] ?? '');
+    $nom       = mb_strtoupper(trim($_POST['nom'] ?? ''), 'UTF-8');
     $telephone = trim($_POST['telephone'] ?? '');
 
     if ($nom === '') {
@@ -385,7 +385,8 @@ $isEdit = ($editClient !== null);
     <div class="card-pad">
       <div class="form-group">
         <label>Nom <span style="color:var(--red);">*</span></label>
-        <input type="text" name="nom" value="<?= $isEdit ? e($editClient['nom']) : '' ?>" required>
+        <input type="text" name="nom" value="<?= $isEdit ? e($editClient['nom']) : '' ?>" required
+               style="text-transform:uppercase;">
       </div>
       <div class="form-group" style="margin-bottom:0;">
         <label>Téléphone</label>
