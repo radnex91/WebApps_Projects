@@ -1,27 +1,60 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/pagination.php';
 require_once __DIR__ . '/../config/settings.php';
 requirePermission('stock.voir');
 $db = getDB();
 
 $filtre = $_GET['filtre'] ?? 'tous';
 $cat    = $_GET['cat']    ?? '';
+$q      = trim($_GET['q'] ?? '');
 
-$where = "p.actif = 1";
+$where  = "p.actif = 1";
+$params = [];
 if ($filtre === 'alerte')  $where .= " AND p.stock <= p.seuil_alerte AND p.stock > 0";
 if ($filtre === 'rupture') $where .= " AND p.stock = 0";
 if ($filtre === 'ok')      $where .= " AND p.stock > p.seuil_alerte";
-if ($cat !== '')           $where .= " AND c.nom = " . $db->quote($cat);
+if ($cat !== '')           { $where .= " AND c.nom = ?";          $params[] = $cat; }
+if ($q !== '') {
+    $qEsc = str_replace(['\\','%','_'], ['\\\\','\%','\_'], $q);
+    $where .= " AND (p.nom LIKE ? ESCAPE '\\\\' OR p.reference LIKE ? ESCAPE '\\\\')";
+    $params[] = "%$qEsc%"; $params[] = "%$qEsc%";
+}
 
-$produits = $db->query("
-    SELECT p.*, c.nom AS cat, f.nom AS fournisseur,
-           COALESCE((SELECT MAX(ms.created_at) FROM mouvements_stock ms WHERE ms.produit_id = p.id AND ms.type = 'entrée'), p.created_at) AS derniere_entree
+$joins = "LEFT JOIN categories c ON p.categorie_id = c.id
+          LEFT JOIN fournisseurs f ON p.fournisseur_id = f.id";
+
+// Comptage pour pagination (mêmes filtres, sans la jointure dérivée).
+$cntStmt = $db->prepare("SELECT COUNT(*) FROM produits p $joins WHERE $where");
+$cntStmt->execute($params);
+$total = (int)$cntStmt->fetchColumn();
+
+$perPage = 50;
+$page    = max(1, (int)($_GET['page'] ?? 1));
+$offset  = paginateOffset($page, $perPage);
+
+// Dernière entrée : MAX(created_at) par produit calculé UNE seule fois via une
+// table dérivée agrégée, au lieu d'une sous-requête corrélée exécutée par ligne.
+$produits = $db->prepare("
+    SELECT p.id, p.nom, p.reference, p.stock, p.seuil_alerte,
+           p.prix_achat, p.prix_vente, p.date_expiration,
+           c.nom AS cat, f.nom AS fournisseur,
+           COALESCE(de.derniere_entree, p.created_at) AS derniere_entree
     FROM produits p
-    LEFT JOIN categories c ON p.categorie_id = c.id
-    LEFT JOIN fournisseurs f ON p.fournisseur_id = f.id
-    WHERE $where ORDER BY derniere_entree DESC, p.nom
-")->fetchAll();
+    $joins
+    LEFT JOIN (
+        SELECT produit_id, MAX(created_at) AS derniere_entree
+        FROM mouvements_stock
+        WHERE type = 'entrée'
+        GROUP BY produit_id
+    ) de ON de.produit_id = p.id
+    WHERE $where
+    ORDER BY derniere_entree DESC, p.nom
+    LIMIT $perPage OFFSET $offset
+");
+$produits->execute($params);
+$produits = $produits->fetchAll();
 
 $categories = $db->query("SELECT nom FROM categories ORDER BY nom")->fetchAll(PDO::FETCH_COLUMN);
 
@@ -62,17 +95,21 @@ showFlash();
   <div class="card-header">
     <div class="card-title">Inventaire des médicaments</div>
     <div class="flex gap-8" style="flex-wrap:wrap;">
-      <div class="search-box" style="flex:2;min-width:420px;max-width:640px;">
-        <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
-        <input type="text" id="search-stock" placeholder="Rechercher un médicament...">
-      </div>
-      <select onchange="location.href='<?= url('stock') ?>?filtre='+this.value+'&cat=<?= urlencode($cat) ?>'" style="padding:6px 12px;font-size:12px;width:auto;">
+      <form method="GET" action="<?= url('stock') ?>" style="display:flex;flex:2;min-width:420px;max-width:640px;">
+        <div class="search-box" style="flex:1;">
+          <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
+          <input type="text" id="search-stock" name="q" value="<?= e($q) ?>" placeholder="Rechercher par nom ou référence...">
+        </div>
+        <?php if ($filtre !== 'tous'): ?><input type="hidden" name="filtre" value="<?= e($filtre) ?>"><?php endif; ?>
+        <?php if ($cat   !== ''):   ?><input type="hidden" name="cat"    value="<?= e($cat) ?>"><?php endif; ?>
+      </form>
+      <select onchange="location.href='<?= url('stock') ?>?filtre='+this.value+'&cat=<?= urlencode($cat) ?>'+(<?= json_encode((string)$q) ?>?'&q='+encodeURIComponent(<?= json_encode((string)$q) ?>):'')" style="padding:6px 12px;font-size:12px;width:auto;">
         <option value="tous"    <?= $filtre==='tous'   ?'selected':'' ?>>Tous</option>
         <option value="alerte"  <?= $filtre==='alerte' ?'selected':'' ?>>Stock bas</option>
         <option value="rupture" <?= $filtre==='rupture'?'selected':'' ?>>Rupture</option>
         <option value="ok"      <?= $filtre==='ok'     ?'selected':'' ?>>Disponible</option>
       </select>
-      <select onchange="location.href='<?= url('stock') ?>?filtre=<?= urlencode($filtre) ?>&cat='+encodeURIComponent(this.value)" style="padding:6px 12px;font-size:12px;width:auto;">
+      <select onchange="location.href='<?= url('stock') ?>?filtre=<?= urlencode($filtre) ?>&cat='+encodeURIComponent(this.value)+(<?= json_encode((string)$q) ?>?'&q='+encodeURIComponent(<?= json_encode((string)$q) ?>):'')" style="padding:6px 12px;font-size:12px;width:auto;">
         <option value="">Toutes catégories</option>
         <?php foreach ($categories as $c): ?>
         <option value="<?= e($c) ?>" <?= $cat===$c?'selected':'' ?>><?= e($c) ?></option>
@@ -146,6 +183,7 @@ showFlash();
       </tbody>
     </table>
   </div>
+  <?= renderPagination($page, $perPage, $total, ['filtre'=>$filtre,'cat'=>$cat,'q'=>$q]) ?>
 </div>
 <style>
 th.sortable{cursor:pointer;user-select:none;white-space:nowrap;}

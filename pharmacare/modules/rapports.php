@@ -178,7 +178,7 @@ $stmtCats = $db->prepare("
     JOIN ventes v ON vl.vente_id = v.id
     JOIN produits p ON vl.produit_id = p.id
     JOIN categories c ON p.categorie_id = c.id
-    WHERE DATE(v.created_at) BETWEEN ? AND ?
+    WHERE v.created_at >= ? AND v.created_at < DATE_ADD(?, INTERVAL 1 DAY)
     GROUP BY c.id ORDER BY rev DESC LIMIT 6
 ");
 $stmtCats->execute([$dateDebut, $dateFin]);
@@ -192,7 +192,7 @@ $stmtProd = $db->prepare("
            SUM(vl.total_ligne)  AS ca
     FROM vente_lignes vl
     JOIN ventes v ON vl.vente_id = v.id
-    WHERE DATE(v.created_at) BETWEEN ? AND ?
+    WHERE v.created_at >= ? AND v.created_at < DATE_ADD(?, INTERVAL 1 DAY)
     GROUP BY vl.produit_id, vl.produit_nom
     ORDER BY ca DESC LIMIT 8
 ");
@@ -215,7 +215,7 @@ $stmtCais = $db->prepare("
     SELECT u.prenom, u.nom, COUNT(v.id) AS nb, COALESCE(SUM(v.total),0) AS ca
     FROM ventes v
     LEFT JOIN utilisateurs u ON u.id = v.caissier_id
-    WHERE DATE(v.created_at) BETWEEN ? AND ?
+    WHERE v.created_at >= ? AND v.created_at < DATE_ADD(?, INTERVAL 1 DAY)
     GROUP BY v.caissier_id ORDER BY ca DESC
 ");
 $stmtCais->execute([$dateDebut, $dateFin]);
@@ -230,7 +230,7 @@ $stmtMvtStats = $db->prepare("
            COALESCE(SUM(vl.total_ligne),0) AS tot_ca
     FROM vente_lignes vl
     JOIN ventes v ON vl.vente_id = v.id
-    WHERE DATE(v.created_at) BETWEEN ? AND ?
+    WHERE v.created_at >= ? AND v.created_at < DATE_ADD(?, INTERVAL 1 DAY)
 ");
 $stmtMvtStats->execute([$dateDebut, $dateFin]);
 $mvtStats = $stmtMvtStats->fetch();
@@ -252,7 +252,7 @@ $stmtMvt = $db->prepare("
     FROM vente_lignes vl
     JOIN ventes v        ON vl.vente_id = v.id
     LEFT JOIN utilisateurs u ON u.id = v.caissier_id
-    WHERE DATE(v.created_at) BETWEEN ? AND ?
+    WHERE v.created_at >= ? AND v.created_at < DATE_ADD(?, INTERVAL 1 DAY)
     ORDER BY v.created_at DESC, vl.id ASC
     LIMIT $mvtPerPage OFFSET $mvtOffset
 ");
@@ -678,7 +678,7 @@ showFlash();
           FROM vente_lignes vl
           JOIN ventes v ON vl.vente_id = v.id
           JOIN produits p ON vl.produit_id = p.id
-          WHERE DATE(v.created_at) BETWEEN ? AND ?
+          WHERE v.created_at >= ? AND v.created_at < DATE_ADD(?, INTERVAL 1 DAY)
       ");
       $stmtCout->execute([$dateDebut, $dateFin]);
       $coutAchat = (float)$stmtCout->fetchColumn();

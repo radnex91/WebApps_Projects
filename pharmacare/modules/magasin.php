@@ -19,6 +19,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
         $produits_ids = $_POST['produit_id'] ?? [];
         $quantites    = $_POST['quantite']    ?? [];
         $note         = trim($_POST['note'] ?? '');
+        $pharmacieId  = (int)($_POST['pharmacie_id'] ?? 0);
+
+        // Valider la pharmacie cible (doit être active)
+        $stmtPh = $db->prepare("SELECT id, nom FROM pharmacies WHERE id=? AND actif=1");
+        $stmtPh->execute([$pharmacieId]);
+        $pharmacie = $stmtPh->fetch();
+        if (!$pharmacie) {
+            flash('Pharmacie cible invalide.', 'error');
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
+        }
 
         $lignesValides = [];
         for ($i = 0; $i < count($produits_ids); $i++) {
@@ -53,15 +63,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
                 header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
             }
 
-            // Créer l'entête de transfert
+            // Créer l'entête de transfert (la note mentionne la pharmacie cible)
             $ref = genRef('TRF');
-            $db->prepare("INSERT INTO transferts_magasin (reference,utilisateur_id,note) VALUES (?,?,?)")
-               ->execute([$ref, $uid, $note]);
+            $noteFinale = trim($note . ' → ' . $pharmacie['nom']);
+            $db->prepare("INSERT INTO transferts_magasin (reference,utilisateur_id,note,pharmacie_id) VALUES (?,?,?,?)")
+               ->execute([$ref, $uid, $noteFinale, $pharmacieId]);
             $transfertId = (int)$db->lastInsertId();
 
             $stmtNom = $db->prepare("SELECT nom FROM produits WHERE id=?");
             $stmtDecMag   = $db->prepare("UPDATE produits SET stock_magasin = stock_magasin - ? WHERE id = ?");
-            $stmtIncPharm = $db->prepare("UPDATE produits SET stock = stock + ? WHERE id = ?");
+            // Crédit du stock de la pharmacie cible (crée la ligne si nécessaire)
+            $stmtIncPharm = $db->prepare("
+                INSERT INTO produit_pharmacie (produit_id, pharmacie_id, stock, seuil_alerte)
+                VALUES (?, ?, ?, 10)
+                ON DUPLICATE KEY UPDATE stock = stock + VALUES(stock)
+            ");
+            // Sync produits.stock pour la pharmacie principale (modules existants lisent produits.stock)
+            $stmtSyncMain = ($pharmacieId === 1)
+                ? $db->prepare("UPDATE produits p
+                                JOIN produit_pharmacie pp ON pp.produit_id = p.id AND pp.pharmacie_id = 1
+                                SET p.stock = pp.stock WHERE p.id = ?")
+                : null;
             $stmtLigne    = $db->prepare("INSERT INTO transfert_lignes (transfert_id,produit_id,produit_nom,quantite) VALUES (?,?,?,?)");
             $stmtMvtMag   = $db->prepare("INSERT INTO mouvements_magasin (produit_id,type,quantite,motif,utilisateur_id,transfert_id) VALUES (?,'sortie',?,?,?,?)");
             $stmtMvtPharm = $db->prepare("INSERT INTO mouvements_stock (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'entrée',?,?,?)");
@@ -70,23 +92,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
                 $stmtNom->execute([$pid]);
                 $nom = $stmtNom->fetchColumn() ?: ('Produit #' . $pid);
 
-                // Décrémenter le magasin, incrémenter la pharmacie
+                // Décrémenter le magasin, créditer la pharmacie cible
                 $stmtDecMag->execute([$qte, $pid]);
-                $stmtIncPharm->execute([$qte, $pid]);
+                $stmtIncPharm->execute([$pid, $pharmacieId, $qte]);
+                if ($stmtSyncMain) $stmtSyncMain->execute([$pid]);
 
                 // Ligne de transfert
                 $stmtLigne->execute([$transfertId, $pid, $nom, $qte]);
 
                 // Mouvement magasin (sortie)
-                $stmtMvtMag->execute([$pid, $qte, 'Transfert ' . $ref . ' vers pharmacie', $uid, $transfertId]);
+                $stmtMvtMag->execute([$pid, $qte, 'Transfert ' . $ref . ' vers ' . $pharmacie['nom'], $uid, $transfertId]);
                 // Mouvement pharmacie (entrée — traçabilité)
-                $stmtMvtPharm->execute([$pid, $qte, 'Transfert ' . $ref . ' du magasin', $uid]);
+                $stmtMvtPharm->execute([$pid, $qte, 'Transfert ' . $ref . ' du magasin (' . $pharmacie['nom'] . ')', $uid]);
             }
 
             $db->commit();
-            auditLog('magasin.transfert', sprintf('Transfert %s : %d ligne(s) vers pharmacie', $ref, count($lignesValides)));
-            flash('Transfert ' . $ref . ' effectué — stock pharmacie approvisionné.');
-            header('Location: ' . url('magasin', ['onglet'=>'historique'])); exit;
+            auditLog('magasin.transfert', sprintf('Transfert %s : %d ligne(s) vers %s', $ref, count($lignesValides), $pharmacie['nom']));
+            flash('Transfert ' . $ref . ' effectué — stock de « ' . $pharmacie['nom'] . ' » approvisionné.');
+            // Émet le bon de ravitaillement (imprimable) pour ce transfert.
+            header('Location: ' . url('magasin', ['bon' => $transfertId])); exit;
         } catch (Exception $e) {
             $db->rollBack();
             flash('Erreur lors du transfert : ' . $e->getMessage(), 'error');
@@ -210,59 +234,387 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
         }
     }
 
+    // ── Ajustement en lot du magasin (remise à niveau absolue) ─
+    // Une seule quantité cible appliquée à tous les produits sélectionnés.
+    // Un mouvement 'ajustement' signé est journalisé pour chaque produit
+    // dont le stock change réellement (delta ≠ 0).
+    if ($action === 'ajustement_lot') {
+        $produits_ids = $_POST['produit_id'] ?? [];
+        $qte          = (int)($_POST['quantite'] ?? -1);
+        $motif        = trim($_POST['motif'] ?? '');
+
+        // Filtrer les IDs valides (déduplication)
+        $ids = [];
+        foreach ($produits_ids as $pid) {
+            $pid = (int)$pid;
+            if ($pid > 0) $ids[$pid] = true;
+        }
+
+        if (!$ids || $qte < 0) {
+            flash('Sélection ou quantité invalide.', 'error');
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
+        }
+
+        try {
+            $db->beginTransaction();
+            $stmtStock = $db->prepare("SELECT nom, stock_magasin FROM produits WHERE id=?");
+            $stmtSet   = $db->prepare("UPDATE produits SET stock_magasin=? WHERE id=?");
+            $stmtMvt   = $db->prepare("INSERT INTO mouvements_magasin (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'ajustement',?,?,?)");
+
+            $appliques = 0;
+            $total     = count($ids);
+            $libelle = 'Ajustement en lot' . ($motif ? ' — ' . $motif : '');
+            foreach (array_keys($ids) as $pid) {
+                $stmtStock->execute([$pid]);
+                $p = $stmtStock->fetch();
+                if (!$p) continue; // produit disparu (supprimé entre-temps) → on ignore
+                $ancien = (int)$p['stock_magasin'];
+                $delta  = $qte - $ancien;
+                if ($delta === 0) continue; // inchangé → rien à journaliser
+                // qte >= 0 garantit stock_magasin final >= 0
+                $stmtSet->execute([$qte, $pid]);
+                $stmtMvt->execute([$pid, $delta, $libelle, $uid]);
+                $appliques++;
+            }
+
+            $db->commit();
+            auditLog('magasin.ajustement_lot', sprintf('Ajustement en lot : %d/%d produit(s) mis à %d%s', $appliques, $total, $qte, $motif ? ' (' . $motif . ')' : ''));
+            flash('Ajustement en lot : ' . $appliques . '/' . $total . ' produit(s) mis à ' . $qte . ' unités.');
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
+        } catch (Exception $e) {
+            $db->rollBack();
+            flash('Erreur lors de l\'ajustement en lot : ' . $e->getMessage(), 'error');
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
+        }
+    }
+
     flash('Action inconnue.', 'error');
     header('Location: ' . url('magasin')); exit;
 }
 
 // ════════════════════════════════════════════════════════════
-// Données pour les vues
+// BON DE RAVITAILLEMENT (vue imprimable A4 — modèle MINSANTÉ)
+// Accessible via ?bon=<id>. Rendu standalone (sans sidebar) + auto-impression.
 // ════════════════════════════════════════════════════════════
-$produits = $db->query("
-    SELECT p.id, p.nom, p.reference, p.stock, p.stock_magasin, p.seuil_magasin,
-           c.nom AS cat
-    FROM produits p
-    LEFT JOIN categories c ON p.categorie_id = c.id
-    WHERE p.actif = 1
-    ORDER BY p.nom
-")->fetchAll();
+if (isset($_GET['bon'])) {
+    $bonId = (int)$_GET['bon'];
+    $stT = $db->prepare("SELECT t.*, u.prenom, u.nom AS u_nom
+                         FROM transferts_magasin t
+                         LEFT JOIN utilisateurs u ON t.utilisateur_id = u.id
+                         WHERE t.id = ?");
+    $stT->execute([$bonId]);
+    $bonT = $stT->fetch();
 
+    if (!$bonT) {
+        http_response_code(404);
+        exit('Transfert introuvable.');
+    }
+
+    $stL = $db->prepare("SELECT tl.*, p.reference, p.prix_vente
+                         FROM transfert_lignes tl
+                         LEFT JOIN produits p ON p.id = tl.produit_id
+                         WHERE tl.transfert_id = ? ORDER BY tl.id");
+    $stL->execute([$bonId]);
+    $bonLignes = $stL->fetchAll();
+
+    // Pharmacie destinataire : priorité à pharmacie_id, sinon parsing de la note
+    $bonPharmacie = '';
+    if (!empty($bonT['pharmacie_id'])) {
+        $stP = $db->prepare("SELECT nom FROM pharmacies WHERE id = ?");
+        $stP->execute([$bonT['pharmacie_id']]);
+        $bonPharmacie = $stP->fetchColumn();
+    }
+    if (!$bonPharmacie) {
+        $parts = explode('→', $bonT['note'] ?? '');
+        $bonPharmacie = count($parts) >= 2 ? trim(array_pop($parts)) : '';
+    }
+    // Motif = note sans le suffixe pharmacie
+    $bonParts = explode('→', $bonT['note'] ?? '');
+    $bonMotif = count($bonParts) >= 2 ? trim(implode('→', $bonParts)) : trim($bonT['note'] ?? '');
+
+    $bonEtsNom    = getParam('app_nom', 'PharmaCare');
+    $bonEtsAdr    = getParam('pharmacie_adresse', '');
+    $bonEtsTel    = getParam('pharmacie_telephone', '');
+    $bonEtsNif    = getParam('pharmacie_nif', '');
+    $bonDevSym    = getParam('devise_symbole', 'FCFA');
+    $bonTotalQte  = 0;
+    $bonTotalMont = 0.0;
+    foreach ($bonLignes as $bl) {
+        $bonTotalQte  += (int)$bl['quantite'];
+        $bonTotalMont += (float)$bl['prix_vente'] * (int)$bl['quantite'];
+    }
+    $bonDate = date('d/m/Y', strtotime($bonT['created_at']));
+    $bonHeure = date('H:i', strtotime($bonT['created_at']));
+
+    ?><!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<title>Bon de ravitaillement <?= e($bonT['reference']) ?></title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; font-size: 12px; margin: 0; }
+  .entete { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 10px; }
+  .pays { font-weight: 700; font-size: 13px; }
+  .devise { font-style: italic; font-size: 11px; }
+  .ministere { font-weight: 600; font-size: 12px; }
+  .etablissement { font-weight: 700; font-size: 15px; }
+  .titre-doc { text-align: center; font-size: 20px; font-weight: 700; margin: 22px 0 2px; text-transform: uppercase; letter-spacing: 2px; }
+  .ref-doc { text-align: center; font-size: 12px; color: #475569; margin-bottom: 16px; }
+  .infos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; margin-bottom: 14px; font-size: 12px; }
+  .infos .lbl { color: #64748b; display: inline-block; min-width: 130px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  th, td { border: 1px solid #94a3b8; padding: 6px 7px; vertical-align: top; }
+  th { background: #0f172a; color: #fff; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  td.right, th.right { text-align: right; }
+  td.center, th.center { text-align: center; }
+  tfoot td { font-weight: 700; background: #f1f5f9; }
+  .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 46px; text-align: center; }
+  .signatures .role { font-weight: 600; font-size: 11px; margin-bottom: 26px; }
+  .signatures .sig { border-top: 1px solid #475569; padding-top: 5px; font-size: 10px; color: #64748b; }
+  .pied { margin-top: 26px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+  .toolbar { text-align: center; margin-bottom: 10px; }
+  .toolbar button { padding: 8px 18px; font-size: 13px; cursor: pointer; border: 1px solid #0f172a; background: #0f172a; color: #fff; border-radius: 6px; }
+  @media print { .toolbar { display: none; } body { font-size: 11px; } }
+</style></head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">🖨️ Imprimer le bon</button></div>
+
+  <div class="entete">
+    <div>
+      <div class="pays">RÉPUBLIQUE DU CAMEROUN</div>
+      <div class="devise">Paix – Travail – Patrie</div>
+      <div class="ministere">MINISTÈRE DE LA SANTÉ PUBLIQUE</div>
+      <div style="font-size:11px;color:#64748b;margin-top:2px;">Dépôt central / Établissement pharmaceutique</div>
+    </div>
+    <div style="text-align:right;">
+      <div class="etablissement"><?= e($bonEtsNom) ?></div>
+      <?php if ($bonEtsAdr): ?><div style="font-size:11px;"><?= e($bonEtsAdr) ?></div><?php endif; ?>
+      <?php if ($bonEtsTel): ?><div style="font-size:11px;">Tél : <?= e($bonEtsTel) ?></div><?php endif; ?>
+      <?php if ($bonEtsNif): ?><div style="font-size:11px;">NIF : <?= e($bonEtsNif) ?></div><?php endif; ?>
+    </div>
+  </div>
+
+  <div class="titre-doc">Bon de Ravitaillement</div>
+  <div class="ref-doc">Réf. <?= e($bonT['reference']) ?> &mdash; émis le <?= $bonDate ?> à <?= $bonHeure ?></div>
+
+  <div class="infos">
+    <div><span class="lbl">Dépôt émetteur :</span> <strong><?= e($bonEtsNom) ?> (Magasin central)</strong></div>
+    <div><span class="lbl">Pharmacie destinataire :</span> <strong><?= e($bonPharmacie ?: '—') ?></strong></div>
+    <div><span class="lbl">Magasinier / Opérateur :</span> <?= e(trim($bonT['prenom'] . ' ' . $bonT['u_nom'])) ?: '—' ?></div>
+    <div><span class="lbl">Date du transfert :</span> <?= $bonDate ?> à <?= $bonHeure ?></div>
+    <?php if ($bonMotif): ?><div style="grid-column:1/-1;"><span class="lbl">Motif / Observation :</span> <?= e($bonMotif) ?></div><?php endif; ?>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="center" style="width:5%;">N°</th>
+        <th>Désignation</th>
+        <th style="width:11%;">Réf. produit</th>
+        <th class="center" style="width:11%;">Qté demandée</th>
+        <th class="center" style="width:11%;">Qté livrée</th>
+        <th class="right" style="width:12%;">P.U. (<?= e($bonDevSym) ?>)</th>
+        <th class="right" style="width:13%;">Montant (<?= e($bonDevSym) ?>)</th>
+        <th style="width:13%;">Observations</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php $i = 1; foreach ($bonLignes as $bl):
+        $pu = (float)($bl['prix_vente'] ?? 0);
+        $mt = $pu * (int)$bl['quantite'];
+      ?>
+      <tr>
+        <td class="center"><?= $i++ ?></td>
+        <td><?= e($bl['produit_nom']) ?></td>
+        <td><?= e($bl['reference'] ?? '—') ?></td>
+        <td class="center"><?= (int)$bl['quantite'] ?></td>
+        <td class="center"><?= (int)$bl['quantite'] ?></td>
+        <td class="right"><?= $pu > 0 ? fmtMoney($pu) : '—' ?></td>
+        <td class="right"><?= $pu > 0 ? fmtMoney($mt) : '—' ?></td>
+        <td></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if (!$bonLignes): ?>
+      <tr><td colspan="8" class="center" style="padding:14px;color:#94a3b8;">Aucune ligne</td></tr>
+      <?php endif; ?>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3" class="right">TOTAUX</td>
+        <td class="center"><?= $bonTotalQte ?></td>
+        <td class="center"><?= $bonTotalQte ?></td>
+        <td></td>
+        <td class="right"><?= $bonTotalMont > 0 ? fmtMoney($bonTotalMont) : '—' ?></td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="signatures">
+    <div><div class="role">Le Magasinier<br><small style="font-weight:400;color:#64748b">(émetteur)</small></div><div class="sig">Signature &amp; cachet</div></div>
+    <div><div class="role">Le Pharmacien<br><small style="font-weight:400;color:#64748b">(vérification)</small></div><div class="sig">Signature &amp; cachet</div></div>
+  </div>
+
+  <div class="pied">Document généré électroniquement par <?= e($bonEtsNom) ?> le <?= date('d/m/Y à H:i') ?> — Bon de ravitaillement (modèle MINSANTÉ).</div>
+
+  <script>
+    window.onafterprint = function(){ window.location.href = <?= json_encode(url('magasin')) ?>; };
+    window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };
+  </script>
+</body></html>
+<?php
+    exit;
+}
+
+// ════════════════════════════════════════════════════════════
+// Données pour les vues — chargées par onglet (ne plus tout charger
+// sur chaque onglet : le stock est paginé, les modales passent en ajax).
+// ════════════════════════════════════════════════════════════
+require_once __DIR__ . '/../includes/pagination.php';
+
+// Pharmacies actives : communes à stock (colonnes + modale), etat-date
+// (périmètre) et l'endpoint ajax. Léger (quelques lignes).
+$pharmacies = $db->query("SELECT id, nom FROM pharmacies WHERE actif=1 ORDER BY id")->fetchAll();
+
+// ── Endpoint ajax : produits filtrés pour les modales de transfert /
+// retour / ajustement (onglet stock). Évite d'embarquer tout le catalogue
+// dans le HTML ; renvoie 50 résultats max + leurs stocks par pharmacie.
+if (($_GET['ajax'] ?? '') === 'produits' && hasPermission('magasin.voir')) {
+    $aq = trim($_GET['q'] ?? '');
+    $aWhere = "p.actif = 1";
+    $aParams = [];
+    if ($aq !== '') {
+        $qEsc = str_replace(['\\','%','_'], ['\\\\','\%','\_'], $aq);
+        $aWhere .= " AND (p.nom LIKE ? ESCAPE '\\\\' OR p.reference LIKE ? ESCAPE '\\\\')";
+        $aParams[] = "%$qEsc%"; $aParams[] = "%$qEsc%";
+    }
+    $st = $db->prepare("SELECT p.id, p.nom, p.reference, p.stock, p.stock_magasin
+                        FROM produits p WHERE $aWhere ORDER BY p.nom LIMIT 50");
+    $st->execute($aParams);
+    $rows = $st->fetchAll();
+    $app = [];
+    $aIds = array_map(function($r){ return (int)$r['id']; }, $rows);
+    if ($aIds) {
+        $phL = implode(',', array_fill(0, count($aIds), '?'));
+        $stpp = $db->prepare("SELECT produit_id, pharmacie_id, stock FROM produit_pharmacie WHERE produit_id IN ($phL)");
+        $stpp->execute($aIds);
+        foreach ($stpp->fetchAll() as $r) {
+            $app[(int)$r['produit_id']][(int)$r['pharmacie_id']] = (int)$r['stock'];
+        }
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['produits' => $rows, 'pp' => $app, 'pharmacies' => $pharmacies], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$ppMap = [];
+$produits = [];
+$produitsSelect = [];
+$transferts = [];
+$mouvements = [];
+$trfLignes = [];
+$stats = ['refs'=>0,'alerte'=>0,'total_mag'=>0,'total_ph'=>0];
+$total = 0;
+$page = 1;
+$perPage = in_array($_GET['perPage'] ?? '', ['25', '50'], true) ? (int)$_GET['perPage'] : 50;
+
+// ── Stats générales (1 seule requête au lieu de 3, affichées sur tous les onglets) ──
+$statsRow = $db->query("SELECT COUNT(*) AS refs, SUM(CASE WHEN stock_magasin <= seuil_magasin THEN 1 ELSE 0 END) AS alerte, COALESCE(SUM(stock_magasin),0) AS total_mag FROM produits WHERE actif=1")->fetch();
+$totalPh = $db->query("SELECT COALESCE(SUM(pp.stock),0) FROM produit_pharmacie pp JOIN pharmacies ph ON ph.id = pp.pharmacie_id WHERE ph.actif = 1")->fetchColumn();
 $stats = [
-    'refs'      => $db->query("SELECT COUNT(*) FROM produits WHERE actif=1")->fetchColumn(),
-    'alerte'    => $db->query("SELECT COUNT(*) FROM produits WHERE stock_magasin <= seuil_magasin AND actif=1")->fetchColumn(),
-    'total_mag' => $db->query("SELECT COALESCE(SUM(stock_magasin),0) FROM produits WHERE actif=1")->fetchColumn(),
-    'total_ph'  => $db->query("SELECT COALESCE(SUM(stock),0) FROM produits WHERE actif=1")->fetchColumn(),
+    'refs'      => (int)$statsRow['refs'],
+    'alerte'    => (int)$statsRow['alerte'],
+    'total_mag' => (int)$statsRow['total_mag'],
+    'total_ph'  => (int)$totalPh,
 ];
 
-// Historique des transferts
-$transferts = $db->query("
-    SELECT t.*, u.prenom, u.nom AS u_nom,
-           (SELECT COUNT(*) FROM transfert_lignes tl WHERE tl.transfert_id = t.id) AS nb_lignes,
-           (SELECT COALESCE(SUM(quantite),0) FROM transfert_lignes tl WHERE tl.transfert_id = t.id) AS total_qte
-    FROM transferts_magasin t
-    LEFT JOIN utilisateurs u ON t.utilisateur_id = u.id
-    ORDER BY t.created_at DESC
-    LIMIT 100
-")->fetchAll();
+if ($onglet === 'stock') {
+    // ── Liste paginée + ppMap scopé aux produits de la page ──
+    $q = trim($_GET['q'] ?? '');
+    $where = "p.actif = 1";
+    $params = [];
+    if ($q !== '') {
+        $qEsc = str_replace(['\\','%','_'], ['\\\\','\%','\_'], $q);
+        $where .= " AND (p.nom LIKE ? ESCAPE '\\\\' OR p.reference LIKE ? ESCAPE '\\\\')";
+        $params[] = "%$qEsc%"; $params[] = "%$qEsc%";
+    }
+    $cntStmt = $db->prepare("SELECT COUNT(*) FROM produits p WHERE $where");
+    $cntStmt->execute($params);
+    $total = (int)$cntStmt->fetchColumn();
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $offset = paginateOffset($page, $perPage);
 
-// Mouvements magasin récents
-$mouvements = $db->query("
-    SELECT m.*, p.nom AS pnom, u.prenom, u.nom AS u_nom
-    FROM mouvements_magasin m
-    LEFT JOIN produits p ON m.produit_id = p.id
-    LEFT JOIN utilisateurs u ON m.utilisateur_id = u.id
-    ORDER BY m.created_at DESC
-    LIMIT 100
-")->fetchAll();
+    $st = $db->prepare("SELECT p.id, p.nom, p.reference, p.stock, p.stock_magasin, p.seuil_magasin,
+                               c.nom AS cat
+                        FROM produits p
+                        LEFT JOIN categories c ON p.categorie_id = c.id
+                        WHERE $where
+                        ORDER BY p.nom
+                        LIMIT $perPage OFFSET $offset");
+    $st->execute($params);
+    $produits = $st->fetchAll();
 
-// Lignes des transferts (pour le détail dépliable)
-$trfIds = array_column($transferts, 'id');
-$trfLignes = [];
-if ($trfIds) {
-    $ph = implode(',', array_fill(0, count($trfIds), '?'));
-    $stmtL = $db->prepare("SELECT * FROM transfert_lignes WHERE transfert_id IN ($ph) ORDER BY id");
-    $stmtL->execute($trfIds);
-    foreach ($stmtL->fetchAll() as $l) {
-        $trfLignes[$l['transfert_id']][] = $l;
+    // ppMap limité aux produits de la page courante
+    $ids = array_map(function($p){ return (int)$p['id']; }, $produits);
+    if ($ids) {
+        $phL = implode(',', array_fill(0, count($ids), '?'));
+        $stpp = $db->prepare("SELECT produit_id, pharmacie_id, stock FROM produit_pharmacie WHERE produit_id IN ($phL)");
+        $stpp->execute($ids);
+        foreach ($stpp->fetchAll() as $r) {
+            $ppMap[(int)$r['produit_id']][(int)$r['pharmacie_id']] = (int)$r['stock'];
+        }
+    }
+} elseif ($onglet === 'historique') {
+    // ── Transferts (sous-requête dérivée au lieu de 2 corrélées par ligne) ──
+    $transferts = $db->query("
+        SELECT t.*, u.prenom, u.nom AS u_nom,
+               COALESCE(tl_stats.nb_lignes, 0) AS nb_lignes,
+               COALESCE(tl_stats.total_qte, 0) AS total_qte
+        FROM transferts_magasin t
+        LEFT JOIN utilisateurs u ON t.utilisateur_id = u.id
+        LEFT JOIN (
+            SELECT transfert_id, COUNT(*) AS nb_lignes, SUM(quantite) AS total_qte
+            FROM transfert_lignes GROUP BY transfert_id
+        ) tl_stats ON tl_stats.transfert_id = t.id
+        ORDER BY t.created_at DESC
+        LIMIT 100
+    ")->fetchAll();
+
+    // Mouvements magasin récents
+    $mouvements = $db->query("
+        SELECT m.*, p.nom AS pnom, u.prenom, u.nom AS u_nom
+        FROM mouvements_magasin m
+        LEFT JOIN produits p ON m.produit_id = p.id
+        LEFT JOIN utilisateurs u ON m.utilisateur_id = u.id
+        ORDER BY m.created_at DESC
+        LIMIT 100
+    ")->fetchAll();
+
+    // Lignes des transferts (détail dépliable)
+    $trfIds = array_column($transferts, 'id');
+    if ($trfIds) {
+        $phL = implode(',', array_fill(0, count($trfIds), '?'));
+        $stmtL = $db->prepare("SELECT * FROM transfert_lignes WHERE transfert_id IN ($phL) ORDER BY id");
+        $stmtL->execute($trfIds);
+        foreach ($stmtL->fetchAll() as $l) {
+            $trfLignes[$l['transfert_id']][] = $l;
+        }
+    }
+} elseif ($onglet === 'reception' && hasPermission('magasin.gerer')) {
+    // Liste légère pour le <select> de réception : tout le catalogue,
+    // colonnes minimales (pas de description TEXT, pas de jointure inutile).
+    $produitsSelect = $db->query("SELECT id, nom, stock_magasin FROM produits WHERE actif=1 ORDER BY nom")->fetchAll();
+} elseif ($onglet === 'etat-date') {
+    // Reconstitution rétroactive : a besoin de TOUS les produits + ppMap complet.
+    $produits = $db->query("
+        SELECT p.id, p.nom, p.reference, p.stock_magasin, c.nom AS cat
+        FROM produits p
+        LEFT JOIN categories c ON p.categorie_id = c.id
+        WHERE p.actif = 1
+        ORDER BY p.nom
+    ")->fetchAll();
+    foreach ($db->query("SELECT produit_id, pharmacie_id, stock FROM produit_pharmacie")->fetchAll() as $r) {
+        $ppMap[(int)$r['produit_id']][(int)$r['pharmacie_id']] = (int)$r['stock'];
     }
 }
 
@@ -302,6 +654,7 @@ showFlash();
       <a href="<?= url('magasin', ['onglet'=>'reception']) ?>"  class="btn btn-sm <?= $onglet==='reception'?'btn-primary':'btn-ghost' ?>"><?= icon('plus',14) ?> Réception / Ajustement</a>
       <?php endif; ?>
       <a href="<?= url('magasin', ['onglet'=>'historique']) ?>" class="btn btn-sm <?= $onglet==='historique'?'btn-primary':'btn-ghost' ?>"><?= icon('history',14) ?> Historique</a>
+      <a href="<?= url('magasin', ['onglet'=>'etat-date']) ?>"  class="btn btn-sm <?= $onglet==='etat-date'?'btn-primary':'btn-ghost' ?>"><?= icon('calendar',14) ?> État à une date</a>
     </div>
   </div>
 </div>
@@ -312,16 +665,26 @@ showFlash();
   <div class="card-header">
     <div class="card-title">Stock du dépôt central (magasin)</div>
     <div class="flex gap-8" style="flex-wrap:wrap;align-items:center;">
-      <div class="search-box" style="min-width:420px;flex:1;max-width:640px;">
-        <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
-        <input type="text" id="search-mag" placeholder="Rechercher un médicament...">
-      </div>
+      <form method="GET" action="<?= url('magasin') ?>" style="display:flex;flex:1;min-width:300px;max-width:100%;">
+        <input type="hidden" name="onglet" value="stock">
+        <div class="search-box" style="flex:1;">
+          <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
+          <input type="text" name="q" value="<?= e($_GET['q'] ?? '') ?>" placeholder="Rechercher par nom ou référence...">
+        </div>
+        <select name="perPage" onchange="this.form.submit()" style="margin-left:6px;padding:2px 4px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg1);color:var(--text1);font-size:12px;cursor:pointer;width:70px;">
+          <option value="25" <?= $perPage === 25 ? 'selected' : '' ?>>25</option>
+          <option value="50" <?= $perPage === 50 ? 'selected' : '' ?>>50</option>
+        </select>
+      </form>
       <?php if (hasPermission('magasin.gerer')): ?>
-      <button type="button" class="btn btn-primary btn-sm" onclick="openTransfertModal()">
-        <?= icon('truck',14) ?> Transfert vers pharmacie
+      <button type="button" class="btn btn-primary" onclick="openTransfertModal()">
+        <?= icon('truck',16) ?> Transfert vers pharmacie
       </button>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="openRetourModal()">
-        <?= icon('refresh',14) ?> Retour vers magasin
+      <button type="button" class="btn btn-ghost" onclick="openRetourModal()">
+        <?= icon('refresh',16) ?> Retour vers magasin
+      </button>
+      <button type="button" class="btn btn-ghost" onclick="openAjustLotModal()">
+        <?= icon('edit',16) ?> Ajustement en lot
       </button>
       <?php endif; ?>
     </div>
@@ -330,26 +693,33 @@ showFlash();
     <table id="table-mag">
       <thead>
         <tr>
-          <th>Médicament</th><th>Catégorie</th>
+          <th style="width:32px;text-align:center;">#</th><th>Médicament</th><th>Catégorie</th>
           <th style="text-align:right;">Stock magasin</th>
           <th style="text-align:right;">Seuil mag.</th>
-          <th style="text-align:right;">Stock pharmacie</th>
+          <?php foreach ($pharmacies as $i => $ph): ?>
+          <th style="text-align:right;color:var(--teal2);<?= $i === 0 ? 'border-left:2px solid var(--border2);' : '' ?>" title="Stock de la pharmacie « <?= e($ph['nom']) ?> »"><?= e($ph['nom']) ?></th>
+          <?php endforeach; ?>
           <th>État</th>
           <?php if (hasPermission('magasin.gerer')): ?><th style="text-align:right;">Action</th><?php endif; ?>
         </tr>
       </thead>
       <tbody>
-        <?php foreach ($produits as $p):
+        <?php $num = $offset + 1; foreach ($produits as $p):
           $alerte = (int)$p['stock_magasin'] <= (int)$p['seuil_magasin'];
         ?>
         <tr data-nom="<?= e(strtolower($p['nom'] . ' ' . $p['reference'])) ?>">
+          <td style="text-align:center;color:var(--text3);font-size:12px;"><?= $num++ ?></td>
           <td class="td-name"><?= e($p['nom']) ?>
             <?php if ($p['reference']): ?><div class="text-sm td-mono" style="color:var(--text3);"><?= e($p['reference']) ?></div><?php endif; ?>
           </td>
           <td class="text-sm"><?= e($p['cat'] ?? '—') ?></td>
           <td class="fw-mono text-right <?= $alerte ? 'c-gold' : '' ?>" style="text-align:right;"><?= fmtInt((int)$p['stock_magasin']) ?></td>
           <td class="fw-mono text-sm" style="text-align:right;color:var(--text3);"><?= fmtInt((int)$p['seuil_magasin']) ?></td>
-          <td class="fw-mono" style="text-align:right;"><?= fmtInt((int)$p['stock']) ?></td>
+          <?php foreach ($pharmacies as $i => $ph):
+            $stk = $ppMap[(int)$p['id']][(int)$ph['id']] ?? 0;
+          ?>
+          <td class="fw-mono" style="text-align:right;<?= ($i === 0 ? 'border-left:2px solid var(--border2);' : '') . ($stk <= 0 ? 'color:var(--text3);' : '') ?>"><?= fmtInt($stk) ?></td>
+          <?php endforeach; ?>
           <td>
             <?php if ($alerte): ?>
               <span class="badge badge-gold"><?= (int)$p['stock_magasin'] === 0 ? 'Rupture mag.' : 'Stock bas' ?></span>
@@ -359,13 +729,13 @@ showFlash();
           </td>
           <?php if (hasPermission('magasin.gerer')): ?>
           <td style="text-align:right;">
-            <button type="button" class="btn btn-ghost btn-xs" onclick="openTransfertModal(<?= (int)$p['id'] ?>)"><?= icon('truck',13) ?> Transférer</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openTransfertModal(<?= (int)$p['id'] ?>)"><?= icon('truck',14) ?> Transférer</button>
           </td>
           <?php endif; ?>
         </tr>
         <?php endforeach; ?>
         <?php if (!$produits): ?>
-        <tr><td colspan="7">
+        <tr><td colspan="<?= 6 + count($pharmacies) + (hasPermission('magasin.gerer') ? 1 : 0) ?>">
           <div class="empty">
             <div style="color:var(--text3);margin-bottom:8px;"><?= icon('box',36) ?></div>
             <div>Aucun produit</div>
@@ -375,14 +745,10 @@ showFlash();
       </tbody>
     </table>
   </div>
+  <?= renderPagination($page, $perPage, $total, ['onglet'=>'stock','q'=>$_GET['q'] ?? '','perPage'=>$perPage]) ?>
 </div>
 <script>
-document.getElementById('search-mag').addEventListener('input', function(){
-  var q = this.value.toLowerCase();
-  document.querySelectorAll('#table-mag tbody tr').forEach(function(r){
-    r.style.display = r.getAttribute('data-nom').indexOf(q) > -1 ? '' : 'none';
-  });
-});
+// La recherche de la liste principale est désormais côté serveur (form GET q=).
 </script>
 
 <?php if (hasPermission('magasin.gerer')): ?>
@@ -397,6 +763,24 @@ document.getElementById('search-mag').addEventListener('input', function(){
       <input type="hidden" name="csrf" value="<?= csrf() ?>">
       <input type="hidden" name="action" value="transfert">
       <div class="card-pad" style="padding:20px 28px;">
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Pharmacie de destination *</label>
+          <select name="pharmacie_id" id="trf-pharmacie" required onchange="updateDispoPharmacie()">
+            <?php foreach ($pharmacies as $ph): ?>
+            <option value="<?= (int)$ph['id'] ?>"><?= e($ph['nom']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="flex-between" style="margin-bottom:14px;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="form-group" style="margin:0;flex:0 0 auto;">
+            <label>Quantité globale <span class="text-sm" style="color:var(--text3);">(remplit les lignes cochées)</span></label>
+            <div class="flex gap-8" style="align-items:center;">
+              <input type="number" id="trf-qte-global" min="1" placeholder="ex: 50" style="width:130px;text-align:right;font-family:'DM Mono',monospace;" onkeydown="if(event.key==='Enter'){event.preventDefault();applyTrfGlobalQte();}">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="applyTrfGlobalQte()"><?= icon('check',14) ?> Appliquer à la sélection</button>
+            </div>
+          </div>
+          <div id="trf-global-msg" class="text-sm" style="color:var(--text3);"></div>
+        </div>
         <div class="flex-between" style="margin-bottom:16px;gap:12px;flex-wrap:wrap;">
           <div class="search-box" style="flex:1;min-width:220px;">
             <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
@@ -423,27 +807,8 @@ document.getElementById('search-mag').addEventListener('input', function(){
                 <th style="text-align:right;">Qté à transférer</th>
               </tr>
             </thead>
-            <tbody>
-              <?php foreach ($produits as $p):
-                $dispo = (int)$p['stock_magasin'];
-              ?>
-              <tr data-nom="<?= e(strtolower($p['nom'] . ' ' . $p['reference'])) ?>" data-pid="<?= (int)$p['id'] ?>">
-                <td style="text-align:center;">
-                  <input type="checkbox" class="trf-check" data-pid="<?= (int)$p['id'] ?>" data-dispo="<?= $dispo ?>" onchange="onTrfCheck(this)" <?= $dispo <= 0 ? 'disabled' : '' ?>>
-                </td>
-                <td class="td-name"><?= e($p['nom']) ?>
-                  <?php if ($p['reference']): ?><div class="text-sm td-mono" style="color:var(--text3);"><?= e($p['reference']) ?></div><?php endif; ?>
-                </td>
-                <td class="fw-mono text-right" style="text-align:right;<?= $dispo <= 0 ? 'color:var(--text3);' : '' ?>"><?= fmtInt($dispo) ?></td>
-                <td class="fw-mono text-right" style="text-align:right;color:var(--text3);"><?= fmtInt((int)$p['stock']) ?></td>
-                <td style="text-align:right;">
-                  <input type="number" class="trf-qte" data-pid="<?= (int)$p['id'] ?>" data-dispo="<?= $dispo ?>" min="1" max="<?= max(1, $dispo) ?>" value="1" disabled style="width:80px;text-align:right;" oninput="onTrfQte(this)">
-                </td>
-              </tr>
-              <?php endforeach; ?>
-              <?php if (!$produits): ?>
-              <tr><td colspan="5"><div class="empty">Aucun produit</div></td></tr>
-              <?php endif; ?>
+            <tbody id="trf-tbody">
+              <tr><td colspan="5"><div class="empty" id="trf-placeholder">Tapez pour rechercher un produit…</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -461,11 +826,31 @@ document.getElementById('search-mag').addEventListener('input', function(){
   </div>
 </div>
 <script>
+var ppMap = <?= json_encode($ppMap, JSON_UNESCAPED_UNICODE) ?>;
+var trfPharmacies = <?= json_encode(array_values($pharmacies), JSON_UNESCAPED_UNICODE) ?>;
+
+function updateDispoPharmacie() {
+  var sel = document.getElementById('trf-pharmacie');
+  if (!sel) return;
+  var phId = parseInt(sel.value, 10) || 0;
+  document.querySelectorAll('#trf-table .trf-dispo-ph').forEach(function(td){
+    var pid = parseInt(td.getAttribute('data-pid'), 10);
+    var stock = (ppMap[pid] && ppMap[pid][phId] !== undefined) ? ppMap[pid][phId] : 0;
+    td.textContent = stock;
+  });
+}
+
 function openTransfertModal(pid) {
   // réinitialiser la sélection
   document.querySelectorAll('#trf-table .trf-check').forEach(function(c){ c.checked = false; });
   document.querySelectorAll('#trf-table .trf-qte').forEach(function(q){ q.value = '1'; q.disabled = true; q.style.borderColor = ''; });
   document.getElementById('trf-select-all').checked = false;
+  var g = document.getElementById('trf-qte-global'); if (g) g.value = '';
+  var gm = document.getElementById('trf-global-msg'); if (gm) gm.textContent = '';
+  // pharmacie par défaut = la première (souvent la principale, id=1)
+  var sel = document.getElementById('trf-pharmacie');
+  if (sel && sel.options.length) sel.selectedIndex = 0;
+  updateDispoPharmacie();
   // pré-cocher le produit demandé (bouton « Transférer » d'une ligne)
   if (pid) {
     var cb = document.querySelector('#trf-table .trf-check[data-pid="' + pid + '"]');
@@ -479,7 +864,7 @@ function openTransfertModal(pid) {
 }
 
 function onTrfCheck(cb) {
-  var qte = document.querySelector('#trf-table .trf-qte[data-pid="' + cb.getAttribute('data-pid') + '"]');
+  var qte = cb.closest('tr').querySelector('.trf-qte');
   if (qte) {
     qte.disabled = !cb.checked;
     if (cb.checked) { if (!qte.value) qte.value = '1'; qte.focus(); onTrfQte(qte); }
@@ -497,25 +882,72 @@ function onTrfQte(inp) {
   updateTrfSummary();
 }
 
-function updateTrfSummary() {
+// Quantité globale : remplit toutes les lignes cochées avec la même quantité,
+// clampée au stock dispo de chaque ligne. O(N) sur les lignes cochées.
+function applyTrfGlobalQte() {
+  var inp = document.getElementById('trf-qte-global');
+  var gm = document.getElementById('trf-global-msg');
+  var q = parseInt(inp.value, 10);
+  if (isNaN(q) || q <= 0) {
+    if (gm) { gm.textContent = 'Saisissez une quantité globale valide (> 0).'; gm.style.color = 'var(--gold)'; }
+    inp.focus();
+    return;
+  }
   var checks = document.querySelectorAll('#trf-table .trf-check:checked');
-  var total = 0, bad = 0;
+  if (checks.length === 0) {
+    if (gm) { gm.textContent = 'Cochez d\'abord les articles à remplir.'; gm.style.color = 'var(--gold)'; }
+    return;
+  }
+  var clamped = 0;
   checks.forEach(function(c){
-    var qte = document.querySelector('#trf-table .trf-qte[data-pid="' + c.getAttribute('data-pid') + '"]');
-    var q = parseInt(qte.value, 10) || 0;
-    total += q;
-    if (q <= 0 || q > parseInt(c.getAttribute('data-dispo'), 10)) bad++;
+    var row = c.closest('tr');
+    var qte = row ? row.querySelector('.trf-qte') : null;
+    if (!qte) return;
+    var dispo = parseInt(c.getAttribute('data-dispo'), 10);
+    var v = Math.min(q, dispo);
+    qte.value = v;
+    onTrfQte(qte);          // re-valide + updateTrfSummary()
+    if (v < q) clamped++;
   });
+  if (gm) {
+    gm.textContent = 'Appliqué à ' + checks.length + ' ligne(s)' +
+      (clamped > 0 ? ' — ' + clamped + ' limitée(s) au stock disponible.' : '.');
+    gm.style.color = clamped > 0 ? 'var(--gold)' : 'var(--teal2)';
+  }
+}
+
+// Resume en UNE seule passe sur les lignes (O(N)) — fini le querySelector par case.
+function updateTrfSummary() {
+  var rows = document.querySelectorAll('#trf-table tbody tr');
+  var total = 0, bad = 0, count = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var cb = rows[i].querySelector('.trf-check');
+    if (!cb || !cb.checked) continue;
+    var qte = rows[i].querySelector('.trf-qte');
+    var q = parseInt(qte.value, 10) || 0;
+    total += q; count++;
+    if (q <= 0 || q > parseInt(cb.getAttribute('data-dispo'), 10)) bad++;
+  }
   var s = document.getElementById('trf-summary');
-  s.textContent = checks.length + ' produit(s) sélectionné(s) — ' + total + ' unité(s)';
+  s.textContent = count + ' produit(s) sélectionné(s) — ' + total + ' unité(s)';
   s.style.color = bad > 0 ? 'var(--red)' : 'var(--text3)';
 }
 
+// Tout sélectionner : O(N) — modifications en place + un seul recalcu du résumé.
 function toggleAllTrf(checked) {
-  document.querySelectorAll('#trf-table .trf-check').forEach(function(c){
-    if (c.disabled) return;
-    c.checked = checked; onTrfCheck(c);
-  });
+  var rows = document.querySelectorAll('#trf-table tbody tr');
+  for (var i = 0; i < rows.length; i++) {
+    var cb = rows[i].querySelector('.trf-check');
+    if (!cb || cb.disabled) continue;
+    if (cb.checked === checked) continue;
+    cb.checked = checked;
+    var qte = rows[i].querySelector('.trf-qte');
+    if (qte) {
+      qte.disabled = !checked;
+      if (checked) { if (!qte.value) qte.value = '1'; }
+      else qte.style.borderColor = '';
+    }
+  }
   updateTrfSummary();
 }
 
@@ -545,7 +977,9 @@ function submitTransfert(e) {
     }
   });
   if (bad) { alert('Une ou plusieurs quantités sont invalides ou dépassent le stock disponible.'); return false; }
-  if (!confirm('Confirmer le transfert de ' + checks.length + ' produit(s) vers la pharmacie ?')) return false;
+  var sel = document.getElementById('trf-pharmacie');
+  var phNom = sel && sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'la pharmacie';
+  if (!confirm('Confirmer le transfert de ' + checks.length + ' produit(s) vers « ' + phNom + ' » ?')) return false;
   form.submit();
   return false;
 }
@@ -642,7 +1076,7 @@ function openRetourModal(pid) {
 }
 
 function onRetCheck(cb) {
-  var qte = document.querySelector('#ret-table .ret-qte[data-pid="' + cb.getAttribute('data-pid') + '"]');
+  var qte = cb.closest('tr').querySelector('.ret-qte');
   if (qte) {
     qte.disabled = !cb.checked;
     if (cb.checked) { if (!qte.value) qte.value = '1'; qte.focus(); onRetQte(qte); }
@@ -660,25 +1094,38 @@ function onRetQte(inp) {
   updateRetSummary();
 }
 
+// Resume en UNE seule passe sur les lignes (O(N)).
 function updateRetSummary() {
-  var checks = document.querySelectorAll('#ret-table .ret-check:checked');
-  var total = 0, bad = 0;
-  checks.forEach(function(c){
-    var qte = document.querySelector('#ret-table .ret-qte[data-pid="' + c.getAttribute('data-pid') + '"]');
+  var rows = document.querySelectorAll('#ret-table tbody tr');
+  var total = 0, bad = 0, count = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var cb = rows[i].querySelector('.ret-check');
+    if (!cb || !cb.checked) continue;
+    var qte = rows[i].querySelector('.ret-qte');
     var q = parseInt(qte.value, 10) || 0;
-    total += q;
-    if (q <= 0 || q > parseInt(c.getAttribute('data-dispo'), 10)) bad++;
-  });
+    total += q; count++;
+    if (q <= 0 || q > parseInt(cb.getAttribute('data-dispo'), 10)) bad++;
+  }
   var s = document.getElementById('ret-summary');
-  s.textContent = checks.length + ' produit(s) sélectionné(s) — ' + total + ' unité(s)';
+  s.textContent = count + ' produit(s) sélectionné(s) — ' + total + ' unité(s)';
   s.style.color = bad > 0 ? 'var(--red)' : 'var(--text3)';
 }
 
+// Tout sélectionner : O(N) — modifications en place + un seul recalcu du résumé.
 function toggleAllRet(checked) {
-  document.querySelectorAll('#ret-table .ret-check').forEach(function(c){
-    if (c.disabled) return;
-    c.checked = checked; onRetCheck(c);
-  });
+  var rows = document.querySelectorAll('#ret-table tbody tr');
+  for (var i = 0; i < rows.length; i++) {
+    var cb = rows[i].querySelector('.ret-check');
+    if (!cb || cb.disabled) continue;
+    if (cb.checked === checked) continue;
+    cb.checked = checked;
+    var qte = rows[i].querySelector('.ret-qte');
+    if (qte) {
+      qte.disabled = !checked;
+      if (checked) { if (!qte.value) qte.value = '1'; }
+      else qte.style.borderColor = '';
+    }
+  }
   updateRetSummary();
 }
 
@@ -708,6 +1155,149 @@ function submitRetour(e) {
   });
   if (bad) { alert('Une ou plusieurs quantités sont invalides ou dépassent le stock pharmacie.'); return false; }
   if (!confirm('Confirmer le retour de ' + checks.length + ' produit(s) vers le magasin ?')) return false;
+  form.submit();
+  return false;
+}
+</script>
+<?php endif; ?>
+
+<?php if (hasPermission('magasin.gerer')): ?>
+<!-- ═══ Modale AJUSTEMENT EN LOT (quantité unique appliquée à la sélection) ═══ -->
+<div class="modal-overlay" id="modal-ajust-lot">
+  <div class="modal" style="width:920px;max-width:94vw;">
+    <div class="modal-header" style="padding:22px 28px;">
+      <div class="modal-title"><?= icon('edit',16) ?> Ajustement en lot du magasin</div>
+      <button class="modal-close" onclick="closeModal('modal-ajust-lot')">✕</button>
+    </div>
+    <form method="POST" action="?onglet=stock" id="ajl-form" onsubmit="return submitAjustLot(event)">
+      <input type="hidden" name="csrf" value="<?= csrf() ?>">
+      <input type="hidden" name="action" value="ajustement_lot">
+      <div class="card-pad" style="padding:20px 28px;">
+        <div class="text-sm" style="margin-bottom:14px;color:var(--text3);">
+          Sélectionnez les articles puis saisissez <strong>une seule quantité</strong> appliquée à toute la sélection.
+          Seuls les produits dont le stock change (≠ valeur actuelle) sont journalisés (mouvement <em>ajustement</em> signé).
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr 200px;gap:12px;margin-bottom:16px;align-items:flex-end;">
+          <div class="form-group" style="margin:0;">
+            <label>Motif (optionnel)</label>
+            <input type="text" name="motif" placeholder="Inventaire, réception globale, correction…" style="width:100%;">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Nouvelle quantité *</label>
+            <input type="number" name="quantite" id="ajl-qte" min="0" placeholder="ex: 500" required style="width:100%;text-align:right;font-family:'DM Mono',monospace;" oninput="updateAjlSummary()">
+          </div>
+        </div>
+        <div class="flex-between" style="margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+          <div class="search-box" style="flex:1;min-width:220px;">
+            <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
+            <input type="text" id="ajl-search" placeholder="Filtrer les produits..." oninput="filterAjlList()">
+          </div>
+          <label class="text-sm" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="ajl-select-all" onchange="toggleAllAjl(this.checked)">
+            <span>Tout sélectionner</span>
+          </label>
+        </div>
+        <style>
+          #ajl-table th{padding:12px 14px;}
+          #ajl-table td{padding:11px 14px;}
+          #ajl-table tbody tr:hover{background:var(--glass);}
+        </style>
+        <div class="table-wrap" style="max-height:440px;overflow-y:auto;">
+          <table id="ajl-table">
+            <thead>
+              <tr>
+                <th style="width:42px;"></th><th>Médicament</th>
+                <th style="text-align:right;">Stock mag. actuel</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($produits as $p):
+                $actuel = (int)$p['stock_magasin'];
+              ?>
+              <tr data-nom="<?= e(strtolower($p['nom'] . ' ' . $p['reference'])) ?>">
+                <td style="text-align:center;">
+                  <input type="checkbox" class="ajl-check" name="produit_id[]" value="<?= (int)$p['id'] ?>" data-actuel="<?= $actuel ?>" onchange="updateAjlSummary()">
+                </td>
+                <td class="td-name"><?= e($p['nom']) ?>
+                  <?php if ($p['reference']): ?><div class="text-sm td-mono" style="color:var(--text3);"><?= e($p['reference']) ?></div><?php endif; ?>
+                </td>
+                <td class="fw-mono text-right" style="text-align:right;color:var(--text3);"><?= fmtInt($actuel) ?></td>
+              </tr>
+              <?php endforeach; ?>
+              <?php if (!$produits): ?>
+              <tr><td colspan="3"><div class="empty">Aucun produit</div></td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+        <div id="ajl-summary" class="text-sm" style="margin-top:14px;color:var(--text3);">0 produit sélectionné.</div>
+      </div>
+      <div class="modal-footer" style="padding:16px 28px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-ajust-lot')">Annuler</button>
+        <button type="submit" class="btn btn-primary"><?= icon('check',14) ?> Valider l'ajustement</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function openAjustLotModal() {
+  document.querySelectorAll('#ajl-table .ajl-check').forEach(function(c){ c.checked = false; });
+  document.getElementById('ajl-select-all').checked = false;
+  var q = document.getElementById('ajl-qte'); if (q) q.value = '';
+  updateAjlSummary();
+  openModal('modal-ajust-lot');
+}
+
+// Résumé O(N) : compte les cochés + ceux qui changeront réellement à la qté saisie.
+function updateAjlSummary() {
+  var rows = document.querySelectorAll('#ajl-table tbody tr');
+  var count = 0, modif = 0;
+  var qInput = document.getElementById('ajl-qte');
+  var q = qInput ? parseInt(qInput.value, 10) : NaN;
+  var qValid = !isNaN(q) && q >= 0;
+  for (var i = 0; i < rows.length; i++) {
+    var cb = rows[i].querySelector('.ajl-check');
+    if (!cb || !cb.checked) continue;
+    count++;
+    if (!qValid) continue;
+    var actuel = parseInt(cb.getAttribute('data-actuel'), 10);
+    if (q !== actuel) modif++;
+  }
+  var s = document.getElementById('ajl-summary');
+  if (count === 0) { s.textContent = '0 produit sélectionné.'; s.style.color = 'var(--text3)'; return; }
+  if (!qValid) { s.textContent = count + ' produit(s) sélectionné(s) — saisir une quantité.'; s.style.color = 'var(--gold)'; return; }
+  s.textContent = count + ' produit(s) sélectionné(s) — ' + modif + ' seront mis à ' + q + ' unité(s).';
+  s.style.color = 'var(--text3)';
+}
+
+// Tout sélectionner : O(N) — uniquement les lignes visibles (non filtrées).
+function toggleAllAjl(checked) {
+  var rows = document.querySelectorAll('#ajl-table tbody tr');
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].style.display === 'none') continue;
+    var cb = rows[i].querySelector('.ajl-check');
+    if (cb && cb.checked !== checked) cb.checked = checked;
+  }
+  updateAjlSummary();
+}
+
+function filterAjlList() {
+  var q = document.getElementById('ajl-search').value.toLowerCase();
+  document.querySelectorAll('#ajl-table tbody tr').forEach(function(r){
+    r.style.display = r.getAttribute('data-nom').indexOf(q) > -1 ? '' : 'none';
+  });
+}
+
+function submitAjustLot(e) {
+  e.preventDefault();
+  var form = document.getElementById('ajl-form');
+  var checks = document.querySelectorAll('#ajl-table .ajl-check:checked');
+  if (checks.length === 0) { alert('Sélectionnez au moins un produit à ajuster.'); return false; }
+  var qInput = document.getElementById('ajl-qte');
+  var q = parseInt(qInput.value, 10);
+  if (isNaN(q) || q < 0) { alert('Saisissez une quantité valide (≥ 0).'); qInput.focus(); return false; }
+  if (!confirm('Confirmer la remise à ' + q + ' unités pour ' + checks.length + ' produit(s) du magasin ?')) return false;
+  // produit_id[] est déjà sérialisé via les checkboxes ; quantite est un champ unique
   form.submit();
   return false;
 }
@@ -774,25 +1364,31 @@ function submitRetour(e) {
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Référence</th><th>Date</th><th>Opérateur</th>
+        <tr><th>Référence</th><th>Date</th><th>Opérateur</th><th>Pharmacie</th>
         <th style="text-align:right;">Lignes</th><th style="text-align:right;">Unités</th><th>Note</th><th>Détail</th></tr>
       </thead>
       <tbody>
-        <?php foreach ($transferts as $t): ?>
+        <?php foreach ($transferts as $t):
+          $parts = explode('→', $t['note'] ?? '');
+          if (count($parts) >= 2) { $phNom = trim(array_pop($parts)); $noteAff = trim(implode('→', $parts)); }
+          else { $phNom = ''; $noteAff = trim($t['note'] ?? ''); }
+        ?>
         <tr>
           <td class="td-mono"><?= e($t['reference']) ?></td>
           <td class="text-sm"><?= date('d/m/Y H:i', strtotime($t['created_at'])) ?></td>
           <td class="text-sm"><?= e(trim($t['prenom'] . ' ' . $t['u_nom'])) ?: '—' ?></td>
+          <td class="text-sm fw-mono" style="color:var(--teal2);font-weight:600;"><?= e($phNom ?: '—') ?></td>
           <td style="text-align:right;"><span class="badge badge-blue"><?= (int)$t['nb_lignes'] ?></span></td>
           <td class="fw-mono" style="text-align:right;"><?= fmtInt((int)$t['total_qte']) ?></td>
-          <td class="text-sm"><?= e($t['note'] ?? '—') ?></td>
-          <td>
+          <td class="text-sm"><?= e($noteAff ?: '—') ?></td>
+          <td style="white-space:nowrap;">
             <button class="btn btn-ghost btn-xs" onclick="showTrfDetail(<?= (int)$t['id'] ?>)"><?= icon('eye',13) ?> Voir</button>
+            <a href="<?= url('magasin', ['bon' => (int)$t['id']]) ?>" target="_blank" class="btn btn-ghost btn-xs" style="text-decoration:none;"><?= icon('report',13) ?> Bon</a>
           </td>
         </tr>
         <?php endforeach; ?>
         <?php if (!$transferts): ?>
-        <tr><td colspan="7">
+        <tr><td colspan="8">
           <div class="empty">
             <div style="color:var(--text3);margin-bottom:8px;"><?= icon('history',36) ?></div>
             <div>Aucun transfert</div>
@@ -855,24 +1451,32 @@ function submitRetour(e) {
         <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Référence</th>
         <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Date</th>
         <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Opérateur</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Pharmacie</th>
         <th style="border:1px solid #999;padding:5px 7px;text-align:right;background:#eee;">Lignes</th>
         <th style="border:1px solid #999;padding:5px 7px;text-align:right;background:#eee;">Unités</th>
         <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Note</th>
       </tr>
     </thead>
     <tbody>
-      <?php foreach ($transferts as $t): ?>
+      <?php foreach ($transferts as $t):
+        // La note est enregistrée sous la forme « motif utilisateur → Nom pharmacie »
+        // (sans motif : « → Nom pharmacie »). On éclate sur la flèche seule.
+        $parts = explode('→', $t['note'] ?? '');
+        if (count($parts) >= 2) { $phNom = trim(array_pop($parts)); $noteAff = trim(implode('→', $parts)); }
+        else { $phNom = ''; $noteAff = trim($t['note'] ?? ''); }
+      ?>
       <tr>
         <td style="border:1px solid #999;padding:5px 7px;"><?= e($t['reference']) ?></td>
         <td style="border:1px solid #999;padding:5px 7px;"><?= date('d/m/Y H:i', strtotime($t['created_at'])) ?></td>
         <td style="border:1px solid #999;padding:5px 7px;"><?= e(trim($t['prenom'] . ' ' . $t['u_nom'])) ?: '—' ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;font-weight:600;"><?= e($phNom ?: '—') ?></td>
         <td style="border:1px solid #999;padding:5px 7px;text-align:right;"><?= (int)$t['nb_lignes'] ?></td>
         <td style="border:1px solid #999;padding:5px 7px;text-align:right;"><?= fmtInt((int)$t['total_qte']) ?></td>
-        <td style="border:1px solid #999;padding:5px 7px;"><?= e($t['note'] ?? '—') ?></td>
+        <td style="border:1px solid #999;padding:5px 7px;"><?= e($noteAff ?: '—') ?></td>
       </tr>
       <?php endforeach; ?>
       <?php if (!$transferts): ?>
-      <tr><td colspan="6" style="border:1px solid #999;padding:8px;text-align:center;">Aucun transfert</td></tr>
+      <tr><td colspan="7" style="border:1px solid #999;padding:8px;text-align:center;">Aucun transfert</td></tr>
       <?php endif; ?>
     </tbody>
   </table>
@@ -915,8 +1519,11 @@ function submitRetour(e) {
       <button class="modal-close" onclick="closeModal('modal-trf')">✕</button>
     </div>
     <div id="trf-body" class="card-pad"></div>
-    <div class="modal-footer" style="padding:0;">
+    <div class="modal-footer" style="padding:0;display:flex;gap:8px;">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-trf')">Fermer</button>
+      <a id="trf-bon-link" href="#" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;">
+        <?= icon('report',13) ?> Imprimer le bon
+      </a>
     </div>
   </div>
 </div>
@@ -928,16 +1535,249 @@ function showTrfDetail(tid) {
   var t = trfData[tid];
   if (!t) return;
   document.getElementById('trf-ref').textContent = t.reference;
+  // Extraire la pharmacie cible (segment après la dernière flèche « → » de la note)
+  var noteParts = String(t.note || '').split('→');
+  var phNom = noteParts.length >= 2 ? noteParts.pop().trim() : '';
+  var motif = noteParts.length >= 1 ? noteParts.join('→').trim() : '';
   var lignes = trfLignes[tid] || [];
   var rows = lignes.length ? lignes.map(function(l){
     return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 7px;">'+escHtml(l.produit_nom||'—')+'</td><td style="padding:8px 7px;text-align:right;font-family:var(--font-mono,monospace);">'+l.quantite+'</td></tr>';
   }).join('') : '<tr><td colspan="2" style="padding:16px;text-align:center;color:var(--text3);">Aucune ligne</td></tr>';
   document.getElementById('trf-body').innerHTML =
-    '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">' + new Date(t.created_at).toLocaleString('fr-FR') + (t.note ? ' — ' + escHtml(t.note) : '') + '</div>' +
+    '<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">' + new Date(t.created_at).toLocaleString('fr-FR') + '</div>' +
+    (phNom ? '<div style="margin-bottom:8px;">'+icon('building',14)+' <strong style="color:var(--teal2);">' + escHtml(phNom) + '</strong>' + (motif ? ' — <span style="color:var(--text3);">' + escHtml(motif) + '</span>' : '') + '</div>' : (motif ? '<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">' + escHtml(motif) + '</div>' : '')) +
     '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border)"><th style="padding:7px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;">Produit</th><th style="padding:7px;text-align:right;color:var(--text3);font-size:10px;text-transform:uppercase;">Qté</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  var bonLink = document.getElementById('trf-bon-link');
+  if (bonLink) bonLink.href = (window.APP_URL || '') + '/magasin?bon=' + tid;
   openModal('modal-trf');
 }
 </script>
+<?php elseif ($onglet === 'etat-date'): ?>
+<?php
+// ════════════════════════════════════════════════════════════
+// État du stock à une date quelconque (reconstitution rétroactive)
+// ════════════════════════════════════════════════════════════
+// Principe : stock_à_D = stock_actuel − Σ(mouvements postérieurs à D).
+//   On remonte l'état en FIN de journée D : tout mouvement du jour D est
+//   inclus dans l'état, seuls les mouvements strictement postérieurs sont
+//   « rembobinés ».
+//
+//   • Magasin   : mouvements_magasin  — entrée (+), sortie (−), ajustement (signé).
+//   • Pharmacie : transferts reçus (entrée +) + ventes non annulées (sortie −),
+//     par pharmacie (via transferts_magasin.pharmacie_id et ventes.pharmacie_id).
+//
+//   Limite documentée : la reconstitution par pharmacie reflète les transferts
+//   reçus et les ventes (les deux flux correctement attribués à une pharmacie).
+//   Les ajustements et les retours-vers-magasin ne concernent que la pharmacie
+//   principale (produits.stock) et ne sont pas attribuables à une pharmacie
+//   donnée — ils ne sont donc pas reflétés dans la colonne d'une pharmacie
+//   spécifique. Le magasin, lui, est reconstitué à 100 % depuis mouvements_magasin.
+// ════════════════════════════════════════════════════════════
+
+$dateReq = $_GET['date'] ?? date('Y-m-d');
+$scope   = $_GET['scope'] ?? 'magasin';
+
+$dt = DateTime::createFromFormat('Y-m-d', $dateReq);
+$dateOk = $dt && $dt->format('Y-m-d') === $dateReq;
+$date     = $dateOk ? $dateReq : date('Y-m-d');
+$boundary = $date . ' 23:59:59';   // tout mouvement du jour D est inclus
+
+// ── Deltas MAGASIN postérieurs à D (par produit) ───────────────
+$magDelta = [];
+$st = $db->prepare("SELECT produit_id,
+        COALESCE(SUM(CASE WHEN type='entrée'      THEN quantite END),0) AS e,
+        COALESCE(SUM(CASE WHEN type='sortie'      THEN quantite END),0) AS s,
+        COALESCE(SUM(CASE WHEN type='ajustement'  THEN quantite END),0) AS a
+    FROM mouvements_magasin WHERE created_at > :b GROUP BY produit_id");
+$st->execute([':b' => $boundary]);
+foreach ($st->fetchAll() as $r) $magDelta[(int)$r['produit_id']] = $r;
+
+// ── Transferts reçus par pharmacie postérieurs à D ─────────────
+$trfDelta = [];   // [pharmacie_id][produit_id] => quantité entrée
+$st = $db->prepare("SELECT t.pharmacie_id AS phid, tl.produit_id AS pid,
+        COALESCE(SUM(tl.quantite),0) AS q
+    FROM transfert_lignes tl
+    JOIN transferts_magasin t ON t.id = tl.transfert_id
+    WHERE t.created_at > :b
+    GROUP BY t.pharmacie_id, tl.produit_id");
+$st->execute([':b' => $boundary]);
+foreach ($st->fetchAll() as $r) $trfDelta[(int)$r['phid']][(int)$r['pid']] = (int)$r['q'];
+
+// ── Ventes par pharmacie postérieures à D ──────────────────────
+$vteDelta = [];   // [pharmacie_id][produit_id] => quantité sortie
+$st = $db->prepare("SELECT v.pharmacie_id AS phid, vl.produit_id AS pid,
+        COALESCE(SUM(vl.quantite),0) AS q
+    FROM vente_lignes vl
+    JOIN ventes v ON v.id = vl.vente_id
+    WHERE v.est_annulee = 0 AND v.created_at > :b
+    GROUP BY v.pharmacie_id, vl.produit_id");
+$st->execute([':b' => $boundary]);
+foreach ($st->fetchAll() as $r) $vteDelta[(int)$r['phid']][(int)$r['pid']] = (int)$r['q'];
+
+// ── Périmètre : magasin | ph:<id> | toutes ─────────────────────
+$scopePhId = 0;
+if (str_starts_with($scope, 'ph:')) $scopePhId = (int)substr($scope, 3);
+$scopeAll = ($scope === 'toutes');
+$scopeMag = ($scope === 'magasin');
+
+// Pharmacie affichée quand scope = ph:<id>
+$phAff = null;
+if ($scopePhId > 0) {
+    foreach ($pharmacies as $ph) if ((int)$ph['id'] === $scopePhId) { $phAff = $ph; break; }
+    if (!$phAff) { $scopePhId = 0; $scopeMag = true; $scope = 'magasin'; } // pharmacie inexistante → fallback
+}
+
+// ── Calcul de l'état par produit ───────────────────────────────
+$rows = [];
+foreach ($produits as $p) {
+    $pid = (int)$p['id'];
+    $row = ['id' => $pid, 'nom' => $p['nom'], 'reference' => $p['reference'], 'cat' => $p['cat']];
+    if ($scopeMag || $scopeAll) {
+        $cur = (int)$p['stock_magasin'];
+        $d   = $magDelta[$pid] ?? null;
+        $e   = $d ? (int)$d['e'] : 0;
+        $s   = $d ? (int)$d['s'] : 0;
+        $a   = $d ? (int)$d['a'] : 0;
+        $row['mag'] = $cur - $e + $s - $a;   // rembobiner : - entrées + sorties - ajustements
+    }
+    if ($scopePhId > 0) {
+        $cur = $ppMap[$pid][$scopePhId] ?? 0;
+        $trf = $trfDelta[$scopePhId][$pid] ?? 0;
+        $vte = $vteDelta[$scopePhId][$pid] ?? 0;
+        $row['ph'] = $cur - $trf + $vte;     // rembobiner : - entrées transfert + ventes
+    }
+    if ($scopeAll) {
+        $row['phs'] = [];
+        foreach ($pharmacies as $ph) {
+            $phid = (int)$ph['id'];
+            $cur  = $ppMap[$pid][$phid] ?? 0;
+            $trf  = $trfDelta[$phid][$pid] ?? 0;
+            $vte  = $vteDelta[$phid][$pid] ?? 0;
+            $row['phs'][$phid] = $cur - $trf + $vte;
+        }
+    }
+    $rows[] = $row;
+}
+
+// ── Totaux ─────────────────────────────────────────────────────
+$totMag = 0; $totPh = 0; $totPhs = [];
+foreach ($rows as $r) {
+    if (isset($r['mag'])) $totMag += (int)$r['mag'];
+    if (isset($r['ph']))  $totPh  += (int)$r['ph'];
+    if (isset($r['phs'])) foreach ($r['phs'] as $phid => $v) $totPhs[$phid] = ($totPhs[$phid] ?? 0) + (int)$v;
+}
+$aujourdhui = date('Y-m-d');
+?>
+
+<div class="flex-between no-print" style="margin-bottom:16px;align-items:center;flex-wrap:wrap;gap:10px;">
+  <div style="font-size:15px;font-weight:600;color:var(--text2);">État du stock à une date</div>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()"><?= icon('report',14) ?> Imprimer</button>
+</div>
+
+<!-- ── Formulaire de requête ── -->
+<div class="card no-print" style="margin-bottom:16px;">
+  <form method="GET" action="<?= url('magasin') ?>" class="card-pad" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+    <input type="hidden" name="onglet" value="etat-date">
+    <div>
+      <label style="display:block;font-size:12px;color:var(--text3);margin-bottom:4px;">Date</label>
+      <input type="date" name="date" value="<?= e($date) ?>" max="<?= e($aujourdhui) ?>" class="input" style="min-width:160px;">
+    </div>
+    <div>
+      <label style="display:block;font-size:12px;color:var(--text3);margin-bottom:4px;">Périmètre</label>
+      <select name="scope" class="input" style="min-width:220px;">
+        <option value="magasin" <?= $scopeMag ? 'selected' : '' ?>>Magasin (dépôt central)</option>
+        <?php foreach ($pharmacies as $ph): ?>
+        <option value="ph:<?= (int)$ph['id'] ?>" <?= $scopePhId === (int)$ph['id'] ? 'selected' : '' ?>>Pharmacie — <?= e($ph['nom']) ?></option>
+        <?php endforeach; ?>
+        <option value="toutes" <?= $scopeAll ? 'selected' : '' ?>>Toutes (magasin + pharmacies)</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary"><?= icon('search',14) ?> Calculer</button>
+  </form>
+</div>
+
+<?php if (!$dateOk): ?>
+<div class="card no-print" style="margin-bottom:16px;"><div class="card-pad" style="color:var(--gold);"><?= icon('alert',14) ?> Date invalide — affichage pour aujourd'hui.</div></div>
+<?php endif; ?>
+
+<!-- ── Résultat ── -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
+      <?php if ($scopeMag): ?>Stock du dépôt central au <?= date('d/m/Y', strtotime($date)) ?>
+      <?php elseif ($scopePhId > 0): ?>Stock de la pharmacie « <?= e($phAff['nom']) ?> » au <?= date('d/m/Y', strtotime($date)) ?>
+      <?php else: ?>État global au <?= date('d/m/Y', strtotime($date)) ?>
+      <?php endif; ?>
+    </div>
+    <span class="text-sm"><?= count($rows) ?> référence(s)</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Médicament</th>
+          <th>Réf.</th>
+          <th>Catégorie</th>
+          <?php if ($scopeMag || $scopeAll): ?>
+          <th style="text-align:right;">Stock magasin</th>
+          <?php endif; ?>
+          <?php if ($scopePhId > 0): ?>
+          <th style="text-align:right;color:var(--teal2);">Stock pharmacie</th>
+          <?php endif; ?>
+          <?php if ($scopeAll): foreach ($pharmacies as $i => $ph): ?>
+          <th style="text-align:right;color:var(--teal2);<?= $i === 0 ? 'border-left:2px solid var(--border2);' : '' ?>" title="Stock de la pharmacie « <?= e($ph['nom']) ?> »"><?= e($ph['nom']) ?></th>
+          <?php endforeach; endif; ?>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($rows as $r): ?>
+        <tr>
+          <td class="td-name"><?= e($r['nom']) ?></td>
+          <td class="td-mono"><?= e($r['reference']) ?></td>
+          <td class="text-sm"><?= e($r['cat'] ?? '—') ?></td>
+          <?php if ($scopeMag || $scopeAll): ?>
+          <td class="fw-mono" style="text-align:right;<?= (int)$r['mag'] <= 0 ? 'color:var(--text3);' : '' ?>"><?= fmtInt((int)$r['mag']) ?></td>
+          <?php endif; ?>
+          <?php if ($scopePhId > 0): ?>
+          <td class="fw-mono" style="text-align:right;<?= (int)$r['ph'] <= 0 ? 'color:var(--text3);' : '' ?>"><?= fmtInt((int)$r['ph']) ?></td>
+          <?php endif; ?>
+          <?php if ($scopeAll): foreach ($pharmacies as $i => $ph):
+            $v = (int)($r['phs'][(int)$ph['id']] ?? 0);
+          ?>
+          <td class="fw-mono" style="text-align:right;<?= ($i === 0 ? 'border-left:2px solid var(--border2);' : '') . ($v <= 0 ? 'color:var(--text3);' : '') ?>"><?= fmtInt($v) ?></td>
+          <?php endforeach; endif; ?>
+        </tr>
+        <?php endforeach; ?>
+        <?php if (!$rows): ?>
+        <tr><td colspan="<?= ($scopeAll ? 3 + 1 + count($pharmacies) : 4) ?>">
+          <div class="empty"><div style="color:var(--text3);margin-bottom:8px;"><?= icon('box',36) ?></div><div>Aucun produit</div></div>
+        </td></tr>
+        <?php endif; ?>
+      </tbody>
+      <?php if ($rows): ?>
+      <tfoot>
+        <tr style="border-top:2px solid var(--border2);">
+          <td colspan="<?= ($scopeAll ? 3 : 3) ?>" style="font-weight:600;text-align:right;">Total unités</td>
+          <?php if ($scopeMag || $scopeAll): ?>
+          <td class="fw-mono" style="text-align:right;font-weight:600;"><?= fmtInt($totMag) ?></td>
+          <?php endif; ?>
+          <?php if ($scopePhId > 0): ?>
+          <td class="fw-mono" style="text-align:right;font-weight:600;color:var(--teal2);"><?= fmtInt($totPh) ?></td>
+          <?php endif; ?>
+          <?php if ($scopeAll): foreach ($pharmacies as $i => $ph): ?>
+          <td class="fw-mono" style="text-align:right;font-weight:600;color:var(--teal2);<?= $i === 0 ? 'border-left:2px solid var(--border2);' : '' ?>"><?= fmtInt((int)($totPhs[(int)$ph['id']] ?? 0)) ?></td>
+          <?php endforeach; endif; ?>
+        </tr>
+      </tfoot>
+      <?php endif; ?>
+    </table>
+  </div>
+  <?php if ($scopePhId > 0 || $scopeAll): ?>
+  <div class="card-pad" style="font-size:12px;color:var(--text3);border-top:1px solid var(--border);">
+    <?= icon('alert',13) ?> La reconstitution par pharmacie reflète les <strong>transferts reçus</strong> et les <strong>ventes</strong>. Les ajustements et retours-vers-magasin (qui ne concernent que la pharmacie principale) ne sont pas attribuables à une pharmacie spécifique et ne sont pas reflétés ici. Le magasin, lui, est reconstitué intégralement depuis le journal des mouvements.
+  </div>
+  <?php endif; ?>
+</div>
 <?php endif; ?>
 
 <?php layout_foot(); ?>

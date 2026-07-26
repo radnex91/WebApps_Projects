@@ -108,7 +108,7 @@ $stmtRecent = $db->prepare("
            COUNT(vl.id) AS nb_articles
     FROM ventes v
     LEFT JOIN vente_lignes vl ON vl.vente_id = v.id
-    WHERE v.caissier_id = ? AND DATE(v.created_at) BETWEEN ? AND ?
+    WHERE v.caissier_id = ? AND v.created_at >= ? AND v.created_at < DATE_ADD(?, INTERVAL 1 DAY)
     GROUP BY v.id ORDER BY v.created_at DESC LIMIT 10
 ");
 $stmtRecent->execute([$userId, $dateDebut, $dateFin]);

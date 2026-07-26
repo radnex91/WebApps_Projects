@@ -6,12 +6,12 @@ requireLogin();
 $db = getDB();
 require_once __DIR__ . '/charts.php';
 
-// CA du mois
-$ca_mois  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW())")->fetchColumn();
+// CA du mois (sargable : plage [1er du mois courant, 1er du mois suivant[)
+$ca_mois  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') AND created_at < DATE_FORMAT(NOW() + INTERVAL 1 MONTH, '%Y-%m-01')")->fetchColumn();
 
-// CA année en cours
-$ca_annee = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE YEAR(created_at)=YEAR(NOW())")->fetchColumn();
-$nb_ventes_annee = $db->query("SELECT COUNT(*) FROM ventes WHERE YEAR(created_at)=YEAR(NOW())")->fetchColumn();
+// CA année en cours (sargable : plage [1er jan., 1er jan. année suivante[)
+$ca_annee = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= MAKEDATE(YEAR(NOW()),1) AND created_at < MAKEDATE(YEAR(NOW())+1,1)")->fetchColumn();
+$nb_ventes_annee = $db->query("SELECT COUNT(*) FROM ventes WHERE created_at >= MAKEDATE(YEAR(NOW()),1) AND created_at < MAKEDATE(YEAR(NOW())+1,1)")->fetchColumn();
 
 // Médicaments en stock
 $nb_prods = $db->query("SELECT COUNT(*) FROM produits WHERE actif=1")->fetchColumn();
@@ -224,6 +224,8 @@ showFlash();
     <div class="stat-sub"><?= fmtInt((int)$nb_ventes_annee) ?> ventes</div>
   </div>
 </div>
+
+<?php require __DIR__ . '/dashboard-alertes-pharmacies.php'; ?>
 
 <div class="card" style="margin-bottom:20px;">
   <div class="card-header">

@@ -23,6 +23,8 @@ $moduleLabels = [
     'roles'         => 'Rôles & Permissions',
     'comptabilite'  => 'Comptabilité',
     'caisse'        => 'Caisses',
+    'pharmacies'    => 'Pharmacies',
+    'menus'         => 'Menus',
 ];
 
 // ── Suppression d'un rôle personnalisé (POST + CSRF) ────────

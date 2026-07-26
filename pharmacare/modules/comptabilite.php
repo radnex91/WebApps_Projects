@@ -401,6 +401,21 @@ if ($action === 'journal'):
     $src   = $_GET['source'] ?? '';
     $entries = journalGet($db, $debut, $fin, $src);
     $sources = [''=>'Toutes','vente'=>'Ventes','retour'=>'Retours','commande'=>'Commandes','stock'=>'Stock','caisse'=>'Caisse','cloture'=>'Clôtures','manuel'=>'Saisies manuelles'];
+
+    // Batch fetch des lignes : 1 requête IN (...) au lieu de N appels à
+    // ecritureLignes() (évite le N+1 dans la boucle de rendu du journal).
+    $lignesByEcr = [];
+    $entryIds = array_column($entries, 'id');
+    if ($entryIds) {
+        $ph = implode(',', array_fill(0, count($entryIds), '?'));
+        $stL = $db->prepare("SELECT el.*, pc.compte, pc.intitule
+                             FROM ecriture_lignes el
+                             JOIN plan_comptable pc ON el.compte_id = pc.id
+                             WHERE el.ecriture_id IN ($ph)
+                             ORDER BY pc.compte");
+        $stL->execute($entryIds);
+        foreach ($stL->fetchAll() as $l) $lignesByEcr[(int)$l['ecriture_id']][] = $l;
+    }
     layout_head('Journal comptable', 'comptabilite'); showFlash();
 ?>
 <?= $navLinks ?>
@@ -435,7 +450,7 @@ if ($action === 'journal'):
       <thead><tr><th>Réf.</th><th>Date</th><th>Libellé</th><th>Source</th><th>Par</th><th style="text-align:right;">Débit</th><th style="text-align:right;">Crédit</th><th></th></tr></thead>
       <tbody>
         <?php foreach ($entries as $e):
-          $lignes = ecritureLignes($db, (int)$e['id']);
+          $lignes = $lignesByEcr[(int)$e['id']] ?? [];
           $dTotal = 0; $cTotal = 0;
           foreach ($lignes as $l) { $dTotal += (float)$l['debit']; $cTotal += (float)$l['credit']; }
         ?>
@@ -884,7 +899,7 @@ if ($action === 'cloture'):
 // ══════════════════════════════════════════════════════════════
 
 $nbEcritures = $db->query("SELECT COUNT(*) FROM ecritures")->fetchColumn();
-$nbEcrituresMois = $db->prepare("SELECT COUNT(*) FROM ecritures WHERE MONTH(date_ecriture)=MONTH(CURDATE()) AND YEAR(date_ecriture)=YEAR(CURDATE())");
+$nbEcrituresMois = $db->prepare("SELECT COUNT(*) FROM ecritures WHERE date_ecriture >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND date_ecriture < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')");
 $nbEcrituresMois->execute();
 $nbEcrMois = (int)$nbEcrituresMois->fetchColumn();
 

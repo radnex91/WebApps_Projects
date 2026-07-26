@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PharmaCare — Présentation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #080c15;
+      --bg2: #0f172a;
+      --bg3: #1e293b;
+      --teal: #06d6a0;
+      --teal-dim: rgba(6,214,160,.08);
+      --gold: #f59e0b;
+      --red: #ef4444;
+      --blue: #818cf8;
+      --text: #f8fafc;
+      --text2: #94a3b8;
+      --text3: #64748b;
+      --border: #1e293b;
+      --radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Manrope', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 30% 50%, rgba(6,214,160,.07) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 50%, rgba(129,140,248,.05) 0%, transparent 50%);
+      animation: heroGlow 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes heroGlow {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-3%, 2%) scale(1.05); }
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 900px; }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--teal-dim);
+      border: 1px solid rgba(6,214,160,.2);
+      color: var(--teal);
+      padding: 8px 20px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .5px;
+      margin-bottom: 32px;
+      animation: fadeInUp .6s ease-out;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--teal);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.3); }
+    }
+
+    .hero h1 {
+      font-size: clamp(42px, 7vw, 80px);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      animation: fadeInUp .6s ease-out .1s both;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--teal), #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--text2);
+      max-width: 640px;
+      margin: 0 auto 40px;
+      animation: fadeInUp .6s ease-out .2s both;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 48px;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeInUp .6s ease-out .3s both;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-value {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--teal);
+    }
+
+    .hero-stat-label {
+      font-size: 13px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: var(--text3);
+      font-size: 12px;
+      animation: bobUp 2s ease-in-out infinite;
+      z-index: 1;
+    }
+
+    @keyframes bobUp {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-8px); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── NAVIGATION ── */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 16px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(8,12,21,.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      transition: .3s;
+    }
+
+    .nav-logo {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-logo svg { width: 28px; height: 28px; }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: .2s;
+    }
+
+    .nav-links a:hover { color: var(--teal); }
+
+    /* ── SECTIONS ── */
+    .section {
+      padding: 100px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      color: var(--text2);
+      font-size: 17px;
+      max-width: 600px;
+      margin-bottom: 48px;
+    }
+
+    /* ── FEATURES GRID ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+    }
+
+    .feature-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      transition: all .3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--teal), transparent);
+      opacity: 0;
+      transition: .3s;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(6,214,160,.2);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    .fi-teal { background: rgba(6,214,160,.1); color: var(--teal); }
+    .fi-blue { background: rgba(129,140,248,.1); color: var(--blue); }
+    .fi-gold { background: rgba(245,158,11,.1); color: var(--gold); }
+    .fi-red { background: rgba(239,68,68,.1); color: var(--red); }
+    .fi-green { background: rgba(52,211,153,.1); color: #34d399; }
+    .fi-pink { background: rgba(236,72,153,.1); color: #ec4899; }
+
+    .feature-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .feature-card p {
+      color: var(--text2);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .feature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 16px;
+    }
+
+    .feature-tag {
+      background: var(--bg3);
+      color: var(--text2);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── FEATURED MODULE (POS) ── */
+    .featured {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .featured::after {
+      content: '';
+      position: absolute;
+      top: -100px;
+      right: -100px;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(6,214,160,.05) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .featured-inner {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .featured-visual {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      font-family: 'Manrope', monospace;
+    }
+
+    .pos-mock {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 1px;
+      background: var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .pos-mock-panel {
+      background: var(--bg2);
+      padding: 16px;
+    }
+
+    .pos-mock-panel h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text3);
+      margin-bottom: 12px;
+    }
+
+    .mock-product {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .mock-product:last-child { border: none; }
+    .mock-product .name { color: var(--text); }
+    .mock-product .price { color: var(--teal); font-weight: 600; font-family: monospace; }
+
+    .mock-total {
+      background: var(--teal);
+      color: var(--bg);
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      text-align: right;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .mock-btn {
+      background: var(--teal);
+      color: var(--bg);
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      width: 100%;
+      font-weight: 700;
+      font-size: 13px;
+      margin-top: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .mock-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: var(--text3);
+    }
+
+    .mock-cat {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .cat-antibio { background: rgba(72,149,239,.15); color: #4895ef; }
+    .cat-analges { background: rgba(0,201,167,.15); color: #00c9a7; }
+    .cat-vitamin { background: rgba(155,89,182,.15); color: #9b59b6; }
+    .cat-cardio { background: rgba(231,76,60,.15); color: #e74c3c; }
+
+    /* ── TECH STACK ── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .tech-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      transition: .3s;
+    }
+
+    .tech-card:hover {
+      border-color: rgba(6,214,160,.2);
+      transform: translateY(-2px);
+    }
+
+    .tech-card-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+
+    .tech-card h4 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .tech-card p {
+      font-size: 13px;
+      color: var(--text3);
+    }
+
+    /* ── ROLES ── */
+    .roles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .role-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      transition: .3s;
+    }
+
+    .role-card:hover {
+      border-color: rgba(6,214,160,.2);
+      transform: translateY(-2px);
+    }
+
+    .role-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 16px;
+    }
+
+    .role-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .role-card p {
+      color: var(--text2);
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    .role-perms {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .role-perms li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .role-perms li::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--teal);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── CTA ── */
+    .cta {
+      text-align: center;
+      padding: 100px 40px;
+      position: relative;
+    }
+
+    .cta::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(6,214,160,.06) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .cta h2 {
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 800;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cta p {
+      color: var(--text2);
+      font-size: 17px;
+      max-width: 500px;
+      margin: 0 auto 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--teal);
+      color: var(--bg);
+      padding: 16px 36px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: .3s;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(6,214,160,.3);
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 40px;
+      text-align: center;
+      color: var(--text3);
+      font-size: 13px;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--teal), var(--blue));
+      border-radius: 2px;
+      margin: 0 auto 48px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .nav { padding: 12px 20px; }
+      .nav-links { display: none; }
+      .section { padding: 60px 20px; }
+      .featured { padding: 24px; }
+      .featured-inner { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .hero-stats { gap: 24px; }
+    }
+
+    /* ── SCROLL ANIMATIONS ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all .6s ease-out;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ NAVIGATION ═══════════════ -->
+<nav class="nav">
+  <a href="#" class="nav-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--teal)">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+      <path d="M2 17l10 5 10-5"/>
+      <path d="M2 12l10 5 10-5"/>
+    </svg>
+    PharmaCare
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Fonctionnalites</a></li>
+    <li><a href="#pos">Point de Vente</a></li>
+    <li><a href="#compta">Comptabilite</a></li>
+    <li><a href="#roles">Roles</a></li>
+    <li><a href="#tech">Technologies</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">Application de gestion pharmaceutique</div>
+    <h1>Geerez votre pharmacie avec <span>PharmaCare</span></h1>
+    <p>Solution complete de gestion pour pharmacie : point de vente, stock, comptabilite OHADA, rapports et bien plus. Concu pour l'Afrique Centrale.</p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-value">21</div>
+        <div class="hero-stat-label">Modules</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">3</div>
+        <div class="hero-stat-label">Roles</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">10+</div>
+        <div class="hero-stat-label">Devises</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">OHADA</div>
+        <div class="hero-stat-label">Comptabilite</div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-hint">
+    <span>Decouvrir</span>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 13l5 5 5-5"/><path d="M7 6l5 5 5-5"/></svg>
+  </div>
+</section>
+
+<!-- ═══════════════ POINT DE VENTE ═══════════════ -->
+<section class="section" id="pos">
+  <div class="featured reveal">
+    <div class="featured-inner">
+      <div>
+        <div class="section-label">Module Principal</div>
+        <h2 class="section-title">Point de Vente Integre</h2>
+        <p class="section-desc" style="margin-bottom:24px">
+          Interface moderne de caisse avec scan code-barres, gestion du panier en temps reel, multi-modes de paiement et generation automatique de tickets thermiques.
+        </p>
+        <ul class="role-perms">
+          <li>Scan code-barres ou recherche instantanee</li>
+          <li>Ajout au panier en un clic</li>
+          <li>Gestion TVA automatique (19.25%)</li>
+          <li>Remises avec validation par code + approbateur</li>
+          <li>Vente a credit avec suivi client</li>
+          <li>Ticket de caisse thermique personnalisable</li>
+          <li>Selection par categorie avec vue cartes</li>
+          <li>Calcul monnaie automatique</li>
+          <li>Limitation anti-abus (rate limiting)</li>
+        </ul>
+      </div>
+      <div class="featured-visual">
+        <div class="pos-mock">
+          <div class="pos-mock-panel">
+            <h4>Panier</h4>
+            <div class="mock-product">
+              <span class="name">Paracetamol 500mg</span>
+              <span class="price">1 500 FCFA</span>
+            </div>
+            <div class="mock-product">
+              <span class="name">Amoxicilline 1g</span>
+              <span class="price">3 500 FCFA</span>
+            </div>
+            <div class="mock-product">
+              <span class="name">Vitamine C</span>
+              <span class="price">2 000 FCFA</span>
+            </div>
+            <div class="mock-total">Total : 7 000 FCFA</div>
+            <div class="mock-btn">&#10003; Valider la vente</div>
+          </div>
+          <div class="pos-mock-panel">
+            <h4>Catalogue</h4>
+            <div class="mock-search">&#128269; Scanner ou rechercher...</div>
+            <div class="mock-product">
+              <span><span class="mock-cat cat-analges">Antalgiques</span> Paracetamol</span>
+              <span class="price">1 500</span>
+            </div>
+            <div class="mock-product">
+              <span><span class="mock-cat cat-antibio">Antibiotiques</span> Amoxicilline</span>
+              <span class="price">3 500</span>
+            </div>
+            <div class="mock-product">
+              <span><span class="mock-cat cat-vitamin">Vitamines</span> Vitamine C</span>
+              <span class="price">2 000</span>
+            </div>
+            <div class="mock-product">
+              <span><span class="mock-cat cat-cardio">Cardiologie</span> Amlodipine</span>
+              <span class="price">4 200</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FONCTIONNALITES ═══════════════ -->
+<section class="section" id="features">
+  <div class="section-label">Modules</div>
+  <h2 class="section-title">Toutes les fonctionnalites</h2>
+  <p class="section-desc">Une solution complete couvrant chaque aspect de la gestion d'une pharmacie moderne.</p>
+
+  <div class="features-grid">
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-teal">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+      </div>
+      <h3>Tableau de bord</h3>
+      <p>Vue d'ensemble adaptee selon le role (admin, pharmacien, caissier). Indicateurs de performance, alertes stock, graphiques de ventes et chiffre d'affaires en temps reel.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">KPIs</span>
+        <span class="feature-tag">Graphiques</span>
+        <span class="feature-tag">Alertes</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-blue">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      </div>
+      <h3>Point de Vente (POS)</h3>
+      <p>Interface de caisse professionnelle avec scan code-barres, panier temps reel, remises codees, ventes a credit et tickets thermiques. Multi-caisses supportees.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Code-barres</span>
+        <span class="feature-tag">Panier</span>
+        <span class="feature-tag">Tickets</span>
+        <span class="feature-tag">Credit</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-gold">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h3>Gestion des Clients</h3>
+      <p>Base de clients avec fiche complete, suivi des achats, historique des ventes, reglements et gestion des creances clients (ventes a credit).</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Fiches</span>
+        <span class="feature-tag">Reglements</span>
+        <span class="feature-tag">Creances</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-green">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <h3>Gestion du Stock</h3>
+      <p>Inventaire complet avec alertes de stock bas et ruptures, suivi des dates d'expiration, ajustements de stock, mouvements traces et valeur d'achat totale.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Alertes</span>
+        <span class="feature-tag">Expiration</span>
+        <span class="feature-tag">Mouvements</span>
+        <span class="feature-tag">Ajustements</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-red">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+      </div>
+      <h3>Medicaments & Categories</h3>
+      <p>Catalogue de medicaments avec reference/code-barres, categories colorees, fournisseur lie, prix d'achat/vente, seuils d'alerte et description.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Catalogue</span>
+        <span class="feature-tag">Categories</span>
+        <span class="feature-tag">Prix</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-teal">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      </div>
+      <h3>Commandes Fournisseurs</h3>
+      <p>Creation et suivi de commandes d'approvisionnement avec lignes detaillees, statuts (en attente, confirmee, livree, annulee), dates et reference.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Commandes</span>
+        <span class="feature-tag">Statuts</span>
+        <span class="feature-tag">Livraison</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-blue">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      </div>
+      <h3>Fournisseurs</h3>
+      <p>Annuaire des fournisseurs avec coordonnees completes, villes, emails, gestion des contacts et archivage securise.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Annuaire</span>
+        <span class="feature-tag">Contacts</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-gold">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <h3>Retours & Remboursements</h3>
+      <p>Gestion des retours de marchandises avec remboursement automatique, reconstitution du stock, motifs de retour et traces comptables.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Retours</span>
+        <span class="feature-tag">Remboursement</span>
+        <span class="feature-tag">Stock auto</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-green">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      </div>
+      <h3>Gestion des Caisses</h3>
+      <p>Multi-caisses avec ouverture/fermeture de session, fond initial, entrees/sorties detaillees, solde en temps reel et fermeture automatique configurable.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Sessions</span>
+        <span class="feature-tag">Multi-caisses</span>
+        <span class="feature-tag">Auto-fermeture</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-pink">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      </div>
+      <h3>Marketing & Fidelite</h3>
+      <p>Campagnes promotionnelles (pourcentage/remise fixe), codes de remise avec approbation, programme de fidelite client optionnel et points de fidelite.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Promos</span>
+        <span class="feature-tag">Codes remise</span>
+        <span class="feature-tag">Fidelite</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-red">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <h3>Rapports Detailles</h3>
+      <p>Rapports de ventes, rapports caissier, ventes par periode, par mode de paiement, par caissier. Export CSV, graphiques et statistiques avancees.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">Ventes</span>
+        <span class="feature-tag">CSV</span>
+        <span class="feature-tag">Graphiques</span>
+        <span class="feature-tag">Export</span>
+      </div>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-teal">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3>Securite & Permissions</h3>
+      <p>Systeme de roles granulaire (admin, pharmacien, caissier) avec permissions par module. Rate limiting anti-abus, journaux d'audit et protection CSRF.</p>
+      <div class="feature-tags">
+        <span class="feature-tag">RBAC</span>
+        <span class="feature-tag">CSRF</span>
+        <span class="feature-tag">Audit</span>
+        <span class="feature-tag">Rate limit</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════ COMPTABILITE ═══════════════ -->
+<section class="section" id="compta">
+  <div class="section-label">Comptabilite OHADA</div>
+  <h2 class="section-title">Comptabilite intégrée</h2>
+  <p class="section-desc">Système comptable complet conforme au plan OHADA avec ecritures automatiques depuis les ventes et commandes.</p>
+
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-teal">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </div>
+      <h3>Saisie manuelle</h3>
+      <p>Ecritures comptables libres avec validation debite/credite. Plan comptable OHADA complet avec comptes classes 1 a 7.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-blue">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      </div>
+      <h3>Journal general</h3>
+      <p>Consultation chronologique de toutes les ecritures avec details des lignes, filtrage par periode et reference.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-gold">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+      </div>
+      <h3>Balance generale</h3>
+      <p>Soldes debiteurs et crediteurs de chaque compte, totaux equilibres. Vue synthétique de la situation comptable.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-green">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </div>
+      <h3>Compte de resultat</h3>
+      <p>Produits et charges, marge brute, resultat net. Tableau de bord financier pour suivre la rentabilite.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-red">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+      </div>
+      <h3>Bilan</h3>
+      <p>Actif et passif avec immobilisations, stocks, creances, tresorerie, capitaux propres et dettes. Bilan complet conforme OHADA.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-blue">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <h3>Grand livre</h3>
+      <p>Historique detaille de chaque compte avec toutes les mouvements. Recherche et filtrage par periode.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-gold">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      </div>
+      <h3>Cloture annuelle</h3>
+      <p>Cloture d'exercice automatique avec report des soldes, liberation des comptes de charges et produits.</p>
+    </div>
+
+    <div class="feature-card reveal">
+      <div class="feature-icon fi-teal">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <h3>Ecritures automatiques</h3>
+      <p>Chaque vente genere automatiquement les ecritures comptables : caisse, ventes, TVA collectee, variation de stocks (OHADA).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ ROLES ═══════════════ -->
+<section class="section" id="roles">
+  <div class="section-label">Securite</div>
+  <h2 class="section-title">Roles et Permissions</h2>
+  <p class="section-desc">Systeme RBAC (Role-Based Access Control) avec 3 roles predefinis et roles personnalises possibles.</p>
+
+  <div class="roles-grid">
+    <div class="role-card reveal">
+      <div class="role-icon fi-red">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3>Administrateur</h3>
+      <p>Controle total sur l'application.</p>
+      <ul class="role-perms">
+        <li>Gestion des utilisateurs et roles</li>
+        <li>Parametres globaux de l'application</li>
+        <li>Comptabilite & plan comptable</li>
+        <li>Tous les rapports et statistiques</li>
+        <li>Configuration des devises et themes</li>
+        <li>Cloture comptable annuelle</li>
+      </ul>
+    </div>
+
+    <div class="role-card reveal">
+      <div class="role-icon fi-blue">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <h3>Pharmacien</h3>
+      <p>Gestion operationnelle et supervision.</p>
+      <ul class="role-perms">
+        <li>Gestion du stock et inventaire</li>
+        <li>Commandes fournisseurs</li>
+        <li>Retours marchandises</li>
+        <li>Validation des remises</li>
+        <li>Rapports detailles</li>
+        <li>Supervision des caisses</li>
+      </ul>
+    </div>
+
+    <div class="role-card reveal">
+      <div class="role-icon fi-teal">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      </div>
+      <h3>Caissier</h3>
+      <p>Operations de vente au quotidien.</p>
+      <ul class="role-perms">
+        <li>Point de vente (POS)</li>
+        <li>Ouverture/fermeture de caisse</li>
+        <li>Historique de ses ventes</li>
+        <li>Rapports personnels</li>
+        <li>Gestion des clients</li>
+        <li>Tickets et remboursements</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ TECHNOLOGIES ═══════════════ -->
+<section class="section" id="tech">
+  <div class="section-label">Stack technique</div>
+  <h2 class="section-title">Technologies utilisees</h2>
+  <p class="section-desc">Application web legere et performante, sans framework lourd. Deploiable sur n'importe quel hebergement PHP.</p>
+
+  <div class="tech-grid">
+    <div class="tech-card reveal">
+      <div class="tech-card-icon">&#128187;</div>
+      <h4>PHP 8+</h4>
+      <p>Backend pur, sans framework, architecture modulaire</p>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-card-icon">&#128218;</div>
+      <h4>MySQL / MariaDB</h4>
+      <p>Base de donnees relationnelle avec PDO</p>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-card-icon">&#128188;</div>
+      <h4>HTML5 / CSS3</h4>
+      <p>Interface responsive, design system custom</p>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-card-icon">&#9889;</div>
+      <h4>JavaScript Vanilla</h4>
+      <p>Panier temps reel, animations, AJAX</p>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-card-icon">&#127760;</div>
+      <h4>Hebergement XAMPP</h4>
+      <p>Compatible Apache + PHP + MySQL</p>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-card-icon">&#128272;</div>
+      <h4>Securite</h4>
+      <p>CSRF tokens, rate limiting, audit logs, requetes preparees</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CTA ═══════════════ -->
+<section class="cta">
+  <h2>Pret a gerer votre pharmacie ?</h2>
+  <p>Decouvrez l'interface complete de PharmaCare en apercu statique.</p>
+  <a href="apercu.html" class="cta-btn">
+    Voir l'apercu de l'application
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+  </a>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="footer">
+  <p>PharmaCare &mdash; Systeme de gestion pharmaceutique</p>
+</footer>
+
+<!-- ═══════════════ SCROLL REVEAL ═══════════════ -->
+<script>
+(function() {
+  var reveals = document.querySelectorAll('.reveal');
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  reveals.forEach(function(el) { observer.observe(el); });
+})();
+</script>
+
+</body>
+</html>

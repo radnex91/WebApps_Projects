@@ -15,19 +15,27 @@ function getDB(): PDO {
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ]);
         } catch (PDOException $e) {
+            // Page d'erreur 503 brandée (includes/erreur.php) — robuste, sans BDD.
+            require_once __DIR__ . '/../includes/erreur.php';
             if (IS_PROD) {
                 error_log('PharmaCare DB Error: ' . $e->getMessage());
-                header('HTTP/1.1 503 Service Unavailable');
-                die('<div style="font-family:sans-serif;padding:40px;background:#1a0a0a;color:#ff5e57;border:1px solid #ff5e57;border-radius:8px;margin:40px auto;max-width:600px;">
-                    <h3>Service temporairement indisponible</h3>
-                    <p style="color:#aaa;font-size:13px;">L\'application est en maintenance. Veuillez réessayer dans quelques minutes.</p>
-                </div>');
+                afficher_erreur(
+                    503,
+                    'Service indisponible',
+                    'L\'application est temporairement indisponible. Veuillez réessayer dans quelques minutes.',
+                    'Erreur 503 · Maintenance / base de données',
+                    '503'
+                );
+            } else {
+                afficher_erreur(
+                    503,
+                    'Base de données inaccessible',
+                    'Vérifiez que XAMPP (MySQL) est démarré et que la base « pharmacare » existe.',
+                    'Erreur 503 · ' . $e->getMessage(),
+                    '503'
+                );
             }
-            die('<div style="font-family:sans-serif;padding:40px;background:#1a0a0a;color:#ff5e57;border:1px solid #ff5e57;border-radius:8px;margin:40px auto;max-width:600px;">
-                <h3>Erreur de connexion à la base de données</h3>
-                <p>' . htmlspecialchars($e->getMessage()) . '</p>
-                <p style="color:#aaa;font-size:13px;">Vérifiez que XAMPP est démarré et que la base <strong>pharmacare</strong> existe.</p>
-            </div>');
+            exit;
         }
     }
     return $pdo;

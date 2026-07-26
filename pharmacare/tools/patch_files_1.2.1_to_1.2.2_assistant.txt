@@ -1,0 +1,12 @@
+# Patch 1.2.1 -> 1.2.2 : assistant connait les quantites par pharmacie
+# - config/assistant.php : tool_search_products affiche la quantite de la
+#   pharmacie correspondante pour le caissier, et un detail complet
+#   (magasin + ventilation toutes pharmacies) pour l'admin ; elargit les
+#   mots-cles de recherche (combien / nombre / reste / en stock / avons).
+# - config/env.php : bump APP_VERSION 1.2.1 -> 1.2.2 (cache-bust).
+# Aucune dependance BDD : lit uniquement des colonnes existantes
+# (produits.stock_magasin, produit_pharmacie, pharmacies).
+# Le manifeste d'integrite est auto-inclus par build_patch.sh
+# (aucun fichier couvert modifie -> manifeste inchange, inoffensif).
+config/assistant.php
+config/env.php

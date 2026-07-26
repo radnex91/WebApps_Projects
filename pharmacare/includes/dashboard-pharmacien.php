@@ -105,6 +105,8 @@ showFlash();
   </div>
 </div>
 
+<?php require __DIR__ . '/dashboard-alertes-pharmacies.php'; ?>
+
 <div class="card" style="margin-bottom:20px;">
   <div class="card-header">
     <div class="card-title">Évolution des ventes — 30 derniers jours</div>
