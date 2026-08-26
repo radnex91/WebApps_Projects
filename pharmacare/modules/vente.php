@@ -9,6 +9,8 @@ $db = getDB();
 
 // Module « client fidèle » désactivé partout pour l'instant (paramètre fidelite_active).
 $fideliteActive = fideliteActive();
+// Vente à crédit / dettes suspendues pour l'instant (paramètre credit_active).
+$creditActive   = creditActive();
 
 $modeLabels = [
     'espèces'   => 'Espèces',
@@ -119,6 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
     $modePaiement = $_POST['mode_paiement'] ?? 'espèces';
     if (!isset($modeLabels[$modePaiement])) {
         $modePaiement = 'espèces';
+    }
+
+    // Vente à crédit désactivée (dettes suspendues) : on rejette toute vente
+    // crédit soumise, même si le client est enregistré. La vérification se
+    // fait ici, serveur, pour fermer la porte quelle que soit l'UI.
+    if ($modePaiement === 'crédit' && !creditActive()) {
+        flash('La vente à crédit est actuellement désactivée.', 'error');
+        header('Location: ' . url('vente')); exit;
     }
 
     // ── Client : saisie libre ou client existant ──
@@ -385,10 +395,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
 
         // ── Marquer le code de remise comme utilisé (si remise appliquée) ──
         if ($remisePct > 0 && $autorisePar && !empty($code)) {
-            $db->prepare("UPDATE codes_remise
+            $updCode = $db->prepare("UPDATE codes_remise
                           SET used = 1, used_at = NOW(), used_vente_id = ?, used_remise_pct = ?
-                          WHERE code = ? AND used = 0")
-               ->execute([$vid, $remisePct, $code]);
+                          WHERE code = ? AND used = 0");
+            $updCode->execute([$vid, $remisePct, $code]);
+            if ($updCode->rowCount() === 0) {
+                // Le code vient d'être consommé par une vente concurrente :
+                // on refuse la vente entière (rollback) plutôt que d'appliquer
+                // la remise deux fois sur un code à usage unique.
+                throw new Exception('Code de remise déjà utilisé ou expiré.');
+            }
         }
 
         // ── Sortie de stock au coût d'achat (inventaire intermittent OHADA) ──
@@ -414,14 +430,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
 
     } catch (Exception $e) {
         $db->rollBack();
-        flash('Erreur : ' . $e->getMessage(), 'error');
+        flashError($e, 'vente');
         header('Location: ' . url('vente')); exit;
     }
 }
 
 // ── Données catalogue ──────────────────────────────────────
+// Projection explicite : on évite p.* (qui charge la colonne description TEXT
+// et d'autres colonnes inutiles) sur tout le catalogue à chaque affichage POS.
 $produits = $db->prepare("
-    SELECT p.*, c.nom AS cat,
+    SELECT p.id, p.nom, p.reference, p.unite, p.prix_vente, p.seuil_alerte,
+           c.nom AS cat,
            COALESCE(pp.stock, 0) AS stock,
            COALESCE(pp.seuil_alerte, p.seuil_alerte) AS seuil_alerte
     FROM produits p
@@ -829,7 +848,7 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
         <?php endif; ?>
       </div>
       <input type="hidden" name="mode_paiement" id="mode-paiement" value="espèces">
-      <div id="mode-credit" style="display:none;margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px; border-radius:6px; border:1px solid #334155;<?= $fideliteActive ? '' : ' display:none;' ?>">
+      <div id="mode-credit" style="display:none;margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px; border-radius:6px; border:1px solid #334155;<?= ($fideliteActive && $creditActive) ? '' : ' display:none;' ?>">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:#f8fafc;font-size:14px;font-weight:500;user-select:none;">
           <input type="checkbox" id="credit-checkbox" onchange="toggleCreditMode(this)"
                  style="width:18px;height:18px;cursor:pointer;accent-color:var(--teal2);">
@@ -1140,6 +1159,7 @@ function toggleRemiseBlock() {
 
 var CLIENT_MODE = 'simple'; // Vente libre par défaut à l'ouverture du POS
 var FIDELITE_ACTIVE = <?= $fideliteActive ? 'true' : 'false' ?>;
+var CREDIT_ACTIVE   = <?= $creditActive ? 'true' : 'false' ?>;
 
 function chooseClientMode(mode) {
   CLIENT_MODE = mode;
@@ -1263,7 +1283,7 @@ function onClientSelectChange() {
   const selectExist  = document.getElementById('client-select');
   const creditBlock  = document.getElementById('mode-credit');
   const creditCb     = document.getElementById('credit-checkbox');
-  if (selectExist.value) {
+  if (selectExist.value && CREDIT_ACTIVE) {
     if (creditBlock) creditBlock.style.display = '';
   } else {
     if (creditBlock) creditBlock.style.display = 'none';
