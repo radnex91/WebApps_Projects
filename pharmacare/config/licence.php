@@ -46,10 +46,22 @@ const LICENCE_PUBKEY = 'LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtp
 const LICENCE_FREE_CAP = 150;
 
 // Secret HMAC pour les CODES COURTS (format LLLL-NNNNNN-CCCCCCCC, SMS-friendly).
-// Rempli par tools/gen_licence_secret.php. Vide = seuls les codes longs (RSA)
-// sont acceptés. ⚠ Sécurité réduite : ce secret est embarqué dans l'app livrée
-// au client — un client qui lit le source peut forger des codes courts.
-const LICENCE_HMAC_SECRET = '5963996789991e37cd3d971066494e0e206c92772e3293c77d266dacbedc23e2';
+// Vivait ici en dur (fuie via le dépôt git public le 2026-08-31) : il vit
+// désormais dans config/licence_secret.php — livré dans les bundles, absent
+// du dépôt git. Vide (fichier absent) = seuls les codes longs (RSA) sont
+// acceptés. ⚠ Sécurité réduite par construction : ce secret est embarqué dans
+// l'app livrée au client — un client qui lit le source peut forger des codes
+// courts (on-premise : contournement pénible, pas impossible).
+const LICENCE_HMAC_SECRET_FILE = __DIR__ . '/licence_secret.php';
+
+/** Secret HMAC des codes courts ('' = codes courts désactivés). */
+function licence_hmac_secret(): string {
+    static $s = null;
+    if ($s !== null) return $s;
+    if (!is_file(LICENCE_HMAC_SECRET_FILE)) return $s = '';
+    $v = require LICENCE_HMAC_SECRET_FILE;
+    return $s = (is_string($v) && $v !== '') ? $v : '';
+}
 
 // ── Helpers base64url ───────────────────────────────────────
 function licence_b64url_encode(string $bin): string {
@@ -107,7 +119,7 @@ function licence_short_verify(string $code, string $instanceId): ?int {
     $cap = (int)$parts[1];
     $check = $parts[2];
     if ($cap <= 0) return null;
-    $secret = defined('LICENCE_HMAC_SECRET') ? LICENCE_HMAC_SECRET : '';
+    $secret = licence_hmac_secret();
     if ($secret === '') return null; // codes courts désactivés
     $expected = licence_hmac8($instanceId, $cap, $secret);
     return hash_equals($expected, $check) ? $cap : null;
@@ -186,7 +198,7 @@ function licence_current(bool $refresh = false): array {
             if (count($parts) === 2) {
                 $cap = (int)$parts[0];
                 $check = $parts[1];
-                $secret = defined('LICENCE_HMAC_SECRET') ? LICENCE_HMAC_SECRET : '';
+                $secret = licence_hmac_secret();
                 if ($cap > 0 && $secret !== '' && hash_equals(licence_hmac8($inst, $cap, $secret), $check)) {
                     return $cache = [
                         'cap' => $cap, 'counter' => 0,
@@ -212,13 +224,23 @@ function licence_current(bool $refresh = false): array {
     ];
 }
 
-/** Nombre total de vente_lignes en BDD. */
+/** Nombre total de vente_lignes en BDD (cache disque 60 s, invalidé à chaque vente). */
 function licence_usage(): int {
+    static $mem = null;
+    if ($mem !== null) return $mem;
+    $found = false;
+    require_once __DIR__ . '/../includes/cache_file.php';
+    $val = cache_get('licence_usage', 60, $found);
+    if ($found) {
+        return $mem = (int)$val;
+    }
     try {
-        return (int)getDB()->query("SELECT COUNT(*) FROM vente_lignes")->fetchColumn();
+        $n = (int)getDB()->query("SELECT COUNT(*) FROM vente_lignes")->fetchColumn();
     } catch (\Throwable $e) {
         return 0;
     }
+    cache_set('licence_usage', $n, 60);
+    return $mem = $n;
 }
 
 /** Lignes restantes avant blocage (≥ 0). */
@@ -250,7 +272,7 @@ function licence_apply_code(string $code): array {
         if ($cap <= $cur['cap']) {
             return ['ok' => false, 'msg' => 'Code déjà actif ou plafond (' . $cap . ') inférieur ou égal au plafond courant (' . $cur['cap'] . ').'];
         }
-        $check = licence_hmac8($inst, $cap, LICENCE_HMAC_SECRET);
+        $check = licence_hmac8($inst, $cap, licence_hmac_secret());
         $record = 'S:' . $cap . ':' . $check;
         return licence_store_record($record, $cap, 0, 0, $inst);
     }
@@ -295,7 +317,11 @@ function licence_store_record(string $record, int $cap, int $counter, int $expir
         licence_current(true); // rafraîchir le cache
         return ['ok' => true, 'msg' => 'Licence activée. Nouveau plafond : ' . $cap . ' lignes de vente.'];
     } catch (\Throwable $e) {
-        return ['ok' => false, 'msg' => 'Erreur base de données : ' . $e->getMessage()];
+        if (!defined('IS_PROD') || !IS_PROD) {
+            return ['ok' => false, 'msg' => 'Erreur base de données : ' . $e->getMessage()];
+        }
+        error_log('PharmaCare licence.apply: ' . $e->getMessage());
+        return ['ok' => false, 'msg' => 'Erreur base de données lors de l\'activation de la licence. Contactez un administrateur.'];
     }
 }
 

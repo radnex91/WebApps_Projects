@@ -6,6 +6,28 @@ vendor/
 
 # PharmaCare : fichiers de rate-limit (artefacts runtime)
 pharmacare/config/.rate_limit/
+# PharmaCare : cache disque des agrégats (artefact runtime, jamais committer)
+pharmacare/cache/
+# PharmaCare : credentials de production (ne jamais committer)
+pharmacare/config/env.prod.php
+# PharmaCare : artefacts PHPUnit / Composer (ne pas committer)
+pharmacare/vendor/
+pharmacare/.phpunit.cache/
+# PharmaCare : licence — clé privée et ledger (côté développeur, JAMAIS livrer au client)
+pharmacare/tools/licence_privatekey.php
+pharmacare/tools/licence_ledger.json
+pharmacare/tools/licence_secret.php
+pharmacare/tools/licence_secret.php.bak
+# PharmaCare : secret HMAC app (roté hors de config/licence.php le 2026-08-31 —
+# livré dans les bundles mais JAMAIS committé ; ancien secret fuité en public)
+pharmacare/config/licence_secret.php
+# PharmaCare : bundle portable du gestionnaire de licences (contient la clé privée — JAMAIS committer)
+pharmacare/dist/
+# PharmaCare : sauvegardes BDD (dumps — données client, JAMAIS committer)
+pharmacare/backups/
 
 # Brainy ERP : dépôt git dédié (C:\xampp\htdocs\brainy-erp\.git)
 brainy-erp/
+
+# PharmaCare : listings fournisseurs (données commerciales, ne pas committer)
+pharmacare/*.xlsx

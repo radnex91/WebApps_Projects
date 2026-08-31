@@ -55,8 +55,9 @@ L'app recalcule ce jeton avec **son** `instance_id` et le **secret embarqué**, 
 (temps constant). Le code n'est valable que pour l'instance liée.
 
 **Sécurité réduite (à comprendre) :** contrairement au code long (RSA), le secret de
-vérification du code court **voyage dans l'app livrée au client** (constante
-`LICENCE_HMAC_SECRET`). Un client qui lit le code source peut donc **forger** des codes
+vérification du code court **voyage dans l'app livrée au client** (fichier
+`config/licence_secret.php`, livraison bundle uniquement — absent du dépôt git ; l'app
+le lit via `licence_hmac_secret()`). Un client qui lit le code source peut donc **forger** des codes
 courts pour sa propre instance. C'est un compromis délibéré pour la praticité du SMS.
 Le code long (RSA) reste disponible quand la sécurité importe plus que la commodité.
 L'anti-rejeu des codes courts repose sur le **plafond absolu** : un code n'est appliqué
@@ -104,7 +105,8 @@ php tools/gen_licence_keypair.php
 php tools/gen_licence_secret.php
 ```
 - Écrit le **secret** dans `tools/licence_secret.php` (gitignoré — à garder secret).
-- Injecte le même secret dans `config/licence.php` (constante `LICENCE_HMAC_SECRET`).
+- Écrit le même secret dans `config/licence_secret.php` (app cliente — gitignoré, mais
+  **livré dans les bundles deploy** ; livré manuellement vers les installs existantes).
 - **Refuse** de s'exécuter si un secret est déjà en place — sauf `--force` :
   ```bash
   php tools/gen_licence_secret.php --force   # écrase et invalide TOUS les codes courts déjà émis
@@ -255,6 +257,27 @@ Le ledger (`tools/licence_ledger.json`) retient le cap du client ; `--pack` calc
 automatiquement `nouveau_cap = ancien_cap + pack`. Les codes longs incrémentent en outre
 le compteur anti-rejeu.
 
+### D.3 Version portable — émettre des codes depuis une autre machine
+
+Le bundle **`dist/PharmaCare-Licence-Manager-<version>-portable.zip`** contient
+l'exe + un runtime PHP 8.2 embarqué (`tools/php/`) : il fonctionne sur toute
+machine Windows 10/11 x64 **sans XAMPP ni PHP**. Décompressez-le où vous voulez
+et double-cliquez `tools\gen_licence.exe`.
+
+- **Contenu sensible** : clé privée RSA (`licence_privatekey.php`), secret HMAC
+  (`licence_secret.php`) et ledger (`licence_ledger.json`). **Ne jamais transmettre
+  à un client** ni committer (dist/ est git-ignoré).
+- **Ledger par copie** : chaque machine a son propre `licence_ledger.json`.
+  Avant/après une session sur une machine secondaire, synchronisez ce fichier
+  avec la machine principale — sinon le mode « Pack additionnel » calcule sur un
+  historique faux et les counters des codes longs entrent en conflit.
+- **Palier gratuit** : modifié dans la copie du bundle uniquement ; répercutez la
+  valeur dans le dépôt principal avant déploiement.
+- **Rebuild** (après modification de `licence_lib.php`, de l'exe ou des fichiers
+  couverts) : `bash tools/build_licence_portable.sh` sur la machine de dev —
+  recompile l'exe, assemble le bundle, auto-teste (status + génération sur copie
+  temporaire) et produit le zip.
+
 ### Exemples de tarification (à votre guise)
 | Vous vendez | Commande |
 |---|---|
@@ -318,8 +341,8 @@ incrémente à chaque émission).
 
 ### Un code court est refusé : « Code court invalide ou non lié à cette instance »
 Soit le code a été généré pour une autre instance, soit le secret HMAC diffère entre le
-poste dev (`tools/licence_secret.php`) et le serveur client (`LICENCE_HMAC_SECRET` dans
-`config/licence.php`). Vérifiez qu'ils sont identiques. À noter : les codes courts
+poste dev (`tools/licence_secret.php`) et le serveur client (`config/licence_secret.php`).
+Vérifiez qu'ils sont identiques. À noter : les codes courts
 n'expirent pas et n'acceptent que des plafonds strictement supérieurs au cap courant
 (rejouer un même code, ou un cap inférieur/égal, est refusé).
 
