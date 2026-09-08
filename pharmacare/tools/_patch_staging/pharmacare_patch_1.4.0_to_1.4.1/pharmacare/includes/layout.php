@@ -984,7 +984,6 @@ window.PC_OFFLINE = (function(){
   // onglet pourrait démarrer un rejeu concurrent sur la même file.
   function lockRefresh(){ try { localStorage.setItem(LOCK, String(Date.now())); } catch (e) {} }
   var replayDone = 0; // ventes retransmises depuis le début du rejeu courant
-  var replayFailToasted = false; // 1 toast par panne (rejeu) — pas de spam si elle dure
   function syncQueue(){
     if (syncing || mode !== 'online' || readQueue().length === 0) return;
     if (!lockTake()) return;
@@ -1003,7 +1002,6 @@ window.PC_OFFLINE = (function(){
       fetch(window.APP_URL + '/vente', { method: 'POST', body: fd, credentials: 'same-origin', redirect: 'follow' })
         .then(function(r){
           if (r.redirected && /[?&]receipt=/.test(r.url)) {
-            replayFailToasted = false; // le serveur répond à nouveau → une future panne re-notifiera
             dequeue(); replayDone++;
             // Notifier le POS (solde de caisse en direct) : la vente retransmise
             // vient d'être enregistrée côté serveur — elle quitte la file
@@ -1031,23 +1029,6 @@ window.PC_OFFLINE = (function(){
             return;
           }
           return r.text().then(function(html){
-            // Sans redirection 302, le serveur n'a rendu AUCUNE décision
-            // métier : 5xx = panne transitoire (BDD…), 403 = session/CSRF.
-            // La vente n'est NI enregistrée NI refusée → ELLE RESTE EN FILE.
-            // Sans ce garde, un rejeu démarré pendant la panne lirait chaque
-            // 503 comme un refus métier et viderait TOUTE la file vente par
-            // vente (ticket imprimé, argent encaissé, vente jamais enregistrée).
-            if (!r.redirected) {
-              syncing = false; lockRelease();
-              if (r.status === 403) {
-                apply('auth');
-                notify('Reconnectez-vous : ' + readQueue().length + ' vente(s) hors ligne conservée(s).', 'error');
-                return;
-              }
-              if (!replayFailToasted) { replayFailToasted = true; notify('Serveur indisponible — ' + readQueue().length + ' vente(s) conservée(s) en file d\'attente ; nouvelle tentative automatique.', 'error'); }
-              setTimeout(syncQueue, RETRY_MS);
-              return;
-            }
             var rateLimited = html.indexOf('Trop de ventes enregistrées') !== -1;
             if (rateLimited) {
               // Blocage TEMPORAIRE (anti-abus) → JAMAIS de vente perdue : le
@@ -1170,17 +1151,8 @@ window.PC_OFFLINE = (function(){
             if (cb && cb.onQueued) cb.onQueued(queued, true);
             return;
           }
-          // Sans redirection 302, le serveur n'a rendu AUCUNE décision métier :
-          // 5xx = panne transitoire (BDD…), 403 = session/CSRF expirée. La vente
-          // n'est NI enregistrée NI refusée → elle RESTE EN FILE (jamais dequeue).
-          if (!r.redirected) {
-            if (r.status === 403) { setReason('auth'); notify('Session expirée — vente conservée, reconnectez-vous : transmission automatique après reconnexion.', 'error'); if (cb && cb.onQueued) cb.onQueued(queued, false); apply('auth'); return; }
-            setReason('server');
-            notify('Serveur indisponible — vente conservée en file d\'attente. Ticket envoyé à l\'imprimante.', 'error');
-            if (cb && cb.onQueued) cb.onQueued(queued, false);
-            return;
-          }
-          dequeue(); // refus métier confirmé par le serveur (302 + flash : stock, remise…)
+          if (r.status >= 500) { setReason('server'); notify('Serveur indisponible — vente conservée en file d\'attente. Ticket envoyé à l\'imprimante.', 'error'); if (cb && cb.onQueued) cb.onQueued(queued, false); return; }
+          dequeue(); // refus métier confirmé par le serveur (stock, remise…)
           if (cb && cb.onServerRefused) cb.onServerRefused(r.url);   // flash affichée sur la page cible
         })
         .catch(function(){
