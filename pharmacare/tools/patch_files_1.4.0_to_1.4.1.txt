@@ -43,6 +43,12 @@
 #      sans double comptage au rejeu (bascule file → transmis).
 #    Seules les ventes ESPÈCES comptent (conforme à mouvements_caisse).
 #
+# 7. Ceinture de sécurité : includes/bootstrap_errors.php est livré (2 Ko)
+#    car config/env.php livré l'exige (require). Il est normalement déjà
+#    présent sur toute install 1.4.0 fonctionnelle — on élimine ainsi tout
+#    risque d'écran blanc fatal.
+#
 config/env.php
 includes/layout.php
+includes/bootstrap_errors.php
 modules/vente.php

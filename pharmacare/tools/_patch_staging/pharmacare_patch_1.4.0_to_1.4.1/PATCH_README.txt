@@ -4,11 +4,12 @@ PharmaCare — patch de mise a jour 1.4.0 -> 1.4.1
 Ce patch contient UNIQUEMENT les fichiers modifies. Il ne touche pas a la
 base de donnees ni a votre configuration de production (env.prod.php).
 
-Fichiers inclus (3) :
+Fichiers inclus (5) :
   - pharmacare/config/env.php
   - pharmacare/includes/layout.php
   - pharmacare/modules/vente.php
   - pharmacare/config/licence_integrity.php  (manifeste d'integrite regenere)
+  - pharmacare/includes/bootstrap_errors.php  (ceinture de securite, requis par env.php)
   + 5 script(s) de migration BDD (migrate_*.php, idempotents)
 
 APPLICATION (Windows, XAMPP) :

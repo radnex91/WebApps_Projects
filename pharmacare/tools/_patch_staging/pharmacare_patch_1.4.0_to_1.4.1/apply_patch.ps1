@@ -1,4 +1,4 @@
-# PharmaCare — application d'un patch (delta) sur une install existante.
+﻿# PharmaCare - application d'un patch (delta) sur une install existante.
 # Sauvegarde les fichiers existants avant de les ecraser. Aucune BDD, aucune reinstall.
 # Lanceur : apply_patch.bat (double-clic). Interactif (console).
 param([string]$Live = "C:\xampp\htdocs\pharmacare")
@@ -66,7 +66,7 @@ if ($migs) {
             Write-Host "  -> $($m.Name)" -ForegroundColor Cyan
             & $phpExe $m.FullName $Live
             if ($LASTEXITCODE -ne 0) {
-                Write-Host "  [echec] $($m.Name) (code $LASTEXITCODE) — voir message ci-dessus." -ForegroundColor Red
+                Write-Host "  [echec] $($m.Name) (code $LASTEXITCODE) - voir message ci-dessus." -ForegroundColor Red
             }
         }
     }
