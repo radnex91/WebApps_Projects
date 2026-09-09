@@ -219,7 +219,49 @@ function clearCart() {
     cart = {};
     renderCart();
     saveCart();
+    resetPaymentInputs();
   });
+}
+
+// Remet à zéro les champs du POS après vidage du panier SANS rechargement
+// (vente hors ligne mise en file, bouton « Vider »). Sinon l'état de la vente
+// précédente fuit sur la suivante : montant reçu réaffiché (recalculé en
+// « reliquat » contre un panier vide), montant_recu obsolète en POST, nom du
+// client précédent, et mode_paiement resté sur « crédit » si la vente l'était.
+function resetPaymentInputs() {
+  const recuEl = document.getElementById('montant-recu');
+  if (recuEl) recuEl.value = '';
+  const codeEl = document.getElementById('code-remise');
+  if (codeEl) {
+    codeEl.value = '';
+    codeEl.dispatchEvent(new Event('input'));
+  }
+  const pctDisplay = document.getElementById('remise-pct-display');
+  if (pctDisplay) pctDisplay.value = '—';
+  const pctInput = document.getElementById('remise-pct');
+  if (pctInput) pctInput.value = '0';
+  const block = document.getElementById('remise-block');
+  if (block) block.style.display = 'none';
+  const icon = document.getElementById('remise-toggle-icon');
+  if (icon) icon.textContent = '▸';
+  // Retour à l'état « vente libre » d'une page fraîche : nom du client effacé,
+  // sélecteur client vidé, mode espèces restauré (une vente à crédit précédente
+  // ne doit pas fuiter sur la suivante).
+  const clientEl = document.getElementById('client-nom-saisie');
+  if (clientEl) clientEl.value = '';
+  if (typeof chooseClientMode === 'function') {
+    try { chooseClientMode('simple'); } catch (e) {}
+  } else {
+    const selectExist = document.getElementById('client-select');
+    if (selectExist) selectExist.value = '';
+    const creditCb = document.getElementById('credit-checkbox');
+    if (creditCb && creditCb.checked) {
+      creditCb.checked = false;
+      if (typeof toggleCreditMode === 'function') toggleCreditMode(creditCb);
+      else { const pm = document.getElementById('mode-paiement'); if (pm) pm.value = 'espèces'; }
+    }
+  }
+  calcMonnaie();
 }
 
 function renderCart() {

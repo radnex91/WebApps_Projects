@@ -972,7 +972,27 @@ window.PC_OFFLINE = (function(){
   // ── File d'attente locale (navigateur, par terminal) ──
   function fdToObj(fd){ var o = {}; fd.forEach(function(v, k){ o[k] = String(v); }); return o; }
   function objToFd(o){ var fd = new FormData(); for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) fd.append(k, o[k]); return fd; }
-  function dequeue(){ var q = readQueue(); q.shift(); writeQueue(q); refreshPill(); }
+  // Retire de la file la vente identifiée par son client_ref. Sans argument
+  // (compat FIFO du rejeu), retire la tête. On ne peut PAS faire un simple
+  // shift() pour la vente courante de submitSale : celle-ci est poussée À LA
+  // FIN — si des ventes hors ligne attendent leur rejeu, un shift()
+  // retirerait la plus ancienne (jamais transmise → vente perdue) et
+  // laisserait la vente déjà enregistrée en file.
+  function dequeue(clientRef){
+    var q = readQueue();
+    if (clientRef) {
+      var idx = -1;
+      for (var i = 0; i < q.length; i++) {
+        if (q[i].form && q[i].form.client_ref === clientRef) { idx = i; break; }
+      }
+      if (idx === -1) return; // déjà retirée (double retrait impossible)
+      q.splice(idx, 1);
+    } else {
+      if (!q.length) return;
+      q.shift();
+    }
+    writeQueue(q); refreshPill();
+  }
   function lockTake(){
     var now = Date.now(), cur = parseInt(localStorage.getItem(LOCK) || '0', 10) || 0;
     if (cur && now - cur < LEASE) return false;
@@ -1004,7 +1024,7 @@ window.PC_OFFLINE = (function(){
         .then(function(r){
           if (r.redirected && /[?&]receipt=/.test(r.url)) {
             replayFailToasted = false; // le serveur répond à nouveau → une future panne re-notifiera
-            dequeue(); replayDone++;
+            dequeue(item.form.client_ref); replayDone++;
             // Notifier le POS (solde de caisse en direct) : la vente retransmise
             // vient d'être enregistrée côté serveur — elle quitte la file
             // (le hook PC_ON_SALE_TRANSMITTED la bascule dans « transmis »).
@@ -1061,7 +1081,7 @@ window.PC_OFFLINE = (function(){
               setTimeout(syncQueue, wait);
               return;
             }
-            dequeue();
+            dequeue(item.form.client_ref);
             notify('Vente hors ligne refusée par le serveur — détail à la caisse.', 'error');
             step();
           });
@@ -1158,7 +1178,7 @@ window.PC_OFFLINE = (function(){
             // Notifier le POS (solde de caisse en direct) : vente espèces
             // enregistrée côté serveur — elle compte dans le solde.
             if (typeof window.PC_ON_SALE_TRANSMITTED === 'function') window.PC_ON_SALE_TRANSMITTED(o.mode_paiement === 'espèces' ? offlineTotals(o).total : 0);
-            dequeue(); if (cb && cb.onSuccess) cb.onSuccess(r.url); syncQueue(); return;
+            dequeue(o.client_ref); if (cb && cb.onSuccess) cb.onSuccess(r.url); syncQueue(); return;
           }
           if (r.redirected && /index\.php/.test(r.url)) { setReason('auth'); notify('Session expirée — vente conservée, reconnectez-vous : transmission automatique après reconnexion.', 'error'); if (cb && cb.onQueued) cb.onQueued(queued, false); apply('auth'); return; }
           if (r.redirected && r.url.indexOf('/caisse') !== -1 && /[?&]action=ouvrir/.test(r.url)) {
@@ -1180,7 +1200,7 @@ window.PC_OFFLINE = (function(){
             if (cb && cb.onQueued) cb.onQueued(queued, false);
             return;
           }
-          dequeue(); // refus métier confirmé par le serveur (302 + flash : stock, remise…)
+          dequeue(o.client_ref); // refus métier confirmé par le serveur (302 + flash : stock, remise…) — SA vente, pas la tête de file
           if (cb && cb.onServerRefused) cb.onServerRefused(r.url);   // flash affichée sur la page cible
         })
         .catch(function(){
@@ -1234,7 +1254,13 @@ window.PC_OFFLINE = (function(){
           // Ne vider le panier QUE si la vente a bien été mise en file
           // (file pleine → vente non enregistrée : le caissier garde son
           // panier et réessaie après transmission).
-          if (item) { try { cart = {}; saveCart(); renderCart(); } catch (err) {} }
+          if (item) {
+            try { cart = {}; saveCart(); renderCart(); } catch (err) {}
+            // Sans rechargement de page, le montant reçu / reliquat de la
+            // vente précédente resterait affiché (et repartirait en POST sur
+            // la vente suivante) — remettre les champs de paiement à zéro.
+            if (typeof resetPaymentInputs === 'function') { try { resetPaymentInputs(); } catch (err) {} }
+          }
           busy = false;
           // Vente mise en file (serveur injoignable) → ticket imprimé
           // IMMÉDIATEMENT en local : le client repart avec son ticket,
