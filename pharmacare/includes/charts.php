@@ -42,12 +42,16 @@ function renderLineChart(array $data, string $color = 'var(--teal)', string $tit
     }
 
     // === Lissage Catmull-Rom -> Bezier ===
-    function catmullRom2bezier($p0, $p1, $p2, $p3) {
-        $cp1x = $p1['x'] + ($p2['x'] - $p0['x']) / 6;
-        $cp1y = $p1['y'] + ($p2['y'] - $p0['y']) / 6;
-        $cp2x = $p2['x'] - ($p3['x'] - $p1['x']) / 6;
-        $cp2y = $p2['y'] - ($p3['y'] - $p1['y']) / 6;
-        return "C {$cp1x} {$cp1y}, {$cp2x} {$cp2y}, {$p2['x']} {$p2['y']}";
+    // Gardé function_exists : sans ce garde, un 2e appel de renderLineChart()
+    // dans la même requête re-déclare la fonction → fatal error 500.
+    if (!function_exists('catmullRom2bezier')) {
+        function catmullRom2bezier($p0, $p1, $p2, $p3) {
+            $cp1x = $p1['x'] + ($p2['x'] - $p0['x']) / 6;
+            $cp1y = $p1['y'] + ($p2['y'] - $p0['y']) / 6;
+            $cp2x = $p2['x'] - ($p3['x'] - $p1['x']) / 6;
+            $cp2y = $p2['y'] - ($p3['y'] - $p1['y']) / 6;
+            return "C {$cp1x} {$cp1y}, {$cp2x} {$cp2y}, {$p2['x']} {$p2['y']}";
+        }
     }
 
     $pathD = "M {$pts[0]['x']} {$pts[0]['y']}";

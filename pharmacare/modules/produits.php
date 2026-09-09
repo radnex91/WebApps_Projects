@@ -140,12 +140,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
                 $stmtCat   = $db->prepare("SELECT id FROM categories WHERE LOWER(nom)=LOWER(?) LIMIT 1");
                 $stmtFourn = $db->prepare("SELECT id FROM fournisseurs WHERE LOWER(nom)=LOWER(?) ORDER BY actif DESC LIMIT 1");
                 $stmtFind  = $db->prepare("SELECT id FROM produits WHERE reference=? LIMIT 1");
+                // Palette de couleurs attribuées aux catégories créées à la volée
+                // (rotation) — mêmes teintes que le module categories.php.
+                $IMPORT_PALETTE = ['#00c9a7','#4895ef','#f0b429','#ef4444','#9b59b6','#e74c3c','#e67e22','#1abc9c','#3498db','#e91e63'];
+                $importCatIdx    = 0;
+                $importCatsCrees = [];
                 // L'import RAVITAILLE LE MAGASIN (dépôt central), pas les pharmacies.
                 // stock_magasin = quantité livrée ; produits.stock (miroir pharmacie
                 // principale) reste 0 — les pharmacies sont alimentées par transferts.
                 $stmtIns   = $db->prepare("INSERT INTO produits (nom,reference,unite,categorie_id,fournisseur_id,description,stock,stock_magasin,seuil_alerte,prix_achat,prix_vente,tva,date_expiration) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
                 $stmtUpd   = $db->prepare("UPDATE produits SET nom=?,unite=?,categorie_id=?,fournisseur_id=?,description=?,seuil_alerte=?,prix_achat=?,prix_vente=?,tva=?,date_expiration=?,stock_magasin=stock_magasin+? WHERE id=?");
                 $stmtMvtMag= $db->prepare("INSERT INTO mouvements_magasin (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'entrée',?,?,?)");
+                $stmtCatIns= $db->prepare("INSERT INTO categories (nom,couleur) VALUES (?,?)");
                 $uid = (int)($_SESSION['user_id'] ?? 0);
                 $ligne = 1;
                 $db->beginTransaction();
@@ -174,14 +180,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
                         if ($r) $existingId = (int)$r['id'];
                     }
                     if ($existingId !== null && $mode === 'skip') { $ignores++; continue; }
-                    // Catégorie (par nom, NULL si introuvable)
+                    // Catégorie : trouvée par nom (insensible à la casse), sinon
+                    // créée à la volée (couleur de la palette par rotation).
                     $catId = null;
                     if (isset($colMap['categorie'])) {
                         $cn = $cell($colMap['categorie']);
                         if ($cn !== '') {
                             $stmtCat->execute([$cn]); $r = $stmtCat->fetch();
-                            if ($r) $catId = (int)$r['id'];
-                            else { $avert++; $warnings[] = "Ligne $ligne : catégorie « $cn » introuvable → catégorie vide."; }
+                            if ($r) {
+                                $catId = (int)$r['id'];
+                            } else {
+                                $stmtCatIns->execute([$cn, $IMPORT_PALETTE[$importCatIdx % count($IMPORT_PALETTE)]]);
+                                $catId    = (int)$db->lastInsertId();
+                                $importCatIdx++;
+                                $importCatsCrees[] = $cn;
+                            }
                         }
                     }
                     // Fournisseur (par nom, NULL si introuvable)
@@ -231,7 +244,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
                 $db->commit();
                 } catch (Throwable $e) {
                     $db->rollBack();
-                    $errors[] = 'Erreur base de données — import annulé (aucune ligne écrite) : ' . $e->getMessage();
+                    if (!defined('IS_PROD') || !IS_PROD) {
+                        $errors[] = 'Erreur base de données — import annulé (aucune ligne écrite) : ' . $e->getMessage();
+                    } else {
+                        error_log('PharmaCare import produits: ' . $e->getMessage());
+                        $errors[] = 'Erreur base de données — import annulé (aucune ligne écrite). Contactez un administrateur.';
+                    }
                     $ajoutes = 0; $maj = 0;
                 }
             }
@@ -239,7 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
         }
     }
 
-    auditLog('produits.import', "CSV ($mode) : $ajoutes ajoutés, $maj mis à jour, $ignores ignorés, $avert avert., " . count($errors) . " erreurs");
+    auditLog('produits.import', "CSV ($mode) : $ajoutes ajoutés, $maj mis à jour, $ignores ignorés, $avert avert., " . count($importCatsCrees) . " catégories créées, " . count($errors) . " erreurs");
 
     // ── Vue résultats ──
     layout_head('Résultat de l\'importation', 'produits');
@@ -255,8 +273,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
         <span class="badge badge-blue">Mis à jour : <?= $maj ?></span>
         <span class="badge badge-gray">Ignorés : <?= $ignores ?></span>
         <span class="badge badge-gold">Avertissements : <?= $avert ?></span>
+        <span class="badge badge-purple">Catégories créées : <?= count($importCatsCrees) ?></span>
         <span class="badge badge-red">Erreurs : <?= count($errors) ?></span>
       </div>
+      <?php if ($importCatsCrees): ?>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Catégories créées automatiquement (à partir du CSV)</th></tr></thead>
+          <tbody>
+          <?php foreach (array_slice(array_unique($importCatsCrees), 0, 50) as $cn): ?>
+            <tr><td class="text-sm"><?= e($cn) ?></td></tr>
+          <?php endforeach; ?>
+          <?php if (count(array_unique($importCatsCrees)) > 50): ?>
+            <tr><td class="text-sm" style="color:var(--text3);">… et <?= count(array_unique($importCatsCrees)) - 50 ?> autres.</td></tr>
+          <?php endif; ?>
+          </tbody>
+        </table></div>
+      <?php endif; ?>
       <?php if ($errors): ?>
         <div class="table-wrap"><table>
           <thead><tr><th>Erreurs (ligne ignorée ou problème de fichier)</th></tr></thead>
@@ -331,7 +363,8 @@ if ($action === 'import') {
               stock, seuil_alerte, prix_achat, prix_vente, tva, date_expiration (jj/mm/aaaa), description.
               <strong>stock</strong> = quantité livrée au <strong>magasin</strong> (dépôt central), pas aux pharmacies
               (celles-ci sont ravitaillées par transferts). Mode « mettre à jour » : la quantité s'<em>ajoute</em> au stock magasin existant.
-              Catégories/fournisseurs inconnus → laissés vides (avertissement).
+              Catégorie inconnue → <strong>créée automatiquement</strong> (couleur attribuée automatiquement).
+              Fournisseur inconnu → laissé vide (avertissement).
             </small>
           </div>
         </div>
@@ -395,7 +428,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } catch (PDOException $e) {
         // Contrainte UNIQUE (référence déjà utilisée) ou FK (catégorie/fournisseur).
-        flash('Enregistrement impossible : ' . $e->getMessage(), 'error');
+        flashError($e, 'enregistrement produit');
         header('Location: ' . ($pid ? url('produits', ['action'=>'edit','id'=>$pid]) : url('produits', ['action'=>'add']))); exit;
     }
     header('Location: ' . url('produits')); exit;
@@ -517,6 +550,34 @@ if ($q !== '') {
     $params[] = "%$qEsc%";
 }
 
+// ── Export Excel (mêmes filtres que la liste) ────────────────
+if ($action === 'export') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $st = $db->prepare("SELECT p.reference, p.nom, c.nom AS cat, f.nom AS fourn, p.unite,
+                               p.stock, p.seuil_alerte, p.prix_achat, p.prix_vente, p.tva,
+                               p.date_expiration, p.created_at
+                        FROM produits p
+                        LEFT JOIN categories c ON p.categorie_id=c.id
+                        LEFT JOIN fournisseurs f ON p.fournisseur_id=f.id
+                        WHERE $where
+                        ORDER BY p.nom");
+    $st->execute($params);
+    $rows = [];
+    foreach ($st->fetchAll() as $p) {
+        $rows[] = [
+            $p['reference'], $p['nom'], $p['cat'], $p['fourn'], $p['unite'],
+            (int)$p['stock'], (int)$p['seuil_alerte'],
+            (float)$p['prix_achat'], (float)$p['prix_vente'],
+            ($p['tva'] === null || $p['tva'] === '') ? null : (float)$p['tva'],
+            $p['date_expiration'] ? date('d/m/Y', strtotime($p['date_expiration'])) : '',
+            date('d/m/Y H:i', strtotime($p['created_at'])),
+        ];
+    }
+    export_xlsx_send('medicaments_' . date('Y-m-d'), 'Médicaments',
+        ['Référence', 'Nom', 'Catégorie', 'Fournisseur', 'Unité', 'Stock', 'Seuil alerte',
+         'Prix achat', 'Prix vente', 'TVA %', 'Expiration', 'Créé le'], $rows);
+}
+
 $perPage = 25;
 $page    = max(1, (int)($_GET['page'] ?? 1));
 $cntStmt = $db->prepare("SELECT COUNT(*) FROM produits p WHERE $where");
@@ -524,7 +585,9 @@ $cntStmt->execute($params);
 $totalProduits = (int)$cntStmt->fetchColumn();
 $offset  = paginateOffset($page, $perPage);
 
-$query = "SELECT p.*, c.nom AS cat, f.nom AS fourn
+$query = "SELECT p.id, p.nom, p.reference, p.unite, p.stock, p.seuil_alerte,
+                 p.prix_achat, p.prix_vente, p.date_expiration,
+                 c.nom AS cat, f.nom AS fourn
           FROM produits p
           LEFT JOIN categories c ON p.categorie_id=c.id
           LEFT JOIN fournisseurs f ON p.fournisseur_id=f.id
@@ -550,6 +613,7 @@ showFlash();
       </form>
       <?php if (hasPermission('produits.ajouter')): ?>
       <a href="<?= url('produits', ['action'=>'import']) ?>" class="btn btn-ghost btn-sm"><?= icon('upload',14) ?> Importer</a>
+      <a href="<?= url('produits', ['action'=>'export']) ?>" class="btn btn-ghost btn-sm" title="Exporter la liste au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
       <a href="<?= url('produits', ['action'=>'add']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter</a>
       <?php endif; ?>
     </div>
@@ -558,19 +622,21 @@ showFlash();
     <table>
       <thead>
         <tr>
-          <th>Médicament</th><th>Réf.</th><th>Unité</th><th>Catégorie</th>
+          <th>N°</th><th>Médicament</th><th>Réf.</th><th>Unité</th><th>Catégorie</th>
           <th>Stock</th><th>P. Achat</th><th>P. Vente</th><th>Expiration</th>
           <th>Fournisseur</th><th>Statut</th>
           <?php if (hasPermission('produits.modifier') || hasPermission('produits.archiver')): ?><th>Actions</th><?php endif; ?>
         </tr>
       </thead>
       <tbody id="produits-tbody">
-        <?php foreach ($produits as $p):
+        <?php foreach ($produits as $i => $p):
+          $ordre = $offset + $i + 1;
           if     ($p['stock'] == 0)                   { $b='badge-red';   $t='Rupture';    }
           elseif ($p['stock'] <= $p['seuil_alerte'])  { $b='badge-gold';  $t='Stock bas';  }
           else                                         { $b='badge-green'; $t='Disponible'; }
         ?>
         <tr>
+          <td class="text-sm" style="color:var(--text3);"><?= $ordre ?></td>
           <td class="td-name"><?= e($p['nom']) ?></td>
           <td class="td-mono"><?= e($p['reference'] ?? '—') ?></td>
           <td class="text-sm"><?= e($p['unite'] ?? '—') ?></td>
@@ -595,7 +661,7 @@ showFlash();
         </tr>
         <?php endforeach; ?>
         <?php if (!$produits): ?>
-        <tr><td colspan="10">
+        <tr><td colspan="11">
           <div class="empty">
             <div style="color:var(--text3);margin-bottom:8px;"><?= icon('pill',36) ?></div>
             <div>Aucun médicament trouvé</div>

@@ -186,6 +186,26 @@ if ($action === 'stock') {
 }
 
 // ── Vue : liste ───────────────────────────────────────────────
+// ── Export Excel ───────────────────────────────────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $rowsX = [];
+    foreach ($db->query("
+        SELECT ph.nom, ph.adresse, ph.telephone, ph.actif, ph.created_at,
+               (SELECT COUNT(*) FROM produit_pharmacie pp WHERE pp.pharmacie_id = ph.id AND pp.stock > 0) AS nb_prods_stock,
+               (SELECT COUNT(*) FROM sessions_caisse s WHERE s.pharmacie_id = ph.id AND s.statut = 'ouverte') AS nb_sessions_ouvertes
+        FROM pharmacies ph
+        ORDER BY ph.id
+    ")->fetchAll() as $ph) {
+        $rowsX[] = [$ph['nom'], $ph['adresse'], $ph['telephone'],
+                    (int)$ph['actif'] ? 'Active' : 'Désactivée',
+                    (int)$ph['nb_prods_stock'], (int)$ph['nb_sessions_ouvertes'],
+                    date('d/m/Y', strtotime($ph['created_at']))];
+    }
+    export_xlsx_send('pharmacies_' . date('Y-m-d'), 'Pharmacies',
+        ['Nom', 'Adresse', 'Téléphone', 'Statut', 'Nb produits en stock', 'Sessions ouvertes', 'Créée le'], $rowsX);
+}
+
 $pharmacies = $db->query("
     SELECT ph.*,
            (SELECT COUNT(*) FROM produit_pharmacie pp WHERE pp.pharmacie_id = ph.id AND pp.stock > 0) AS nb_prods_stock,
@@ -203,6 +223,7 @@ showFlash();
   <div class="card-header">
     <div class="card-title">Pharmacies</div>
     <div class="flex gap-8">
+      <a href="<?= url('pharmacies', ['export'=>'1']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download', 14) ?> Exporter</a>
       <?php if ($canGerer): ?>
       <a href="<?= url('pharmacies', ['action' => 'stock']) ?>" class="btn btn-ghost btn-sm"><?= icon('boxes', 14) ?> Stock par pharmacie</a>
       <a href="<?= url('pharmacies', ['action' => 'add']) ?>" class="btn btn-primary btn-sm"><?= icon('plus', 14) ?> Ajouter</a>

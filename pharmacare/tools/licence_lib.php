@@ -11,6 +11,7 @@ declare(strict_types=1);
 function licence_lib_openssl_cnf(): string {
     $candidates = [
         getenv('OPENSSL_CONF') ?: '',
+        __DIR__ . '/php/extras/openssl/openssl.cnf',             // bundle portable : runtime dans tools/php
         dirname(__DIR__, 1) . '/php/extras/openssl/openssl.cnf', // C:\xampp\php\extras\...
         dirname(__DIR__, 1) . '/php/extras/ssl/openssl.cnf',
         'C:/xampp/php/extras/openssl/openssl.cnf',

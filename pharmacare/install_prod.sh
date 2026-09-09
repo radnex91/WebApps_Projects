@@ -109,6 +109,48 @@ echo "$HOSTNAME_APP" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' \
   || die "Nom d'hôte invalide : '$HOSTNAME_APP' (lettres, chiffres, '.' et '-' uniquement)."
 ok "Hôte : $HOSTNAME_APP"
 
+# ── [2bis/10] Tuning performance (InnoDB + OPcache + cache/) ──
+# Les configs MySQL/MariaDB par défaut sont largement sous-dimensionnées
+# (buffer pool 128M) : dès que la base grossit, chaque requête lit le disque.
+say "[2bis/10] Optimisation des performances (InnoDB, OPcache, cache)..."
+
+# (a) Buffer pool calé sur la RAM (25 %, plancher 256M, plafond 2G) + log 128M.
+RAM_MB="$(awk '/MemTotal/ { printf "%d", $2/1024 }' /proc/meminfo 2>/dev/null || echo 2048)"
+POOL_MB="$(awk -v r="$RAM_MB" 'BEGIN { p=int(r*0.25); if (p<256) p=256; if (p>2048) p=2048; print p }')"
+
+# Debian/Ubuntu : un drop-in par serveur, prioritaire sur le fichier principal.
+MYSQLD_DIR=""
+[ -d /etc/mysql/mariadb.conf.d ]   && MYSQLD_DIR="/etc/mysql/mariadb.conf.d"
+[ -d /etc/mysql/mysql.conf.d ]     && MYSQLD_DIR="/etc/mysql/mysql.conf.d"
+if [ -n "$MYSQLD_DIR" ]; then
+  DROPIN="$MYSQLD_DIR/99-pharmacare-perf.cnf"
+  {
+    echo "# PharmaCare — tuning performance (généré par install_prod.sh)"
+    echo "[mysqld]"
+    echo "innodb_buffer_pool_size=${POOL_MB}M"
+    echo "innodb_log_file_size=128M"
+  } > "$DROPIN"
+  ok "Drop-in MySQL créé : $DROPIN (buffer pool ${POOL_MB}M pour ${RAM_MB} Mo de RAM)."
+else
+  warn "Structure /etc/mysql/*.conf.d absente — tuning InnoDB ignoré (vérifiez votre serveur)."
+fi
+
+# (b) OPcache : activé par défaut sur Ubuntu récents si le paquet est présent ;
+#     sinon on l'installe. revalidate 2 s si PHP eight+ (directive standard).
+if php -m 2>/dev/null | grep -qi '^Zend OPcache$'; then
+  ok "OPcache déjà actif."
+else
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get install -y "php-opcache" >/dev/null 2>&1 \
+    && ok "OPcache installé (php-opcache)." \
+    || warn "Impossible d'installer php-opcache (paquet absent ?)."
+fi
+
+# (c) Dossier cache/ de l'app : créé tout de suite (www-data l'occupera à l'étape 8).
+mkdir -p "$APP_DIR/cache"
+printf 'Require all denied\nDeny from all\nOptions -Indexes\n' > "$APP_DIR/cache/.htaccess"
+ok "cache/ créé (sera passé à www-data à l'étape 8)."
+
 # ── [3/10] MySQL : base + user dédié ─────────────────────────
 say "[3/10] Configuration MySQL (base + user dédié)..."
 # Connexion root : socket (Ubuntu par défaut) ou mot de passe demandé.
@@ -233,15 +275,24 @@ ok "Apache redémarré."
 
 # ── [8/10] Permissions www-data ──────────────────────────────
 say "[8/10] Permissions d'écriture (www-data)..."
-mkdir -p "$APP_DIR/config/.rate_limit" "$APP_DIR/backups"
-# .htaccess anti-listing dans backups/
+mkdir -p "$APP_DIR/config/.rate_limit" "$APP_DIR/backups" "$APP_DIR/cache"
+# .htaccess anti-listing dans backups/ et cache/
 [ -f "$APP_DIR/backups/.htaccess" ] || printf 'Require all denied\nDeny from all\nOptions -Indexes\n' > "$APP_DIR/backups/.htaccess"
-chown -R www-data:www-data "$APP_DIR/config/.rate_limit" "$APP_DIR/backups"
+[ -f "$APP_DIR/cache/.htaccess" ]   || printf 'Require all denied\nDeny from all\nOptions -Indexes\n' > "$APP_DIR/cache/.htaccess"
+chown -R www-data:www-data "$APP_DIR/config/.rate_limit" "$APP_DIR/backups" "$APP_DIR/cache"
 chmod 700 "$APP_DIR/config/.rate_limit" "$APP_DIR/backups"
+chmod 750 "$APP_DIR/cache"
 # env.prod.php contient le mot de passe DB → lecture www-data uniquement.
 chown www-data:www-data "$ENV_FILE" 2>/dev/null || true
 chmod 600 "$ENV_FILE" 2>/dev/null || true
-ok "config/.rate_limit, backups et env.prod.php protégés (www-data)."
+ok "config/.rate_limit, backups, cache/ et env.prod.php protégés (www-data)."
+
+# Redémarrage MySQL/MariaDB pour appliquer le drop-in perf (si présent).
+if [ -n "$MYSQLD_DIR" ] && [ -f "$MYSQLD_DIR/99-pharmacare-perf.cnf" ]; then
+  say "  Redémarrage MySQL/MariaDB pour activer le tuning InnoDB..."
+  systemctl restart mysql 2>/dev/null || systemctl restart mariadb 2>/dev/null \
+    || warn "Redémarrage MySQL/MariaDB à faire manuellement (panneau / systemctl)."
+fi
 
 # ── [9/10] Pare-feu ufw ──────────────────────────────────────
 say "[9/10] Pare-feu..."

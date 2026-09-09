@@ -1,10 +1,21 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/pagination.php';
 require_once __DIR__ . '/../config/settings.php';
 require_once __DIR__ . '/../config/comptabilite.php';
 requirePermission('comptabilite.voir');
 $db = getDB();
+
+// Valide une date GET au format Y-m-d strict ; sinon retombe sur la valeur par
+// défaut. Sans ce garde : ?debut=garbage fait rejeter la requête par MySQL
+// (« Incorrect datetime value ») → exception PDO non attrapée → page 500.
+function dateGetValide($v, string $default): string {
+    if (!is_string($v) || $v === '') return $default;
+    $d = DateTime::createFromFormat('Y-m-d', $v);
+    return ($d instanceof DateTime && $d->format('Y-m-d') === $v) ? $v : $default;
+}
+
 $action = $_GET['action'] ?? 'dashboard';
 
 $moisLabels = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -62,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'saisie_save') {
         flash('Écriture enregistrée avec succès.', 'success');
     } catch (Exception $e) {
         $db->rollBack();
-        flash('Erreur : ' . $e->getMessage(), 'error');
+        flashError($e, 'écriture comptable');
     }
     header('Location: ' . url('comptabilite', ['action'=>'saisie'])); exit;
 }
@@ -145,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'cloture_exec') {
             'success');
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
-        flash('Clôture impossible : ' . $e->getMessage(), 'error');
+        flashError($e, 'clôture comptable');
     }
     header('Location: ' . url('comptabilite', ['action'=>'cloture'])); exit;
 }
@@ -167,6 +178,21 @@ $finEx   = $exCourant ? $exCourant['date_fin']   : date('Y-12-31');
 if ($action === 'plan'):
     requirePermission('comptabilite.plan');
     $plan = planComptableAll($db);
+
+    // ── Export Excel du plan comptable ──
+    if (($_GET['export'] ?? '') === '1') {
+        require_once __DIR__ . '/../includes/export_xlsx.php';
+        $natureLabels = ['debit'=>'Débit', 'credit'=>'Crédit'];
+        $classes = [1=>'Capitaux', 2=>'Immobilisations', 3=>'Stocks', 4=>'Tiers', 5=>'Trésorerie', 6=>'Charges', 7=>'Produits'];
+        $rowsX = [];
+        foreach ($plan as $pc) {
+            $rowsX[] = [$pc['compte'], $pc['intitule'], $classes[(int)$pc['classe']] ?? $pc['classe'],
+                        $natureLabels[$pc['nature']] ?? $pc['nature']];
+        }
+        export_xlsx_send('plan_comptable_' . date('Y-m-d'), 'Plan comptable',
+            ['Compte', 'Intitulé', 'Classe', 'Nature'], $rowsX);
+    }
+
     $classes = [1=>'Capitaux', 2=>'Immobilisations', 3=>'Stocks', 4=>'Tiers', 5=>'Trésorerie', 6=>'Charges', 7=>'Produits'];
     $natureLabels = ['debit'=>'Débit', 'credit'=>'Crédit'];
     layout_head('Plan comptable', 'comptabilite'); showFlash();
@@ -175,6 +201,7 @@ if ($action === 'plan'):
 <div class="card">
   <div class="card-header">
     <div class="card-title">Plan comptable OHADA</div>
+    <a href="<?= url('comptabilite', ['action'=>'plan', 'export'=>'1']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <a href="<?= url('comptabilite', ['action'=>'plan_edit']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Nouveau compte</a>
   </div>
   <div class="table-wrap">
@@ -396,10 +423,46 @@ document.querySelectorAll('input[name="debit[]"], input[name="credit[]"]').forEa
 
 // ── Journal ────────────────────────────────────────────────
 if ($action === 'journal'):
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
-    $src   = $_GET['source'] ?? '';
-    $entries = journalGet($db, $debut, $fin, $src);
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
+    $src   = isset($_GET['source']) && is_string($_GET['source']) ? $_GET['source'] : '';
+
+    // ── Export Excel du journal (période/source filtrées, sans pagination) ──
+    if (($_GET['export'] ?? '') === '1') {
+        require_once __DIR__ . '/../includes/export_xlsx.php';
+        $allEntries = journalGet($db, $debut, $fin, $src, 100000, 0);
+        $allIds = array_column($allEntries, 'id');
+        $allLignes = [];
+        if ($allIds) {
+            $phX = implode(',', array_fill(0, count($allIds), '?'));
+            $stLX = $db->prepare("SELECT el.*, pc.compte, pc.intitule
+                                   FROM ecriture_lignes el
+                                   JOIN plan_comptable pc ON el.compte_id = pc.id
+                                   WHERE el.ecriture_id IN ($phX)
+                                   ORDER BY pc.compte");
+            $stLX->execute($allIds);
+            foreach ($stLX->fetchAll() as $l) $allLignes[(int)$l['ecriture_id']][] = $l;
+        }
+        $rowsX = [];
+        foreach ($allEntries as $e) {
+            $ls = $allLignes[(int)$e['id']] ?? [];
+            if (!$ls) {
+                $rowsX[] = [date('d/m/Y', strtotime($e['date_ecriture'])), $e['reference'], $e['libelle'], $e['source'], '', '', null, null];
+            }
+            foreach ($ls as $l) {
+                $rowsX[] = [date('d/m/Y', strtotime($e['date_ecriture'])), $e['reference'], $e['libelle'], $e['source'],
+                            $l['compte'], $l['intitule'], (float)$l['debit'], (float)$l['credit']];
+            }
+        }
+        export_xlsx_send('journal_comptable_' . $debut . '_' . $fin, 'Journal',
+            ['Date', 'Réf.', 'Libellé', 'Source', 'Compte', 'Intitulé', 'Débit', 'Crédit'], $rowsX);
+    }
+
+    $jPerPage = 50;
+    $jPage    = max(1, (int)($_GET['page'] ?? 1));
+    $jOffset  = paginateOffset($jPage, $jPerPage);
+    $totalEntries = journalCount($db, $debut, $fin, $src);
+    $entries = journalGet($db, $debut, $fin, $src, $jPerPage, $jOffset);
     $sources = [''=>'Toutes','vente'=>'Ventes','retour'=>'Retours','commande'=>'Commandes','stock'=>'Stock','caisse'=>'Caisse','cloture'=>'Clôtures','manuel'=>'Saisies manuelles'];
 
     // Batch fetch des lignes : 1 requête IN (...) au lieu de N appels à
@@ -422,6 +485,7 @@ if ($action === 'journal'):
 <div class="card">
   <div class="card-header">
     <div class="card-title">Journal général</div>
+    <a href="<?= url('comptabilite', ['action'=>'journal', 'export'=>'1', 'debut'=>$debut, 'fin'=>$fin, 'source'=>$src]) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <div class="flex gap-8">
       <form method="GET" style="display:flex;gap:6px;align-items:end;flex-wrap:wrap;">
         <input type="hidden" name="action" value="journal">
@@ -490,6 +554,7 @@ if ($action === 'journal'):
       </tbody>
     </table>
   </div>
+  <?= renderPagination($jPage, $jPerPage, $totalEntries, ['action'=>'journal','debut'=>$debut,'fin'=>$fin,'source'=>$src]) ?>
 </div>
 <script>
 function toggleDetail(id){
@@ -503,8 +568,8 @@ function toggleDetail(id){
 if ($action === 'grand-livre'):
     $plan = planComptableAll($db);
     $compteId = (int)($_GET['compte_id'] ?? 0);
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
     $compteInfo = null;
     if ($compteId) {
         $st = $db->prepare("SELECT * FROM plan_comptable WHERE id = ?");
@@ -579,16 +644,31 @@ if ($action === 'grand-livre'):
 
 // ── Balance ────────────────────────────────────────────────
 if ($action === 'balance'):
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
     $balance = balanceGet($db, $debut, $fin);
     $classes = [1=>'Capitaux', 2=>'Immobilisations', 3=>'Stocks', 4=>'Tiers', 5=>'Trésorerie', 6=>'Charges', 7=>'Produits'];
+
+    // ── Export Excel de la balance (période filtrée) ──
+    if (($_GET['export'] ?? '') === '1') {
+        require_once __DIR__ . '/../includes/export_xlsx.php';
+        $rowsX = [];
+        foreach ($balance as $c) {
+            $d = (float)$c['total_debit']; $cr = (float)$c['total_credit'];
+            $rowsX[] = [$c['compte'], $c['intitule'], $classes[(int)$c['classe']] ?? $c['classe'],
+                        $d, $cr, $d - $cr];
+        }
+        export_xlsx_send('balance_' . $debut . '_' . $fin, 'Balance',
+            ['Compte', 'Intitulé', 'Classe', 'Total débit', 'Total crédit', 'Solde'], $rowsX);
+    }
+
     layout_head('Balance', 'comptabilite'); showFlash();
 ?>
 <?= $navLinks ?>
 <div class="card">
   <div class="card-header">
     <div class="card-title">Balance générale</div>
+    <a href="<?= url('comptabilite', ['action'=>'balance', 'export'=>'1', 'debut'=>$debut, 'fin'=>$fin]) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <form method="GET" style="display:flex;gap:6px;align-items:end;">
       <input type="hidden" name="action" value="balance">
       <div class="form-group" style="margin:0;"><label>Du</label><input type="date" name="debut" value="<?= e($debut) ?>"></div>
@@ -635,8 +715,8 @@ if ($action === 'balance'):
 
 // ── Compte de résultat ────────────────────────────────────
 if ($action === 'resultat'):
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
     $resultat = compteResultat($db, $debut, $fin);
     $charges = []; $produits = [];
     $totalCharges = 0; $totalProduits = 0;
@@ -725,8 +805,8 @@ if ($action === 'resultat'):
 
 // ── Bilan ──────────────────────────────────────────────────
 if ($action === 'bilan'):
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
     $bilan = bilanGet($db, $debut, $fin);
     $diff = $bilan['actif']['total'] - $bilan['passif']['total'];
     layout_head('Bilan comptable', 'comptabilite'); showFlash();

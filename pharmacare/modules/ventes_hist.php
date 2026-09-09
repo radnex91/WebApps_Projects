@@ -6,14 +6,49 @@ require_once __DIR__ . '/../includes/pagination.php';
 requirePermission('ventes_hist.voir');
 $db = getDB();
 
-$dateDebut = $_GET['debut'] ?? date('Y-m-01');
-$dateFin   = $_GET['fin']   ?? date('Y-m-d');
-$mode      = $_GET['mode']  ?? '';
+// Par défaut : historique du jour courant uniquement (l'utilisateur peut
+// élargir la période via les filtres). Avant, debut valait le 1er du mois.
+$dateDebut = isset($_GET['debut']) && is_string($_GET['debut']) ? $_GET['debut'] : date('Y-m-d');
+$dateFin   = isset($_GET['fin'])   && is_string($_GET['fin'])   ? $_GET['fin']   : date('Y-m-d');
+$mode      = isset($_GET['mode'])  && is_string($_GET['mode'])  ? $_GET['mode']  : '';
+
+// Validation stricte des dates GET : ?debut=garbage sinon TypeError PHP 8 → 500.
+$dDeb = DateTime::createFromFormat('Y-m-d', $dateDebut);
+if (!($dDeb instanceof DateTime && $dDeb->format('Y-m-d') === $dateDebut)) $dateDebut = date('Y-m-d');
+$dFin = DateTime::createFromFormat('Y-m-d', $dateFin);
+if (!($dFin instanceof DateTime && $dFin->format('Y-m-d') === $dateFin))   $dateFin   = date('Y-m-d');
+if ($dateFin < $dateDebut) { $tmp = $dateDebut; $dateDebut = $dateFin; $dateFin = $tmp; }
 $estAdmin  = isAdmin();
 
 // WHERE avec alias v. pour les requêtes avec jointures
 $whereV = "v.created_at >= " . $db->quote($dateDebut) . " AND v.created_at < DATE_ADD(" . $db->quote($dateFin) . ", INTERVAL 1 DAY)";
 if ($mode) $whereV .= " AND v.mode_paiement=" . $db->quote($mode);
+
+// ── Export Excel de l'historique des ventes (période filtrée) ──────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $stX = $db->query("
+        SELECT v.reference, v.created_at, CONCAT(u.prenom, ' ', u.nom) AS caissier,
+               v.client_nom, v.mode_paiement, v.statut_paiement,
+               v.sous_total, v.tva_total, v.remise_montant, v.total
+        FROM ventes v
+        LEFT JOIN utilisateurs u ON v.caissier_id = u.id
+        WHERE $whereV
+        ORDER BY v.created_at ASC
+        LIMIT 20000
+    ");
+    $rowsX = [];
+    foreach ($stX->fetchAll() as $v) {
+        $rowsX[] = [
+            $v['reference'], date('d/m/Y H:i', strtotime($v['created_at'])), $v['caissier'],
+            $v['client_nom'], $v['mode_paiement'], $v['statut_paiement'],
+            (float)$v['sous_total'], (float)$v['tva_total'], (float)$v['remise_montant'], (float)$v['total'],
+        ];
+    }
+    export_xlsx_send('ventes_' . $dateDebut . '_' . $dateFin, 'Ventes',
+        ['Référence', 'Date', 'Caissier', 'Client', 'Mode paiement', 'Statut',
+         'Sous-total HT', 'TVA', 'Remise', 'Total TTC'], $rowsX);
+}
 if (!$estAdmin) $whereV .= " AND v.caissier_id=" . (int)$_SESSION['user_id'];
 
 // WHERE sans alias pour requête simple
@@ -28,12 +63,11 @@ $totalVentes = (int)$db->query("SELECT COUNT(*) FROM ventes v WHERE $whereV")->f
 $offset  = paginateOffset($page, $perPage);
 
 $ventes = $db->query("
-    SELECT v.*, u.prenom, u.nom AS u_nom, COUNT(vl.id) AS nb_lignes
+    SELECT v.*, u.prenom, u.nom AS u_nom
     FROM ventes v
     LEFT JOIN utilisateurs u ON v.caissier_id = u.id
-    LEFT JOIN vente_lignes vl ON vl.vente_id = v.id
     WHERE $whereV
-    GROUP BY v.id ORDER BY v.created_at DESC
+    ORDER BY v.created_at DESC
     LIMIT $perPage OFFSET $offset
 ")->fetchAll();
 
@@ -54,6 +88,19 @@ if ($venteIds) {
     $stmtL->execute($venteIds);
     $lignes = $stmtL->fetchAll();
 }
+
+// nb_lignes par vente : calculé en PHP depuis les lignes déjà chargées (évite
+// un LEFT JOIN + GROUP BY sur vente_lignes qui impose une table temp + filesort
+// à chaque page). Pour les ventes sans ligne, on retombe à 0.
+$nbLignesMap = [];
+foreach ($lignes as $l) {
+    $vid = (int)$l['vente_id'];
+    $nbLignesMap[$vid] = ($nbLignesMap[$vid] ?? 0) + 1;
+}
+foreach ($ventes as &$vRef) {
+    $vRef['nb_lignes'] = $nbLignesMap[(int)$vRef['id']] ?? 0;
+}
+unset($vRef);
 
 $modeLabels = [
     'espèces'   => 'Espèces',
@@ -76,6 +123,173 @@ $ticketCopies    = max(1, (int)getParam('ticket_nb_copies', '2'));
 $pharmacieNoms = [];
 foreach ($db->query("SELECT id, nom FROM pharmacies")->fetchAll() as $r) {
     $pharmacieNoms[(int)$r['id']] = $r['nom'];
+}
+
+// ── Impression de l'historique (toutes les ventes de la période) ──────────
+// Document A4 standalone (pas de nav/sidebar) : en-tête établissement,
+// période filtrée, tableau complet des ventes + totaux. Auto-impression.
+$action = $_GET['action'] ?? 'list';
+if ($action === 'print') {
+    $devSym = getParam('devise_symbole', 'FCFA');
+    // Toutes les ventes de la période (hors pagination), plafonnées pour
+    // rester raisonnable sur une très longue période.
+    $ventesPrint = $db->query("
+        SELECT v.*, u.prenom, u.nom AS u_nom
+        FROM ventes v
+        LEFT JOIN utilisateurs u ON v.caissier_id = u.id
+        WHERE $whereV
+        ORDER BY v.created_at ASC
+        LIMIT 5000
+    ")->fetchAll();
+
+    // nb_lignes via un seul agrégat groupé (évite JOIN+GROUP BY sur 5000 ventes).
+    $printIds = array_column($ventesPrint, 'id');
+    if ($printIds) {
+        $ph = implode(',', array_fill(0, count($printIds), '?'));
+        $stmtNb = $db->prepare("SELECT vente_id, COUNT(*) AS nb FROM vente_lignes WHERE vente_id IN ($ph) GROUP BY vente_id");
+        $stmtNb->execute($printIds);
+        $nbMap = [];
+        foreach ($stmtNb->fetchAll() as $r) $nbMap[(int)$r['vente_id']] = (int)$r['nb'];
+        foreach ($ventesPrint as &$vpRef) {
+            $vpRef['nb_lignes'] = $nbMap[(int)$vpRef['id']] ?? 0;
+        }
+        unset($vpRef);
+    }
+
+    $totSous = 0.0; $totTva = 0.0; $totTotal = 0.0;
+    foreach ($ventesPrint as $vp) {
+        $totSous  += (float)$vp['sous_total'];
+        $totTva   += (float)$vp['tva_total'];
+        $totTotal += (float)$vp['total'];
+    }
+
+    $periodeLbl = 'Du ' . date('d/m/Y', strtotime($dateDebut)) . ' au ' . date('d/m/Y', strtotime($dateFin));
+    $modeLbl = $mode ? ($modeLabels[$mode] ?? $mode) : 'Tous modes';
+    $genereLe = date('d/m/Y à H:i');
+    $etsNom  = getParam('app_nom', 'PharmaCare');
+    $etsAdr  = getParam('pharmacie_adresse', '');
+    $etsTel  = getParam('pharmacie_telephone', '');
+    $etsNif  = getParam('pharmacie_nif', '');
+    $logoUrl = pharmacieLogoUrl();
+    $nbVentes = count($ventesPrint);
+    $retUrl = url('ventes_hist', ['debut'=>$dateDebut, 'fin'=>$dateFin, 'mode'=>$mode]);
+
+    ?><!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<title>Historique des ventes — <?= e($periodeLbl) ?></title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; font-size: 11px; margin: 0; }
+  .bandeau { display: flex; justify-content: space-between; align-items: stretch; border: 2px solid #0f172a; margin-bottom: 12px; }
+  .bandeau .gauche { padding: 10px 16px; }
+  .bandeau .gauche .t { font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; }
+  .bandeau .gauche .s { font-size: 11px; color: #475569; margin-top: 2px; }
+  .bandeau .droite { padding: 8px 16px; text-align: right; border-left: 1px solid #94a3b8; }
+  .bandeau .droite .r { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .bandeau .droite .d { font-size: 10px; color: #475569; margin-top: 3px; }
+  .ets { margin: 6px 2px 12px; font-size: 11px; color: #475569; }
+  .ets .nom { font-weight: 700; color: #0f172a; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 18px; margin-bottom: 12px; font-size: 11px; }
+  .meta .lbl { color: #64748b; display: inline-block; min-width: 110px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  th, td { border: 1px solid #94a3b8; padding: 4px 6px; vertical-align: top; }
+  th { background: #0f172a; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: .5px; }
+  td.right, th.right { text-align: right; }
+  td.center, th.center { text-align: center; }
+  tfoot td { font-weight: 700; background: #f1f5f9; }
+  .pied { margin-top: 18px; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+  .toolbar { text-align: center; margin-bottom: 10px; }
+  .toolbar button { padding: 8px 18px; font-size: 13px; cursor: pointer; border: 1px solid #0f172a; background: #0f172a; color: #fff; border-radius: 6px; }
+  @media print { .toolbar { display: none; } }
+</style></head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">🖨️ Imprimer l'historique</button></div>
+
+  <div class="bandeau">
+    <div class="gauche">
+      <?php if ($logoUrl): ?><div style="margin-bottom:5px;"><img src="<?= e($logoUrl) ?>" alt="" style="max-height:48px;max-width:200px;"></div><?php endif; ?>
+      <div class="t">Historique des ventes</div>
+      <div class="s">Récapitulatif des ventes de la période</div>
+    </div>
+    <div class="droite">
+      <div class="r"><?= e($nbVentes) ?> vente<?= $nbVentes>1?'s':'' ?></div>
+      <div class="d"><?= e($periodeLbl) ?></div>
+    </div>
+  </div>
+
+  <div class="ets">
+    <span class="nom"><?= e($etsNom) ?></span>
+    <?php if ($etsAdr): ?> — <?= e($etsAdr) ?><?php endif; ?>
+    <?php if ($etsTel): ?> · Tél : <?= e($etsTel) ?><?php endif; ?>
+    <?php if ($etsNif): ?> · NIF : <?= e($etsNif) ?><?php endif; ?>
+  </div>
+
+  <div class="meta">
+    <div><span class="lbl">Période :</span> <?= e($periodeLbl) ?></div>
+    <div><span class="lbl">Mode de paiement :</span> <?= e($modeLbl) ?></div>
+    <div><span class="lbl">Généré le :</span> <?= e($genereLe) ?></div>
+    <div><span class="lbl">Nombre de ventes :</span> <?= e($nbVentes) ?></div>
+    <div><span class="lbl">Revenu total :</span> <?= fmtMoney($totTotal) ?></div>
+    <div><span class="lbl">Caissier :</span> <?= $estAdmin ? 'Tous' : e($_SESSION['user_prenom'].' '.$_SESSION['user_nom']) ?></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:3%;">#</th>
+        <th>Référence</th>
+        <th>Client</th>
+        <th class="center" style="width:7%;">Art.</th>
+        <th class="right">Sous-total</th>
+        <th class="right">TVA</th>
+        <th class="right">Total TTC</th>
+        <th>Paiement</th>
+        <th>Caissier</th>
+        <th style="width:13%;">Date / Heure</th>
+      </tr>
+    </thead>
+    <tbody>
+    <?php $i = 0; foreach ($ventesPrint as $vp): $i++; ?>
+      <tr>
+        <td class="center"><?= $i ?></td>
+        <td class="td-mono" style="font-family:monospace;"><?= e($vp['reference']) ?></td>
+        <td><?= e($vp['client_nom'] ?: '—') ?></td>
+        <td class="center"><?= (int)$vp['nb_lignes'] ?></td>
+        <td class="right"><?= fmtMoney((float)$vp['sous_total']) ?></td>
+        <td class="right"><?= fmtMoney((float)$vp['tva_total']) ?></td>
+        <td class="right"><?= fmtMoney((float)$vp['total']) ?></td>
+        <td><?= e($modeLabels[$vp['mode_paiement']] ?? $vp['mode_paiement']) ?></td>
+        <td><?= e(trim($vp['prenom'].' '.$vp['u_nom'])) ?></td>
+        <td><?= date('d/m/Y H:i', strtotime($vp['created_at'])) ?></td>
+      </tr>
+    <?php endforeach; ?>
+    <?php if (!$ventesPrint): ?>
+      <tr><td colspan="10" style="text-align:center;padding:16px;">Aucune vente sur cette période.</td></tr>
+    <?php endif; ?>
+    </tbody>
+    <?php if ($ventesPrint): ?>
+    <tfoot>
+      <tr>
+        <td colspan="4" class="right">Totaux (<?= $nbVentes ?> vente<?= $nbVentes>1?'s':'' ?>)</td>
+        <td class="right"><?= fmtMoney($totSous) ?></td>
+        <td class="right"><?= fmtMoney($totTva) ?></td>
+        <td class="right"><?= fmtMoney($totTotal) ?></td>
+        <td colspan="3"></td>
+      </tr>
+    </tfoot>
+    <?php endif; ?>
+  </table>
+
+  <div class="pied">Document généré électroniquement par <?= e($etsNom) ?> le <?= e($genereLe) ?> — Historique des ventes (<?= e($periodeLbl) ?>).<br>&copy; <?= date('Y') ?> <?= e(APP_NAME) ?></div>
+
+  <script>
+    window.onafterprint = function(){ window.location.href = <?= json_encode($retUrl) ?>; };
+    window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };
+  </script>
+</body></html>
+<?php
+    exit;
 }
 
 layout_head('Historique des ventes', 'historique');
@@ -143,7 +357,18 @@ showFlash();
 <div class="card">
   <div class="card-header">
     <div class="card-title">Historique des ventes</div>
-    <span class="text-sm"><?= count($ventes) ?> résultat(s)</span>
+    <div class="flex gap-8" style="align-items:center;">
+      <span class="text-sm"><?= count($ventes) ?> résultat(s)</span>
+      <a href="<?= url('ventes_hist', ['export'=>'1', 'debut'=>$dateDebut, 'fin'=>$dateFin, 'mode'=>$mode]) ?>"
+         class="btn btn-ghost btn-sm" title="Exporter la période filtrée au format Excel (.xlsx)">
+        <?= icon('download',13) ?> Exporter
+      </a>
+      <a href="<?= url('ventes_hist', ['action'=>'print','debut'=>$dateDebut,'fin'=>$dateFin,'mode'=>$mode]) ?>"
+         class="btn btn-ghost btn-sm" target="_blank" rel="noopener"
+         title="Imprimer l'historique de la période filtrée">
+        <?= icon('print',13) ?> Imprimer
+      </a>
+    </div>
   </div>
   <div class="table-wrap">
     <table>

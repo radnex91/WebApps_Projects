@@ -88,6 +88,23 @@ if (isset($_GET['ajax_remise']) && $_GET['ajax_remise'] === '1') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
     verifyCsrf();
 
+    // ── Idempotence offline-first ────────────────────────────
+    // En mode hors ligne, le terminal met la vente en file locale (navigateur)
+    // puis la rejoue au retour du serveur. Si cette vente avait déjà été
+    // enregistrée (réponse perdue après commit), on renvoie sa réception au
+    // lieu de la dupliquer. client_ref est un UUID généré par le terminal.
+    // Contrôle AVANT le rate-limit pour ne pas pénaliser le rejeu.
+    $clientRef = substr(trim((string)($_POST['client_ref'] ?? '')), 0, 64);
+    if ($clientRef !== '') {
+        $stRef = getDB()->prepare("SELECT reference FROM ventes WHERE client_ref = ? LIMIT 1");
+        $stRef->execute([$clientRef]);
+        $existingRef = $stRef->fetchColumn();
+        if ($existingRef) {
+            auditLog('vente.idempotent', sprintf('Rejeu offline : client_ref %s → vente %s (déjà enregistrée)', $clientRef, $existingRef));
+            header('Location: ' . url('vente', ['receipt' => $existingRef])); exit;
+        }
+    }
+
     // ── Rate limit POS : max 20 ventes / 60s par utilisateur ──
     $uid = (int)($_SESSION['user_id'] ?? 0);
     $rlKey = 'pos.vente:' . $uid;
@@ -245,8 +262,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
             INSERT INTO ventes
                 (reference, client_nom, client_telephone, client_id, caissier_id,
                  sous_total, tva_total, total, mode_paiement, statut_paiement,
-                 montant_recu, monnaie, note, remise_pct, remise_montant, autorise_par, pharmacie_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 montant_recu, monnaie, note, remise_pct, remise_montant, autorise_par, pharmacie_id,
+                 client_ref)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
         $stmt->execute([
             $ref,
@@ -266,6 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
             $remiseMontant,
             $autorisePar,
             $pharmacieId,
+            $clientRef !== '' ? $clientRef : null,
         ]);
         $vid = $db->lastInsertId();
 
@@ -425,6 +444,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_data'])) {
         }
 
         $db->commit();
+        // Le compte de lignes (plafond licence) vient de changer → invalide le cache.
+        require_once __DIR__ . '/../includes/cache_file.php';
+        cache_delete('licence_usage');
         auditLog('vente.create', sprintf('Vente %s : %d articles, %s %s (%s)', $ref, count($cartRaw), fmtMoney($total), $modePaiement, $clientNom ?: '—'), (int)$vid, $ref);
         header('Location: ' . url('vente', ['receipt' => $ref])); exit;
 
@@ -502,17 +524,17 @@ showFlash();
 
 <style>
   .cart-panel {
-    background: #0f172a !important;
-    border-right: 1px solid #1e293b !important;
+    background: var(--card) !important;
+    border-right: 1px solid var(--border) !important;
     display: flex;
     flex-direction: column;
-    color: #f8fafc;
+    color: var(--text);
   }
   .cart-items {
     flex: 1;
     min-height: 0; /* sinon min-height:auto empêche le scroll et pousse le footer/bouton Valider hors du panneau */
     overflow-y: auto;
-    background: #0f172a;
+    background: var(--card);
   }
   .cart-item-pro {
     display: grid;
@@ -520,32 +542,32 @@ showFlash();
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    border-bottom: 1px solid #1e293b;
-    background: #0f172a;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
     font-size: 13px;
     transition: background 0.15s;
   }
   .cart-item-pro:nth-child(even) {
-    background: #1e293b;
+    background: var(--bg3);
   }
   .cart-item-pro:hover {
-    background: #334155;
+    background: var(--teal-dim);
   }
   .cip-name {
     font-weight: 500;
-    color: #f8fafc;
+    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .cip-price, .cip-subtotal {
     font-family: 'DM Mono', monospace;
-    color: #94a3b8;
+    color: var(--text2);
     text-align: right;
   }
   .cip-subtotal {
     font-weight: 600;
-    color: #10b981;
+    color: var(--teal2);
   }
   .cip-qty {
     display: flex;
@@ -556,9 +578,9 @@ showFlash();
   .qty-btn {
     width: 24px;
     height: 24px;
-    border: 1px solid #334155;
-    background: #1e293b;
-    color: #f8fafc;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text);
     border-radius: 4px;
     cursor: pointer;
     display: flex;
@@ -568,33 +590,33 @@ showFlash();
     transition: all 0.1s;
   }
   .qty-btn:hover {
-    background: #475569;
-    border-color: #64748b;
+    background: color-mix(in srgb, var(--text) 12%, var(--card));
+    border-color: color-mix(in srgb, var(--text) 28%, var(--card));
   }
   .qty-val {
     font-family: 'DM Mono', monospace;
     font-weight: 600;
     min-width: 20px;
     text-align: center;
-    color: #f8fafc;
+    color: var(--text);
   }
   .btn-remove-pro {
     background: none;
     border: none;
-    color: #64748b;
+    color: var(--text3);
     cursor: pointer;
     font-size: 18px;
     transition: color 0.15s;
   }
   .btn-remove-pro:hover {
-    color: #ef4444;
+    color: var(--red);
   }
   .cart-footer {
-    background: #1e293b;
+    background: var(--bg3);
     padding: 20px;
-    border-top: 2px solid #334155;
+    border-top: 2px solid var(--border2);
     box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
-    color: #f8fafc;
+    color: var(--text);
     flex: 0 1 auto;
     min-height: 0; /* permet au footer de rétrécir et scroller si totaux+remise+client dépassent */
     overflow-y: auto;
@@ -604,14 +626,14 @@ showFlash();
   .cart-validate-bar {
     flex-shrink: 0;
     padding: 12px 20px 14px;
-    background: #1e293b;
-    border-top: 2px solid #334155;
+    background: var(--bg3);
+    border-top: 2px solid var(--border2);
   }
   /* Bouton déroulant du bloc remise (replié par défaut) */
   .remise-toggle {
     display: flex; align-items: center; justify-content: space-between;
     width: 100%; margin-top: 12px; padding: 9px 12px;
-    background: rgba(148,163,184,.05); border: 1px solid #334155; border-radius: 8px;
+    background: rgba(148,163,184,.05); border: 1px solid var(--border2); border-radius: 8px;
     color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
   }
@@ -626,13 +648,13 @@ showFlash();
   .total-box {
     padding: 8px;
     border-radius: 6px;
-    background: #0f172a;
-    border: 1px solid #334155;
+    background: var(--card);
+    border: 1px solid var(--border2);
   }
   .total-box label {
     display: block;
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--text2);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 4px;
@@ -641,7 +663,7 @@ showFlash();
     font-family: 'DM Mono', monospace;
     font-size: 14px;
     font-weight: 600;
-    color: #f8fafc;
+    color: var(--text);
   }
   .total-main-pro {
     grid-column: span 2;
@@ -693,6 +715,7 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
 <form method="POST" id="pos-form">
 <input type="hidden" name="csrf" value="<?= csrf() ?>">
 <input type="hidden" name="cart_data" id="cart-data" value="{}">
+<input type="hidden" name="client_ref" id="client-ref" value="">
 
 <div class="pos-layout">
 
@@ -701,7 +724,7 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
     <div class="card-header">
       <div class="card-title">Nouvelle vente</div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span id="cart-item-count" style="font-size:12px;color:#94a3b8;">0 article</span>
+        <span id="cart-item-count" style="font-size:12px;color:var(--text2);">0 article</span>
         <button type="button" id="btn-clear-cart" class="btn btn-ghost btn-xs"
                 onclick="clearCart()" title="Vider le panier">Vider</button>
       </div>
@@ -709,7 +732,7 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
     <?php if ($sessionActive): ?>
     <div style="padding:6px 16px;background:var(--teal-dim);border-bottom:1px solid var(--border2);font-size:12px;display:flex;justify-content:space-between;align-items:center;">
       <span style="display:flex;align-items:center;gap:4px;"><?= icon('money',14) ?> <?= e($sessionActive['caisse_nom']) ?></span>
-      <span style="font-weight:600;color:var(--teal2);">Solde : <?= fmtMoney(soldeSessionCaisse($db, (int)$sessionActive['id'])) ?></span>
+      <span id="pos-solde" style="font-weight:600;color:var(--teal2);">Solde : <?= fmtMoney(soldeSessionCaisse($db, (int)$sessionActive['id'])) ?></span>
     </div>
     <?php endif; ?>
 
@@ -763,18 +786,18 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
       Remise <span id="remise-toggle-icon">▸</span>
     </button>
     <div id="remise-block" style="display:none;">
-    <div style="margin-top:12px;padding:10px;border-radius:8px;border:1px solid #334155;background:rgba(148,163,184,.05);">
+    <div style="margin-top:12px;padding:10px;border-radius:8px;border:1px solid var(--border2);background:rgba(148,163,184,.05);">
       <!-- Ligne 1 : Auteur (pleine largeur pour les noms longs) -->
       <div style="margin-bottom:6px;">
         <label style="display:block;margin:0 0 4px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Autorisé par</label>
         <?php if ($estApprobateur): ?>
           <input type="text" id="autorise-par-nom" value="<?= e(currentUser()['prenom'].' '.currentUser()['nom']) ?> (moi)"
                  readonly
-                 style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#94a3b8;font-size:13px;">
+                 style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--bg3);color:var(--text2);font-size:13px;">
           <input type="hidden" id="autorise-par" name="autorise_par" value="<?= (int)currentUser()['id'] ?>">
         <?php else: ?>
           <select id="autorise-par" name="autorise_par" disabled
-                  style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#94a3b8;font-size:13px;cursor:not-allowed;">
+                  style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--bg3);color:var(--text2);font-size:13px;cursor:not-allowed;">
             <option value="">— Saisir le code remise —</option>
             <?php
             $approuveurs = $db->query("SELECT u.id, u.prenom, u.nom FROM remise_approbateurs r
@@ -794,10 +817,10 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
           <?php if ($estApprobateur): ?>
             <input type="number" id="remise-pct" name="remise_pct" min="0" max="<?= $maxRemise ?>"
                    step="0.01" value="0" placeholder="0"
-                   style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-family:'DM Mono',monospace;text-align:center;">
+                   style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--bg3);color:var(--text);font-family:'DM Mono',monospace;text-align:center;">
           <?php else: ?>
             <input type="text" id="remise-pct-display" value="—" readonly
-                   style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#94a3b8;font-family:'DM Mono',monospace;text-align:center;">
+                   style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--bg3);color:var(--text2);font-family:'DM Mono',monospace;text-align:center;">
             <input type="hidden" id="remise-pct" name="remise_pct" value="0">
             <div style="font-size:9px;color:var(--text3);text-align:center;margin-top:2px;">via code</div>
           <?php endif; ?>
@@ -806,7 +829,7 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
           <label style="display:block;margin:0 0 4px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Code remise</label>
           <input type="text" id="code-remise" name="code_remise" maxlength="10"
                  placeholder="ABC123"
-                 style="width:100%;padding:8px 10px;border:1px solid #334155;border-radius:6px;background:#1E293B;color:#f8fafc;font-family:'DM Mono',monospace;font-size:13px;text-transform:uppercase;text-align:center;">
+                 style="width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--bg3);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;text-transform:uppercase;text-align:center;">
         </div>
       </div>
 
@@ -848,8 +871,8 @@ const POS_DEV_POS  = <?= json_encode($devPos) ?>;
         <?php endif; ?>
       </div>
       <input type="hidden" name="mode_paiement" id="mode-paiement" value="espèces">
-      <div id="mode-credit" style="display:none;margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px; border-radius:6px; border:1px solid #334155;<?= ($fideliteActive && $creditActive) ? '' : ' display:none;' ?>">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:#f8fafc;font-size:14px;font-weight:500;user-select:none;">
+      <div id="mode-credit" style="display:none;margin-bottom:15px; background:var(--glass); padding:10px; border-radius:6px; border:1px solid var(--border2);<?= ($fideliteActive && $creditActive) ? '' : ' display:none;' ?>">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--text);font-size:14px;font-weight:500;user-select:none;">
           <input type="checkbox" id="credit-checkbox" onchange="toggleCreditMode(this)"
                  style="width:18px;height:18px;cursor:pointer;accent-color:var(--teal2);">
           Vendre à crédit
@@ -1260,8 +1283,8 @@ function setClientMode(mode) {
   const hdnMode      = document.getElementById('client-mode-hdn');
 
   if (mode === 'simple') {
-    if (btnSimple)   { btnSimple.style.background = '#334155';   btnSimple.style.color = '#f8fafc'; }
-    if (btnExistant) { btnExistant.style.background = 'transparent'; btnExistant.style.color = '#94a3b8'; }
+    if (btnSimple)   { btnSimple.style.background = 'var(--bg3)';    btnSimple.style.color = 'var(--text)'; }
+    if (btnExistant) { btnExistant.style.background = 'transparent'; btnExistant.style.color = 'var(--text2)'; }
     if (inputSimple) inputSimple.style.display = '';
     if (selectExist) selectExist.style.display = 'none';
     if (hdnMode) hdnMode.value = 'simple';
@@ -1270,8 +1293,8 @@ function setClientMode(mode) {
     if (creditBlock) creditBlock.style.display = 'none';
     if (creditCb) { creditCb.checked = false; toggleCreditMode(creditCb); }
   } else {
-    if (btnExistant) { btnExistant.style.background = '#334155'; btnExistant.style.color = '#f8fafc'; }
-    if (btnSimple)   { btnSimple.style.background = 'transparent'; btnSimple.style.color = '#94a3b8'; }
+    if (btnExistant) { btnExistant.style.background = 'var(--bg3)'; btnExistant.style.color = 'var(--text)'; }
+    if (btnSimple)   { btnSimple.style.background = 'transparent'; btnSimple.style.color = 'var(--text2)'; }
     if (selectExist) selectExist.style.display = '';
     if (inputSimple) inputSimple.style.display = 'none';
     if (hdnMode) hdnMode.value = 'existant';
@@ -1595,4 +1618,45 @@ function escHtml(s) {
 })();
 </script>
 
+<?php if ($sessionActive): ?>
+<script>
+// ── Solde de caisse EN DIRECT (offline-first) ──────────────
+// Le solde affiché en tête du panier est rendu par PHP au CHARGEMENT de la
+// page : les ventes mises en file hors ligne ne touchent pas la base tant
+// qu'elles ne sont pas retransmises → le solde restait à 0 pendant toute la
+// vente hors ligne. On le recompose en direct :
+//     affiché = solde serveur (chargement)
+//             + ventes espèces transmises depuis le chargement
+//             + ventes espèces en file (hors ligne — cash déjà encaissé)
+// Les hooks PC_ON_QUEUE_CHANGE / PC_ON_SALE_TRANSMITTED sont appelés par le
+// moteur hors ligne (includes/layout.php) à chaque écriture en file et à
+// chaque transmission confirmée.
+(function(){
+  var BASE = <?= json_encode((float)soldeSessionCaisse($db, (int)$sessionActive['id'])) ?>;
+  var DEV = <?= json_encode(getParam('devise_symbole', 'FCFA')) ?>;
+  var DEVPOS = <?= json_encode(getParam('devise_pos', 'after')) ?>;
+  var transmitted = 0; // ventes espèces enregistrées côté serveur depuis le chargement
+  function fmt0(n){
+    n = Math.round(parseFloat(n) || 0);
+    var s = String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return (n < 0 ? '-' : '') + s;
+  }
+  function money(n){ return DEVPOS === 'before' ? (DEV + ' ' + fmt0(n)) : (fmt0(n) + ' ' + DEV); }
+  function update(){
+    var el = document.getElementById('pos-solde');
+    if (!el) return;
+    var pending = (window.PC_OFFLINE && window.PC_OFFLINE.pendingEspeceTotal) ? Math.round(window.PC_OFFLINE.pendingEspeceTotal()) : 0;
+    var solde = Math.round(BASE + transmitted + pending);
+    el.textContent = 'Solde : ' + money(solde) + (pending > 0 ? '  (dont ' + money(pending) + ' hors ligne)' : '');
+    el.title = pending > 0 ? 'Ventes hors ligne en attente : le cash est déjà encaissé ; le solde serveur sera mis à jour au retour du serveur.' : '';
+  }
+  window.PC_ON_QUEUE_CHANGE = update;
+  window.PC_ON_SALE_TRANSMITTED = function(totalEspece){
+    transmitted += Math.round(parseFloat(totalEspece) || 0);
+    update();
+  };
+  update();
+})();
+</script>
+<?php endif; ?>
 <?php layout_foot(); ?>

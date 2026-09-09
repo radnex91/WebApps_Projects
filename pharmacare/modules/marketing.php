@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/pagination.php';
 require_once __DIR__ . '/../config/settings.php';
 requirePermission('marketing.voir');
 $db     = getDB();
@@ -54,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add-promo','edi
         header('Location: ' . url('marketing')); exit;
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
-        flash('Erreur : ' . $e->getMessage(), 'error');
+        flashError($e, 'promotion');
         header('Location: ' . url('marketing', ['action'=>'add-promo'])); exit;
     }
 }
@@ -316,8 +317,35 @@ $campagnes = $db->query("
     ORDER BY cp.date_debut DESC
 ")->fetchAll();
 
+// ── Export Excel des campagnes ────────────────────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $typesMap = ['pourcentage' => 'Pourcentage', 'montant' => 'Montant fixe'];
+    $rowsX = [];
+    foreach ($campagnes as $c) {
+        $active = $c['actif'] && $c['date_debut'] <= date('Y-m-d') && $c['date_fin'] >= date('Y-m-d');
+        $rowsX[] = [
+            $c['nom'], $typesMap[$c['type']] ?? $c['type'], $c['valeur'] !== null ? (float)$c['valeur'] : null,
+            date('d/m/Y', strtotime($c['date_debut'])), date('d/m/Y', strtotime($c['date_fin'])),
+            $active ? 'Active' : 'Inactive', (int)$c['nb_produits'],
+            date('d/m/Y', strtotime($c['created_at'])),
+        ];
+    }
+    export_xlsx_send('campagnes_promo_' . date('Y-m-d'), 'Campagnes',
+        ['Nom', 'Type', 'Valeur', 'Début', 'Fin', 'Statut', 'Nb produits', 'Créée le'], $rowsX);
+}
+
 $activeCount = 0;
 $today = date('Y-m-d');
+
+// ── Variables de pagination de l'onglet « Campagnes » ──
+// (le module les consomme mais ne les définissait jamais : warnings + appel
+// renderPagination() sur des variables inconnues)
+$totalCampagnes = count($campagnes);
+$perPage        = 20;
+$pageCamp       = max(1, (int)($_GET['page'] ?? 1));
+$campagnesPage  = array_slice($campagnes, ($pageCamp - 1) * $perPage, $perPage);
+
 foreach ($campagnes as $c) {
     if ($c['actif'] && $c['date_debut'] <= $today && $c['date_fin'] >= $today) $activeCount++;
 }
@@ -337,6 +365,7 @@ $topClients = $db->query("
 
 <div class="page-header">
   <h1>Marketing</h1>
+  <a href="<?= url('marketing', ['export'=>'1']) ?>" class="btn btn-ghost" title="Exporter les campagnes au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
   <?php if (hasPermission('marketing.promos')): ?>
   <a href="<?= url('marketing', ['action'=>'add-promo']) ?>" class="btn btn-primary"><?= icon('plus',14) ?> Nouvelle campagne</a>
   <?php endif; ?>
@@ -347,7 +376,7 @@ $topClients = $db->query("
     <div class="card-header"><div class="card-title">Campagnes actives</div></div>
     <div class="card-pad">
       <div style="font-size:28px;font-weight:700;color:var(--teal);font-family:var(--font-title);"><?= $activeCount ?></div>
-      <div style="font-size:12px;color:var(--text2);">Sur <?= count($campagnes) ?> campagne(s)</div>
+      <div style="font-size:12px;color:var(--text2);">Sur <?= $totalCampagnes ?> campagne(s)</div>
     </div>
   </div>
   <?php if ($fideliteActive): ?>
@@ -400,13 +429,13 @@ $topClients = $db->query("
     <a href="<?= url('marketing', ['action'=>'add-promo']) ?>" class="btn btn-ghost btn-sm"><?= icon('plus',14) ?> Ajouter</a>
     <?php endif; ?>
   </div>
-  <?php if (count($campagnes) === 0): ?>
+  <?php if ($totalCampagnes === 0): ?>
   <div class="card-pad"><p style="color:var(--text3);">Aucune campagne créée.</p></div>
   <?php else: ?>
   <table class="table">
     <thead><tr><th>Nom</th><th>Type</th><th>Valeur</th><th>Période</th><th>Produits</th><th>Statut</th><th style="width:90px;">Actions</th></tr></thead>
     <tbody>
-    <?php foreach ($campagnes as $c):
+    <?php foreach ($campagnesPage as $c):
         $periode = date('d/m/Y', strtotime($c['date_debut'])) . ' — ' . date('d/m/Y', strtotime($c['date_fin']));
         $typeLabel = $c['type'] === 'pourcentage' ? '%' : 'FCFA';
         $valeurFmt = $c['type'] === 'pourcentage' ? fmt($c['valeur']).'%' : fmtMoney($c['valeur']);
@@ -442,6 +471,7 @@ $topClients = $db->query("
     <?php endforeach; ?>
     </tbody>
   </table>
+  <?= renderPagination($pageCamp, $perPage, $totalCampagnes, []) ?>
   <?php endif; ?>
 </div>
 

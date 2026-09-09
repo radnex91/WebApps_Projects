@@ -7,8 +7,15 @@ $db = getDB();
 
 // ── Sélecteur de période ────────────────────────────────────
 $periode = $_GET['periode'] ?? 'mois';
-$debut   = $_GET['debut'] ?? '';
-$fin     = $_GET['fin']   ?? '';
+$debut   = isset($_GET['debut']) && is_string($_GET['debut']) ? $_GET['debut'] : '';
+$fin     = isset($_GET['fin'])   && is_string($_GET['fin'])   ? $_GET['fin']   : '';
+
+// Validation stricte des dates GET : ?debut=garbage sinon TypeError PHP 8
+// (strtotime()→false passé à date()) / exception DateTime non attrapée → 500.
+$dDeb = $debut !== '' ? DateTime::createFromFormat('Y-m-d', $debut) : false;
+if (!($dDeb instanceof DateTime && $dDeb->format('Y-m-d') === $debut)) $debut = '';
+$dFin = $fin !== '' ? DateTime::createFromFormat('Y-m-d', $fin) : false;
+if (!($dFin instanceof DateTime && $dFin->format('Y-m-d') === $fin))  $fin = '';
 
 switch ($periode) {
     case 'aujourdhui':

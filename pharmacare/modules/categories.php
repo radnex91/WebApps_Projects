@@ -34,6 +34,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: ' . url('categories')); exit;
 }
 
+// ── Export Excel ─────────────────────────────────────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $rowsX = [];
+    foreach ($db->query("
+        SELECT c.nom, c.couleur, COUNT(p.id) AS nb
+        FROM categories c
+        LEFT JOIN produits p ON p.categorie_id=c.id AND p.actif=1
+        GROUP BY c.id ORDER BY c.nom
+    ")->fetchAll() as $c) {
+        $rowsX[] = [$c['nom'], $c['couleur'], (int)$c['nb']];
+    }
+    export_xlsx_send('categories_' . date('Y-m-d'), 'Catégories',
+        ['Nom', 'Couleur', 'Nb produits actifs'], $rowsX);
+}
+
 $categories = $db->query("
     SELECT c.*, COUNT(p.id) AS nb
     FROM categories c
@@ -47,7 +63,8 @@ showFlash();
 <div class="grid-2">
   <!-- Liste -->
   <div class="card">
-    <div class="card-header"><div class="card-title">Catégories existantes</div></div>
+    <div class="card-header"><div class="card-title">Catégories existantes</div>
+    <a href="<?= url('categories', ['export'=>'1']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a></div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Couleur</th><th>Nom</th><th>Produits</th><th>Actions</th></tr></thead>

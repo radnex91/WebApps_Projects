@@ -81,7 +81,8 @@
       "Bash(bash tools/build_patch.sh 1.1.2 1.1.3 tools/patch_files_1.1.2_to_1.1.3.txt)",
       "Bash(powershell -NoProfile -Command 'Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[System.IO.Compression.ZipFile]::OpenRead\\('\\\\''C:\\\\xampp\\\\htdocs\\\\pharmacare_patch_1.1.2_to_1.1.3.zip'\\\\''\\); $z.Entries | Select-Object -ExpandProperty FullName; $z.Dispose\\(\\)')",
       "Bash(bash tools/build_patch.sh 1.1.3 1.1.4 tools/patch_files_1.1.3_to_1.1.4.txt)",
-      "Bash(powershell -NoProfile -Command 'Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[System.IO.Compression.ZipFile]::OpenRead\\('\\\\''C:\\\\xampp\\\\htdocs\\\\pharmacare_patch_1.1.3_to_1.1.4.zip'\\\\''\\); $z.Entries | Select-Object -ExpandProperty FullName; $z.Dispose\\(\\)')"
+      "Bash(powershell -NoProfile -Command 'Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[System.IO.Compression.ZipFile]::OpenRead\\('\\\\''C:\\\\xampp\\\\htdocs\\\\pharmacare_patch_1.1.3_to_1.1.4.zip'\\\\''\\); $z.Entries | Select-Object -ExpandProperty FullName; $z.Dispose\\(\\)')",
+      "mcp__radnex-mcp__browser_screenshot"
     ]
   }
 }

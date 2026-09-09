@@ -6,9 +6,12 @@ require_once __DIR__ . '/audit.php';
 require_once __DIR__ . '/url.php';
 
 /**
- * Délai d'inactivité avant déconnexion auto (en secondes).
- * Configurable par l'admin via le paramètre 'delai_inactivite_min' (en minutes).
- * 0 = déconnexion auto désactivée. Valeur plancher de sécurité : 60 s.
+ * Délai d'inactivité RÉELLE avant déconnexion auto (en secondes).
+ * Configurable par l'admin via le paramètre 'delai_inactivite_min' (en minutes,
+ * page Paramètres). Défaut : 15 minutes.
+ * Tant que l'utilisateur travaille (souris/clavier détectés), sa session est
+ * rafraîchie → il n'est JAMAIS déconnecté pendant le travail.
+ * 0 = déconnexion auto désactivée.
  */
 function sessionTimeoutSeconds(): int {
     $min = (int)getParam('delai_inactivite_min', '15');
@@ -16,14 +19,32 @@ function sessionTimeoutSeconds(): int {
     return $min * 60;
 }
 
-function startSession(): void {
+/**
+ * Démarre/vérifie la session.
+ *
+ * $touchActivity (défaut true) : la requête rafraîchit le compteur
+ *   d'inactivité. C'est le comportement normal : toute page consultée,
+ *   tout formulaire soumis = l'utilisateur travaille = il reste connecté.
+ *   false = requête « passive » (heartbeat /ping sans interaction réelle
+ *   de l'utilisateur) : on vérifie l'expiration MAIS on ne rafraîchit PAS
+ *   le compteur — après le délai d'inactivité la session est déconnectée.
+ * $redirectOnExpire (défaut true) : session expirée → redirection vers le
+ *   login. false (appels AJAX) : session détruite silencieusement, c'est
+ *   l'appelant qui répond 401.
+ */
+function startSession(bool $touchActivity = true, bool $redirectOnExpire = true): void {
     if (session_status() === PHP_SESSION_NONE) {
-        if (IS_PROD) {
-            ini_set('display_errors', '0');
-            ini_set('display_startup_errors', '0');
-            error_reporting(E_ALL);
-        }
         $timeout = sessionTimeoutSeconds();
+        // Durcissement de la session (anti-fixation + GC borné).
+        // use_strict_mode = 1 : le serveur refuse un SID qu'il n'a pas créé,
+        //   bloquant la fixation de session. gc_maxlifetime aligné sur le
+        //   timeout d'inactivité côté PHP (le nettoyage auto reste borné).
+        ini_set('session.use_strict_mode', '1');
+        // gc_maxlifetime aligné sur le timeout d'inactivité côté PHP.
+        // Si le timeout est désactivé (0), on garde une valeur sûre (24 h)
+        // au lieu de 0 (qui ferait ramasser la session par le GC immédiatement).
+        ini_set('session.gc_maxlifetime', (string)($timeout > 0 ? $timeout : 86400));
+        ini_set('session.cookie_lifetime', '0');
         // Le cookie secure ne doit PAS dépendre de IS_PROD mais du schéma réel
         // de la requête : sur un LAN en HTTP (sans TLS), secure=true empêcherait
         // le navigateur d'envoyer le cookie → session perdue → échec CSRF.
@@ -57,10 +78,16 @@ function startSession(): void {
             setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
         }
         session_destroy();
-        header('Location: ' . APP_URL . '/index.php?timeout=1');
-        exit;
+        if ($redirectOnExpire) {
+            header('Location: ' . APP_URL . '/index.php?timeout=1');
+            exit;
+        }
+        return; // appel AJAX : l'appelant répondra 401
     }
-    $_SESSION['last_activity'] = $now;
+    // L'utilisateur travaille (requête réelle) → session rafraîchie.
+    if ($touchActivity) {
+        $_SESSION['last_activity'] = $now;
+    }
 }
 
 function isLoggedIn(): bool {
@@ -73,6 +100,57 @@ function requireLogin(): void {
         header('Location: ' . APP_URL . '/index.php');
         exit;
     }
+    touchUserActivity();
+}
+
+// ── Suivi d'activité (utilisateurs en ligne) ──────────────
+// Heartbeat throttlé à 60 s par session : met à jour utilisateurs.derniere_activite.
+// « En ligne » = activité de moins de 5 minutes (affiché sur la page de connexion).
+function ensureActivityColumn(): void {
+    static $done = null;
+    if ($done !== null) return;
+    $done = true;
+    try { getDB()->query("SELECT derniere_activite FROM utilisateurs LIMIT 1"); }
+    catch (Throwable $e) {
+        try { getDB()->exec("ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS derniere_activite DATETIME DEFAULT NULL"); }
+        catch (Throwable $e2) { /* non bloquant */ }
+    }
+}
+
+// ── Récupération locale de mot de passe (sans email) ──────
+// Chaque utilisateur configure LUI-MÊME (menu « Mon compte ») :
+//   - une question secrète + réponse (réponse stockée hachée bcrypt) ;
+//   - un code de récupération à usage unique (stocké haché bcrypt).
+// Le reset « mot de passe oublié » vérifie ces facteurs localement.
+function ensureResetColumns(): void {
+    static $done = null;
+    if ($done !== null) return;
+    $done = true;
+    try { getDB()->query("SELECT question_secrete, reponse_secrete, code_recuperation FROM utilisateurs LIMIT 1"); return; }
+    catch (Throwable $e) {}
+    try {
+        getDB()->exec("ALTER TABLE utilisateurs
+            ADD COLUMN IF NOT EXISTS question_secrete VARCHAR(255) DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS reponse_secrete VARCHAR(255) DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS code_recuperation VARCHAR(255) DEFAULT NULL");
+    } catch (Throwable $e2) { /* non bloquant */ }
+}
+
+/** Normalisation d'une réponse/code avant hachage ou vérification. */
+function reset_normalize(string $v): string {
+    return mb_strtolower(preg_replace('/\s+/u', ' ', trim($v)) ?? '', 'UTF-8');
+}
+
+function touchUserActivity(bool $force = false): void {
+    if (empty($_SESSION['user_id'])) return;
+    $now = time();
+    if (!$force && isset($_SESSION['act_ping']) && $now - (int)$_SESSION['act_ping'] < 60) return;
+    $_SESSION['act_ping'] = $now;
+    ensureActivityColumn();
+    try {
+        getDB()->prepare("UPDATE utilisateurs SET derniere_activite = NOW() WHERE id = ?")
+               ->execute([(int)$_SESSION['user_id']]);
+    } catch (Throwable $e) { /* non bloquant */ }
 }
 
 function requireRole(string ...$roles): void {
@@ -200,7 +278,8 @@ function login(string $loginInput, string $password): array {
         $_SESSION['user_login']      = $user['login'];
         $_SESSION['user_email']      = $user['email'];
         $_SESSION['user_permissions'] = loadPermissions((int)$user['role_id']);
-        $db->prepare("UPDATE utilisateurs SET derniere_connexion=NOW() WHERE id=?")->execute([$user['id']]);
+        ensureActivityColumn();
+        $db->prepare("UPDATE utilisateurs SET derniere_connexion=NOW(), derniere_activite=NOW() WHERE id=?")->execute([$user['id']]);
         rateLimitReset($ip);
         auditLog('auth.login', sprintf('Connexion : %s (%s)', $user['login'], $user['role_code']));
         return ['success' => true, 'locked' => false];
@@ -214,6 +293,16 @@ function login(string $loginInput, string $password): array {
 }
 
 function logout(): void {
+    // Marque l'utilisateur hors ligne immédiatement (au lieu d'attendre l'expiry du ping)
+    // Garde-fou offline-first : si MySQL est arrêté, on saute la mise à jour
+    // (getDB() afficherait la 503 et tuerait le script avant session_destroy()).
+    if (!empty($_SESSION['user_id']) && paramsDbReachable()) {
+        try {
+            ensureActivityColumn();
+            getDB()->prepare("UPDATE utilisateurs SET derniere_activite = DATE_SUB(NOW(), INTERVAL 10 MINUTE) WHERE id = ?")
+               ->execute([(int)$_SESSION['user_id']]);
+        } catch (Throwable $e) { /* non bloquant */ }
+    }
     startSession();
     session_destroy();
     header('Location: ' . APP_URL . '/index.php');
@@ -313,6 +402,26 @@ function genRef(string $prefix): string {
 function flash(string $msg, string $type = 'success'): void {
     startSession();
     $_SESSION['flash'] = ['msg' => $msg, 'type' => $type];
+}
+
+/**
+ * Message d'erreur prod-safe pour les catch(PDOException|Exception).
+ * En dev : affiche le message réel (utile pour diagnostiquer).
+ * En prod : message générique + journalisation via error_log() pour ne pas
+ * fuiter d'internals PDO / chemins serveur dans l'UI.
+ */
+function flashError(Throwable $e, string $contexte = ''): void {
+    if (!defined('IS_PROD') || !IS_PROD) {
+        $msg = $e->getMessage();
+        if ($contexte !== '') $msg = $contexte . ' : ' . $msg;
+        flash($msg, 'error');
+        return;
+    }
+    $log = 'PharmaCare error';
+    if ($contexte !== '') $log .= ' [' . $contexte . ']';
+    $log .= ': ' . $e->getMessage();
+    error_log($log);
+    flash('Une erreur est survenue. Elle a été journalisée ; réessayez ou contactez un administrateur.', 'error');
 }
 
 function showFlash(): void {

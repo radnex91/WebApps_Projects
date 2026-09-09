@@ -20,9 +20,17 @@ define('RATE_LIMIT_LOCKOUT', 900);    // 15 min de blocage login
 define('RATE_LIMIT_GLOBAL_MAX', 120);    // requêtes max…
 define('RATE_LIMIT_GLOBAL_WINDOW', 60);  // …par minute par IP
 
-// Proxies de confiance pour X-Forwarded-For (en local XAMPP : loopback)
+// Proxies de confiance pour X-Forwarded-For (en local XAMPP : loopback).
+// Surchargeable en prod via la variable d'environnement RATE_LIMIT_TRUSTED_PROXIES
+// (liste CSV, ex: "10.0.0.1,10.0.0.2") ou via define() dans env.prod.php.
 if (!defined('RATE_LIMIT_TRUSTED_PROXIES')) {
-    define('RATE_LIMIT_TRUSTED_PROXIES', ['127.0.0.1', '::1']);
+    $envProxies = getenv('RATE_LIMIT_TRUSTED_PROXIES');
+    if ($envProxies !== false && $envProxies !== '') {
+        $list = array_values(array_filter(array_map('trim', explode(',', $envProxies))));
+        define('RATE_LIMIT_TRUSTED_PROXIES', $list !== [] ? $list : ['127.0.0.1', '::1']);
+    } else {
+        define('RATE_LIMIT_TRUSTED_PROXIES', ['127.0.0.1', '::1']);
+    }
 }
 
 function _rateLimitInit(): void {
@@ -65,9 +73,28 @@ function _rateLimitPath(string $key): string {
 function _rateLimitReadKey(string $key): array {
     $path = _rateLimitPath($key);
     if (!file_exists($path)) return ['attempts' => [], 'locked_until' => 0];
-    $data = json_decode(file_get_contents($path), true);
-    if (!$data) return ['attempts' => [], 'locked_until' => 0];
-    return $data;
+    // Lecture sous verrou partagé NON bloquant + retry : sur Windows, un
+    // LOCK_EX d'écriture concurrent fait échouer toute lecture sans verrou en
+    // errno=13 (« Permission denied », cf. notices Apache sous charge LAN).
+    // LOCK_NB garantit l'absence de blocage permanent ; au pire (3 échecs)
+    // on retourne un état vide — équivalent à une donnée expirée.
+    $raw = false;
+    for ($i = 0; $i < 3; $i++) {
+        $fh = @fopen($path, 'r');
+        if (is_resource($fh)) {
+            if (@flock($fh, LOCK_SH | LOCK_NB)) {
+                $raw = stream_get_contents($fh);
+                flock($fh, LOCK_UN);
+            }
+            fclose($fh);
+            if ($raw !== false && $raw !== '') break;
+        }
+        $raw = false;
+        usleep(20000); // 20 ms avant nouvelle tentative
+    }
+    if ($raw === false || $raw === '') return ['attempts' => [], 'locked_until' => 0];
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : ['attempts' => [], 'locked_until' => 0];
 }
 
 function _rateLimitWriteKey(string $key, array $data): void {

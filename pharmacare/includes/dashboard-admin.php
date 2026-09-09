@@ -5,13 +5,34 @@
 requireLogin();
 $db = getDB();
 require_once __DIR__ . '/charts.php';
+require_once __DIR__ . '/cache_file.php';
+
+// ── Cache disque 60 s des agrégats ventes (coût constant face à la volumétrie) ──
+function dashCachedScalar(PDO $db, string $key, string $sql, int $ttl = 60) {
+    $found = false;
+    $v = cache_get($key, $ttl, $found);
+    if (!$found) {
+        $v = $db->query($sql)->fetchColumn();
+        cache_set($key, $v, $ttl);
+    }
+    return $v;
+}
+function dashCachedRows(PDO $db, string $key, string $sql, int $ttl = 60): array {
+    $found = false;
+    $v = cache_get($key, $ttl, $found);
+    if (!$found) {
+        $v = $db->query($sql)->fetchAll();
+        cache_set($key, $v, $ttl);
+    }
+    return $v;
+}
 
 // CA du mois (sargable : plage [1er du mois courant, 1er du mois suivant[)
-$ca_mois  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') AND created_at < DATE_FORMAT(NOW() + INTERVAL 1 MONTH, '%Y-%m-01')")->fetchColumn();
+$ca_mois  = dashCachedScalar($db, 'dash.admin.ca_mois', "SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') AND created_at < DATE_FORMAT(NOW() + INTERVAL 1 MONTH, '%Y-%m-01')");
 
 // CA année en cours (sargable : plage [1er jan., 1er jan. année suivante[)
-$ca_annee = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= MAKEDATE(YEAR(NOW()),1) AND created_at < MAKEDATE(YEAR(NOW())+1,1)")->fetchColumn();
-$nb_ventes_annee = $db->query("SELECT COUNT(*) FROM ventes WHERE created_at >= MAKEDATE(YEAR(NOW()),1) AND created_at < MAKEDATE(YEAR(NOW())+1,1)")->fetchColumn();
+$ca_annee = dashCachedScalar($db, 'dash.admin.ca_annee', "SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= MAKEDATE(YEAR(NOW()),1) AND created_at < MAKEDATE(YEAR(NOW())+1,1)");
+$nb_ventes_annee = dashCachedScalar($db, 'dash.admin.nb_ventes_annee', "SELECT COUNT(*) FROM ventes WHERE created_at >= MAKEDATE(YEAR(NOW()),1) AND created_at < MAKEDATE(YEAR(NOW())+1,1)");
 
 // Médicaments en stock
 $nb_prods = $db->query("SELECT COUNT(*) FROM produits WHERE actif=1")->fetchColumn();
@@ -26,11 +47,11 @@ $ventes_j = $db->query("SELECT COUNT(*) FROM ventes WHERE created_at >= CURDATE(
 $ca_jour  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= CURDATE()")->fetchColumn();
 
 // Ventes 7 derniers jours
-$ventes7 = $db->query("
+$ventes7 = dashCachedRows($db, 'dash.admin.ventes7', "
   SELECT DATE(created_at) AS jour, SUM(total) AS total, COUNT(*) AS nb
   FROM ventes WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
   GROUP BY DATE(created_at) ORDER BY jour
-")->fetchAll();
+");
 
 // ── Évolution du CA — période sélectionnable ───────────────
 $caPeriode = $_GET['ca_periode'] ?? '30j';
@@ -85,13 +106,13 @@ if ($cfgCa['unit'] === 'day') {
     }
 }
 
-// Totals journaliers sur la plage couverte
+// Totals journaliers sur la plage couverte (cache 60 s, par période)
 $caMinDate = min(array_merge(...array_column($caBuckets, 'days')));
-$caDailyRows = $db->query("
+$caDailyRows = dashCachedRows($db, 'dash.admin.ca_daily.' . $caPeriode, "
   SELECT DATE(created_at) AS jour, COALESCE(SUM(total),0) AS total, COUNT(*) AS nb
   FROM ventes WHERE created_at >= " . $db->quote($caMinDate) . "
   GROUP BY jour
-")->fetchAll(PDO::FETCH_ASSOC);
+");
 $caDailyMap = []; $caNbMap = [];
 foreach ($caDailyRows as $r) {
     $caDailyMap[$r['jour']] = (float)$r['total'];
@@ -143,12 +164,12 @@ $dernieres = $db->query("
 ")->fetchAll();
 
 // Top 5 produits (30j)
-$top = $db->query("
+$top = dashCachedRows($db, 'dash.admin.top5', "
   SELECT vl.produit_nom, SUM(vl.quantite) AS qte
   FROM vente_lignes vl JOIN ventes v ON vl.vente_id=v.id
   WHERE v.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
   GROUP BY vl.produit_nom ORDER BY qte DESC LIMIT 5
-")->fetchAll();
+");
 $maxQ = $top ? max(array_column($top, 'qte')) : 1;
 
 // Activite utilisateurs
@@ -162,11 +183,11 @@ $activite = $db->query("
 $cmd_en_cours = $db->query("SELECT COUNT(*) FROM commandes WHERE statut IN ('en_attente','en_cours')")->fetchColumn();
 
 // Périodes de pointe : ventes par jour de la semaine (30 derniers jours)
-$ventesParJour = $db->query("
+$ventesParJour = dashCachedRows($db, 'dash.admin.pointe', "
     SELECT DAYOFWEEK(created_at) AS dow, SUM(total) AS total, COUNT(*) AS nb
     FROM ventes WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     GROUP BY dow ORDER BY dow
-")->fetchAll();
+");
 $joursSemaine = [1 => 'Dim', 2 => 'Lun', 3 => 'Mar', 4 => 'Mer', 5 => 'Jeu', 6 => 'Ven', 7 => 'Sam'];
 $pointeData = array_fill(1, 7, ['total' => 0, 'nb' => 0]);
 foreach ($ventesParJour as $v) {

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/pagination.php';
 require_once __DIR__ . '/../config/settings.php';
 require_once __DIR__ . '/../config/comptabilite.php';
 requirePermission('clients.voir');
@@ -34,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add','edit'], t
         }
         header('Location: ' . url('clients')); exit;
     } catch (Exception $e) {
-        flash('Erreur : ' . $e->getMessage(), 'error');
+        flashError($e, 'enregistrement client');
         $redirect = ($action === 'edit' && $id) ? '?action=edit&id='.$id : '?action=add';
         header('Location: ' . url('clients') . $redirect); exit;
     }
@@ -118,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'reglement') {
         header('Location: ' . url('clients', ['action'=>'detail','id'=>$clientId], $nomClient ?? null)); exit;
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
-        flash('Erreur : ' . $e->getMessage(), 'error');
+        flashError($e, 'règlement client');
         header('Location: ' . url('clients', ['action'=>'detail','id'=>$clientId], $nomClient ?? null)); exit;
     }
 }
@@ -402,7 +403,47 @@ $isEdit = ($editClient !== null);
 
 <?php else: ?>
 <?php
-// Liste des clients avec dette calculee
+// Liste des clients avec dette calculee (pagination serveur 50/page).
+// Les sous-requêtes agrégées (dette_credits / reglements_total) balayent
+// ventes et reglements via des index sur client_id ; la pagination ne
+// fait que borner le nombre de lignes retournées et rendues.
+$perPage = 25; // section Gestion : pagination uniforme à 25/page
+$page    = max(1, (int)($_GET['page'] ?? 1));
+$offset  = paginateOffset($page, $perPage);
+$totalClients = (int)$db->query("SELECT COUNT(*) FROM clients")->fetchColumn();
+
+// ── Export Excel de la liste des clients ────────────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $stX = $db->query("
+        SELECT c.nom, c.telephone, c.actif, c.created_at,
+               COALESCE(dette_credits.total_credit, 0) AS dette_ventes,
+               COALESCE(reglements_total.total_regle, 0) AS total_regle,
+               COALESCE(dette_credits.total_credit, 0) - COALESCE(reglements_total.total_regle, 0) AS dette_restante
+        FROM clients c
+        LEFT JOIN (
+            SELECT client_id, SUM(total) AS total_credit
+            FROM ventes
+            WHERE (mode_paiement = 'crédit' OR mode_paiement = 'credit' OR statut_paiement = 'en_attente' OR statut_paiement = 'partiel')
+            GROUP BY client_id
+        ) dette_credits ON c.id = dette_credits.client_id
+        LEFT JOIN (
+            SELECT client_id, SUM(montant) AS total_regle
+            FROM reglements
+            GROUP BY client_id
+        ) reglements_total ON c.id = reglements_total.client_id
+        ORDER BY c.nom ASC
+    ");
+    $rowsX = [];
+    foreach ($stX->fetchAll() as $c) {
+        $rowsX[] = [$c['nom'], $c['telephone'], (int)$c['actif'] ? 'Actif' : 'Inactif',
+                    (float)$c['dette_ventes'], (float)$c['total_regle'], (float)$c['dette_restante'],
+                    date('d/m/Y', strtotime($c['created_at']))];
+    }
+    export_xlsx_send('clients_' . date('Y-m-d'), 'Clients',
+        ['Nom', 'Téléphone', 'Statut', 'Total ventes à crédit', 'Total réglé', 'Dette restante', 'Créé le'], $rowsX);
+}
+
 $clients = $db->query("
     SELECT c.*,
            COALESCE(dette_credits.total_credit, 0) AS dette_ventes,
@@ -421,14 +462,18 @@ $clients = $db->query("
         GROUP BY client_id
     ) reglements_total ON c.id = reglements_total.client_id
     ORDER BY c.nom ASC
+    LIMIT $perPage OFFSET $offset
 ")->fetchAll();
 ?>
 
 <div class="page-header">
   <h1>Clients</h1>
+  <div class="flex gap-8">
+  <a href="<?= url('clients', ['export' => '1']) ?>" class="btn btn-ghost" title="Exporter au format Excel (.xlsx)"><?= icon('download', 14) ?> Exporter</a>
   <?php if (hasPermission('clients.ajouter')): ?>
   <button type="button" class="btn btn-primary" onclick="openModal('modal-new-client')"><?= icon('plus',14) ?> Nouveau client</button>
   <?php endif; ?>
+  </div>
 </div>
 
 <div class="card">
@@ -482,6 +527,7 @@ $clients = $db->query("
     </tbody>
   </table>
   <?php endif; ?>
+  <?= renderPagination($page, $perPage, $totalClients, []) ?>
 </div>
 
 <!-- ── Modal Nouveau Client ── -->

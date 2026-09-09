@@ -65,11 +65,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash("Utilisateur $prenom $nom créé.");
         }
     } catch (PDOException $e) {
-        // login/email sont UNIQUE -> doublon = page blanche sans ce catch.
-        $msg = (strpos($e->getMessage(), 'login') !== false) ? 'Cet identifiant (login) est déjà utilisé.'
-              : ((strpos($e->getMessage(), 'email') !== false) ? 'Cet email est déjà utilisé.'
-              : 'Enregistrement impossible : ' . $e->getMessage());
-        flash($msg, 'error');
+        // login/email UNIQUE -> messages conviviaux ; sinon message prod-safe (flashError).
+        if (strpos($e->getMessage(), 'login') !== false) {
+            flash('Cet identifiant (login) est déjà utilisé.', 'error');
+        } elseif (strpos($e->getMessage(), 'email') !== false) {
+            flash('Cet email est déjà utilisé.', 'error');
+        } else {
+            flashError($e, 'enregistrement utilisateur');
+        }
         header('Location: ' . ($id ? url('utilisateurs', ['action'=>'edit','id'=>$id]) : url('utilisateurs', ['action'=>'add']))); exit;
     }
     header('Location: ' . url('utilisateurs')); exit;
@@ -132,6 +135,29 @@ if (in_array($action, ['add','edit'])) {
     <?php layout_foot(); exit;
 }
 
+// ── Export Excel ─────────────────────────────────────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $rowsX = [];
+    foreach ($db->query("
+        SELECT u.login, u.prenom, u.nom, u.email, r.libelle AS role_libelle,
+               u.actif, u.derniere_connexion, u.created_at,
+               (SELECT COUNT(*) FROM ventes WHERE caissier_id=u.id) AS nb_ventes
+        FROM utilisateurs u
+        JOIN roles r ON u.role_id = r.id
+        ORDER BY r.est_systeme DESC, u.nom
+    ")->fetchAll() as $u) {
+        $rowsX[] = [
+            $u['login'], $u['prenom'], $u['nom'], $u['email'], $u['role_libelle'],
+            (int)$u['actif'] ? 'Actif' : 'Désactivé', (int)$u['nb_ventes'],
+            $u['derniere_connexion'] ? date('d/m/Y H:i', strtotime($u['derniere_connexion'])) : '—',
+            date('d/m/Y', strtotime($u['created_at'])),
+        ];
+    }
+    export_xlsx_send('utilisateurs_' . date('Y-m-d'), 'Utilisateurs',
+        ['Login', 'Prénom', 'Nom', 'Email', 'Rôle', 'Statut', 'Nb ventes', 'Dernière connexion', 'Créé le'], $rowsX);
+}
+
 $users = $db->query("
     SELECT u.*, r.libelle AS role_libelle, r.code AS role_code, r.est_systeme,
            (SELECT COUNT(*) FROM ventes WHERE caissier_id=u.id) AS nb_ventes
@@ -149,6 +175,7 @@ showFlash();
 <div class="card">
   <div class="card-header">
     <div class="card-title">Gestion des utilisateurs</div>
+    <a href="<?= url('utilisateurs', ['export'=>'1']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <a href="<?= url('utilisateurs', ['action'=>'add']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter utilisateur</a>
   </div>
   <div class="table-wrap">

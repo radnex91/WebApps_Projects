@@ -71,7 +71,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             $transfertId = (int)$db->lastInsertId();
 
             $stmtNom = $db->prepare("SELECT nom FROM produits WHERE id=?");
-            $stmtDecMag   = $db->prepare("UPDATE produits SET stock_magasin = stock_magasin - ? WHERE id = ?");
+            // Garde atomique : le décrément ne passe que si le stock suffit
+            // (protège contre la concurrence entre deux transferts simultanés).
+            $stmtDecMag   = $db->prepare("UPDATE produits SET stock_magasin = stock_magasin - ? WHERE id = ? AND stock_magasin >= ?");
             // Crédit du stock de la pharmacie cible (crée la ligne si nécessaire)
             $stmtIncPharm = $db->prepare("
                 INSERT INTO produit_pharmacie (produit_id, pharmacie_id, stock, seuil_alerte)
@@ -92,8 +94,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
                 $stmtNom->execute([$pid]);
                 $nom = $stmtNom->fetchColumn() ?: ('Produit #' . $pid);
 
-                // Décrémenter le magasin, créditer la pharmacie cible
-                $stmtDecMag->execute([$qte, $pid]);
+                // Décrémenter le magasin (avec garde), créditer la pharmacie cible
+                $stmtDecMag->execute([$qte, $pid, $qte]);
+                if ($stmtDecMag->rowCount() === 0) {
+                    throw new Exception('Stock magasin devenu insuffisant pour ' . $nom . ' (demandé : ' . $qte . ').');
+                }
                 $stmtIncPharm->execute([$pid, $pharmacieId, $qte]);
                 if ($stmtSyncMain) $stmtSyncMain->execute([$pid]);
 
@@ -113,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             header('Location: ' . url('magasin', ['bon' => $transfertId])); exit;
         } catch (Exception $e) {
             $db->rollBack();
-            flash('Erreur lors du transfert : ' . $e->getMessage(), 'error');
+            flashError($e, 'transfert magasin');
             header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         }
     }
@@ -185,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         } catch (Exception $e) {
             $db->rollBack();
-            flash('Erreur lors du retour : ' . $e->getMessage(), 'error');
+            flashError($e, 'retour magasin');
             header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         }
     }
@@ -229,8 +234,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         } catch (Exception $e) {
             $db->rollBack();
-            flash('Erreur : ' . $e->getMessage(), 'error');
+            flashError($e, 'mouvement magasin');
             header('Location: ' . url('magasin', ['onglet'=>'reception'])); exit;
+        }
+    }
+
+    // ── Réception multi-produits par scanner (codes-barres / QR) ──
+    // Le scanner (clavier USB ou douchette) envoie le code + Entrée ; chaque
+    // scan ajoute +1 ligne/produit. Les quantités sont éditables avant validation.
+    if ($action === 'reception_scan') {
+        $pids  = is_array($_POST['scan_pid'] ?? null) ? $_POST['scan_pid'] : [];
+        $qtes  = is_array($_POST['scan_qte'] ?? null) ? $_POST['scan_qte'] : [];
+        $motif = trim((string)($_POST['motif'] ?? ''));
+
+        // Déduplication + addition des doublons (produits scannés plusieurs fois)
+        $lines = [];
+        foreach ($pids as $i => $pid) {
+            $pid = (int)$pid;
+            $qte = (int)($qtes[$i] ?? 0);
+            if ($pid > 0 && $qte > 0) $lines[$pid] = ($lines[$pid] ?? 0) + $qte;
+        }
+
+        if (!$lines) {
+            flash('Aucune ligne de scan valide (produit ou quantité).', 'error');
+            header('Location: ' . url('magasin', ['onglet' => 'reception'])); exit;
+        }
+
+        try {
+            $db->beginTransaction();
+            $stUp = $db->prepare("UPDATE produits SET stock_magasin = stock_magasin + ? WHERE id = ?");
+            $stIn = $db->prepare("INSERT INTO mouvements_magasin (produit_id, type, quantite, motif, utilisateur_id) VALUES (?, 'entrée', ?, ?, ?)");
+            $libelle = 'Réception scan' . ($motif !== '' ? ' — ' . $motif : '');
+            foreach ($lines as $pid => $qte) {
+                $stUp->execute([$qte, $pid]);
+                $stIn->execute([$pid, $qte, $libelle, $uid]);
+            }
+            $db->commit();
+            auditLog('magasin.entrée', sprintf('Réception scanner : %d produit(s), %d unité(s)%s', count($lines), array_sum($lines), $motif !== '' ? ' — ' . $motif : ''));
+            flash('Réception scanner enregistrée : ' . count($lines) . ' produit(s), ' . array_sum($lines) . ' unité(s).');
+            header('Location: ' . url('magasin', ['onglet' => 'stock'])); exit;
+        } catch (Exception $e) {
+            $db->rollBack();
+            flashError($e, 'réception scanner');
+            header('Location: ' . url('magasin', ['onglet' => 'reception'])); exit;
         }
     }
 
@@ -257,13 +303,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
 
         try {
             $db->beginTransaction();
-            $stmtStock = $db->prepare("SELECT nom, stock_magasin FROM produits WHERE id=?");
+            // FOR UPDATE : la relecture doit prendre le verrou de ligne, sinon
+            // (REPEATABLE READ) une vente ou un autre ajustement simultané sur le
+            // même produit serait écrasé par l'écriture de la valeur absolue.
+            $stmtStock = $db->prepare("SELECT nom, stock_magasin FROM produits WHERE id=? FOR UPDATE");
             $stmtSet   = $db->prepare("UPDATE produits SET stock_magasin=? WHERE id=?");
             $stmtMvt   = $db->prepare("INSERT INTO mouvements_magasin (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'ajustement',?,?,?)");
 
             $appliques = 0;
             $total     = count($ids);
             $libelle = 'Ajustement en lot' . ($motif ? ' — ' . $motif : '');
+            // Ordre de verrouillage déterministe (tri par id) : évite les
+            // interblocages entre deux ajustements en lot simultanés.
+            ksort($ids);
             foreach (array_keys($ids) as $pid) {
                 $stmtStock->execute([$pid]);
                 $p = $stmtStock->fetch();
@@ -283,7 +335,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
             header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         } catch (Exception $e) {
             $db->rollBack();
-            flash('Erreur lors de l\'ajustement en lot : ' . $e->getMessage(), 'error');
+            flashError($e, 'ajustement en lot');
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
+        }
+    }
+
+    // ── Ajustement unitaire (double-clic sur une ligne du stock) ──
+    // Valeur cible absolue pour UN produit ; mouvement 'ajustement' signé
+    // journalisé uniquement si la quantité change réellement (delta ≠ 0).
+    if ($action === 'ajuster') {
+        $pid   = (int)($_POST['produit_id'] ?? 0);
+        $qte   = (int)($_POST['quantite'] ?? -1);
+        $motif = trim($_POST['motif'] ?? '');
+
+        if ($pid <= 0 || $qte < 0) {
+            flash('Produit ou quantité invalide.', 'error');
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
+        }
+
+        try {
+            $db->beginTransaction();
+            // FOR UPDATE : voir commentaire de l'ajustement en lot (même raison).
+            $stmtStock = $db->prepare("SELECT nom, stock_magasin FROM produits WHERE id=? FOR UPDATE");
+            $stmtStock->execute([$pid]);
+            $p = $stmtStock->fetch();
+            if (!$p) {
+                $db->rollBack();
+                flash('Produit introuvable.', 'error');
+                header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
+            }
+            $ancien = (int)$p['stock_magasin'];
+            $delta  = $qte - $ancien;
+            if ($delta !== 0) {
+                $db->prepare("UPDATE produits SET stock_magasin=? WHERE id=?")->execute([$qte, $pid]);
+                $libelle = 'Ajustement ligne' . ($motif ? ' — ' . $motif : '');
+                $db->prepare("INSERT INTO mouvements_magasin (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'ajustement',?,?,?)")
+                   ->execute([$pid, $delta, $libelle, $uid]);
+            }
+            $db->commit();
+            auditLog('magasin.ajuster', sprintf('Produit #%d (%s) : %d → %d%s', $pid, $p['nom'], $ancien, $qte, $motif ? ' (' . $motif . ')' : ''));
+            flash($delta === 0
+                ? 'Quantité inchangée pour « ' . $p['nom'] . ' ».'
+                : 'Quantité magasin mise à jour pour « ' . $p['nom'] . ' » : ' . $ancien . ' → ' . $qte . '.');
+            header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
+        } catch (Exception $e) {
+            $db->rollBack();
+            flashError($e, 'ajustement ligne');
             header('Location: ' . url('magasin', ['onglet'=>'stock'])); exit;
         }
     }
@@ -336,7 +433,6 @@ if (isset($_GET['bon'])) {
     $bonEtsAdr    = getParam('pharmacie_adresse', '');
     $bonEtsTel    = getParam('pharmacie_telephone', '');
     $bonEtsNif    = getParam('pharmacie_nif', '');
-    $bonDevSym    = getParam('devise_symbole', 'FCFA');
     $bonTotalQte  = 0;
     $bonTotalMont = 0.0;
     foreach ($bonLignes as $bl) {
@@ -413,8 +509,8 @@ if (isset($_GET['bon'])) {
         <th style="width:11%;">Réf. produit</th>
         <th class="center" style="width:11%;">Qté demandée</th>
         <th class="center" style="width:11%;">Qté livrée</th>
-        <th class="right" style="width:12%;">P.U. (<?= e($bonDevSym) ?>)</th>
-        <th class="right" style="width:13%;">Montant (<?= e($bonDevSym) ?>)</th>
+        <th class="right" style="width:12%;">P.U.</th>
+        <th class="right" style="width:13%;">Montant</th>
         <th style="width:13%;">Observations</th>
       </tr>
     </thead>
@@ -429,8 +525,8 @@ if (isset($_GET['bon'])) {
         <td><?= e($bl['reference'] ?? '—') ?></td>
         <td class="center"><?= (int)$bl['quantite'] ?></td>
         <td class="center"><?= (int)$bl['quantite'] ?></td>
-        <td class="right"><?= $pu > 0 ? fmtMoney($pu) : '—' ?></td>
-        <td class="right"><?= $pu > 0 ? fmtMoney($mt) : '—' ?></td>
+        <td class="right"><?= $pu > 0 ? fmtInt((int) round($pu)) : '—' ?></td>
+        <td class="right"><?= $pu > 0 ? fmtInt((int) round($mt)) : '—' ?></td>
         <td></td>
       </tr>
       <?php endforeach; ?>
@@ -444,7 +540,7 @@ if (isset($_GET['bon'])) {
         <td class="center"><?= $bonTotalQte ?></td>
         <td class="center"><?= $bonTotalQte ?></td>
         <td></td>
-        <td class="right"><?= $bonTotalMont > 0 ? fmtMoney($bonTotalMont) : '—' ?></td>
+        <td class="right"><?= $bonTotalMont > 0 ? fmtInt((int) round($bonTotalMont)) : '—' ?></td>
         <td></td>
       </tr>
     </tfoot>
@@ -516,7 +612,7 @@ $trfLignes = [];
 $stats = ['refs'=>0,'alerte'=>0,'total_mag'=>0,'total_ph'=>0];
 $total = 0;
 $page = 1;
-$perPage = in_array($_GET['perPage'] ?? '', ['25', '50'], true) ? (int)$_GET['perPage'] : 50;
+$perPage = 25; // pagination limitée à 25 éléments par page (demande utilisateur)
 
 // ── Stats générales (1 seule requête au lieu de 3, affichées sur tous les onglets) ──
 $statsRow = $db->query("SELECT COUNT(*) AS refs, SUM(CASE WHEN stock_magasin <= seuil_magasin THEN 1 ELSE 0 END) AS alerte, COALESCE(SUM(stock_magasin),0) AS total_mag FROM produits WHERE actif=1")->fetch();
@@ -533,6 +629,24 @@ if ($onglet === 'stock') {
     $q = trim($_GET['q'] ?? '');
     $where = "p.actif = 1";
     $params = [];
+    // ── Export Excel (mêmes filtres) ──
+    if (($_GET['export'] ?? '') === '1') {
+        require_once __DIR__ . '/../includes/export_xlsx.php';
+        $stX = $db->prepare("SELECT p.reference, p.nom, c.nom AS cat, p.stock_magasin, p.seuil_magasin, p.stock
+                             FROM produits p
+                             LEFT JOIN categories c ON p.categorie_id = c.id
+                             WHERE $where
+                             ORDER BY p.nom");
+        $stX->execute($params);
+        $rowsX = [];
+        foreach ($stX->fetchAll() as $p) {
+            $sm   = (int)$p['stock_magasin'];
+            $etat = $sm <= 0 ? 'Rupture' : ($sm <= (int)$p['seuil_magasin'] ? 'Stock bas' : 'OK');
+            $rowsX[] = [$p['reference'], $p['nom'], $p['cat'], $sm, (int)$p['seuil_magasin'], $etat];
+        }
+        export_xlsx_send('stock_magasin_' . date('Y-m-d'), 'Stock magasin',
+            ['Référence', 'Nom', 'Catégorie', 'Stock magasin', 'Seuil magasin', 'État'], $rowsX);
+    }
     if ($q !== '') {
         $qEsc = str_replace(['\\','%','_'], ['\\\\','\%','\_'], $q);
         $where .= " AND (p.nom LIKE ? ESCAPE '\\\\' OR p.reference LIKE ? ESCAPE '\\\\')";
@@ -565,8 +679,20 @@ if ($onglet === 'stock') {
         }
     }
 } elseif ($onglet === 'historique') {
+    // Fenêtre glissante 90 jours par défaut (extensible via ?hist_jours) pour
+    // garder COUNT + listes à coût constant quand mouvements_magasin grossit.
+    $histJours = max(1, min(3650, (int)($_GET['hist_jours'] ?? 90)));
+    $histDebut = date('Y-m-d 00:00:00', strtotime("-{$histJours} days"));
+    $whereHist = "created_at >= " . $db->quote($histDebut);
+
+    $perPageTrf = 25;
+    $pageTrf    = max(1, (int)($_GET['page_trf'] ?? 1));
+    $offsetTrf  = paginateOffset($pageTrf, $perPageTrf);
+
+    $totalTrf = (int)$db->query("SELECT COUNT(*) FROM transferts_magasin WHERE $whereHist")->fetchColumn();
+
     // ── Transferts (sous-requête dérivée au lieu de 2 corrélées par ligne) ──
-    $transferts = $db->query("
+    $transferts = $db->prepare("
         SELECT t.*, u.prenom, u.nom AS u_nom,
                COALESCE(tl_stats.nb_lignes, 0) AS nb_lignes,
                COALESCE(tl_stats.total_qte, 0) AS total_qte
@@ -576,19 +702,31 @@ if ($onglet === 'stock') {
             SELECT transfert_id, COUNT(*) AS nb_lignes, SUM(quantite) AS total_qte
             FROM transfert_lignes GROUP BY transfert_id
         ) tl_stats ON tl_stats.transfert_id = t.id
+        WHERE t.$whereHist
         ORDER BY t.created_at DESC
-        LIMIT 100
-    ")->fetchAll();
+        LIMIT $perPageTrf OFFSET $offsetTrf
+    ");
+    $transferts->execute();
+    $transferts = $transferts->fetchAll();
+
+    $perPageMvt = 25;
+    $pageMvt    = max(1, (int)($_GET['page_mvt'] ?? 1));
+    $offsetMvt  = paginateOffset($pageMvt, $perPageMvt);
+
+    $totalMvt = (int)$db->query("SELECT COUNT(*) FROM mouvements_magasin WHERE $whereHist")->fetchColumn();
 
     // Mouvements magasin récents
-    $mouvements = $db->query("
+    $mouvements = $db->prepare("
         SELECT m.*, p.nom AS pnom, u.prenom, u.nom AS u_nom
         FROM mouvements_magasin m
         LEFT JOIN produits p ON m.produit_id = p.id
         LEFT JOIN utilisateurs u ON m.utilisateur_id = u.id
+        WHERE $whereHist
         ORDER BY m.created_at DESC
-        LIMIT 100
-    ")->fetchAll();
+        LIMIT $perPageMvt OFFSET $offsetMvt
+    ");
+    $mouvements->execute();
+    $mouvements = $mouvements->fetchAll();
 
     // Lignes des transferts (détail dépliable)
     $trfIds = array_column($transferts, 'id');
@@ -601,11 +739,11 @@ if ($onglet === 'stock') {
         }
     }
 } elseif ($onglet === 'reception' && hasPermission('magasin.gerer')) {
-    // Liste légère pour le <select> de réception : tout le catalogue,
-    // colonnes minimales (pas de description TEXT, pas de jointure inutile).
-    $produitsSelect = $db->query("SELECT id, nom, stock_magasin FROM produits WHERE actif=1 ORDER BY nom")->fetchAll();
+    // Liste pour le <select> de réception + carte de scan : tout le catalogue,
+    // colonnes minimales (référence incluse = code-barres scannable).
+    $produitsSelect = $db->query("SELECT id, nom, reference, stock_magasin FROM produits WHERE actif=1 ORDER BY nom")->fetchAll();
 } elseif ($onglet === 'etat-date') {
-    // Reconstitution rétroactive : a besoin de TOUS les produits + ppMap complet.
+    // Reconstitution rétroactive : a besoin de TOUS les produits + ppMap.
     $produits = $db->query("
         SELECT p.id, p.nom, p.reference, p.stock_magasin, c.nom AS cat
         FROM produits p
@@ -613,8 +751,14 @@ if ($onglet === 'stock') {
         WHERE p.actif = 1
         ORDER BY p.nom
     ")->fetchAll();
-    foreach ($db->query("SELECT produit_id, pharmacie_id, stock FROM produit_pharmacie")->fetchAll() as $r) {
-        $ppMap[(int)$r['produit_id']][(int)$r['pharmacie_id']] = (int)$r['stock'];
+    // ppMap complet nécessaire uniquement si le scope cible une pharmacie ou
+    // « toutes ». En scope=magasin, on évite le scan complet de produit_pharmacie.
+    $ppMap = [];
+    $edScope = $_GET['scope'] ?? 'magasin';
+    if ($edScope !== 'magasin') {
+        foreach ($db->query("SELECT produit_id, pharmacie_id, stock FROM produit_pharmacie")->fetchAll() as $r) {
+            $ppMap[(int)$r['produit_id']][(int)$r['pharmacie_id']] = (int)$r['stock'];
+        }
     }
 }
 
@@ -661,9 +805,10 @@ showFlash();
 
 <?php if ($onglet === 'stock'): ?>
 <!-- ═══ Onglet STOCK MAGASIN ═══════════════════════════════ -->
-<div class="card">
+<div class="card no-print">
   <div class="card-header">
     <div class="card-title">Stock du dépôt central (magasin)</div>
+    <a href="<?= url('magasin', ['onglet'=>'stock', 'export'=>'1', 'q'=>$q]) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <div class="flex gap-8" style="flex-wrap:wrap;align-items:center;">
       <form method="GET" action="<?= url('magasin') ?>" style="display:flex;flex:1;min-width:300px;max-width:100%;">
         <input type="hidden" name="onglet" value="stock">
@@ -671,11 +816,10 @@ showFlash();
           <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
           <input type="text" name="q" value="<?= e($_GET['q'] ?? '') ?>" placeholder="Rechercher par nom ou référence...">
         </div>
-        <select name="perPage" onchange="this.form.submit()" style="margin-left:6px;padding:2px 4px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg1);color:var(--text1);font-size:12px;cursor:pointer;width:70px;">
-          <option value="25" <?= $perPage === 25 ? 'selected' : '' ?>>25</option>
-          <option value="50" <?= $perPage === 50 ? 'selected' : '' ?>>50</option>
-        </select>
       </form>
+      <button type="button" class="btn btn-ghost" id="btn-edit-sel" onclick="printSelectionMagasin()">
+        <?= icon('report',16) ?> Éditer les quantités
+      </button>
       <?php if (hasPermission('magasin.gerer')): ?>
       <button type="button" class="btn btn-primary" onclick="openTransfertModal()">
         <?= icon('truck',16) ?> Transfert vers pharmacie
@@ -696,9 +840,7 @@ showFlash();
           <th style="width:32px;text-align:center;">#</th><th>Médicament</th><th>Catégorie</th>
           <th style="text-align:right;">Stock magasin</th>
           <th style="text-align:right;">Seuil mag.</th>
-          <?php foreach ($pharmacies as $i => $ph): ?>
-          <th style="text-align:right;color:var(--teal2);<?= $i === 0 ? 'border-left:2px solid var(--border2);' : '' ?>" title="Stock de la pharmacie « <?= e($ph['nom']) ?> »"><?= e($ph['nom']) ?></th>
-          <?php endforeach; ?>
+          <th style="text-align:center;color:var(--teal2);">Pharmacies</th>
           <th>État</th>
           <?php if (hasPermission('magasin.gerer')): ?><th style="text-align:right;">Action</th><?php endif; ?>
         </tr>
@@ -706,20 +848,27 @@ showFlash();
       <tbody>
         <?php $num = $offset + 1; foreach ($produits as $p):
           $alerte = (int)$p['stock_magasin'] <= (int)$p['seuil_magasin'];
+          $totalPh = 0;
+          foreach ($pharmacies as $ph) { $totalPh += (int)($ppMap[(int)$p['id']][(int)$ph['id']] ?? 0); }
         ?>
-        <tr data-nom="<?= e(strtolower($p['nom'] . ' ' . $p['reference'])) ?>">
+        <tr data-nom="<?= e(strtolower($p['nom'] . ' ' . $p['reference'])) ?>" data-pid="<?= (int)$p['id'] ?>"
+            data-noml="<?= e($p['nom'] . ($p['reference'] ? ' (' . e($p['reference']) . ')' : '')) ?>"
+            data-ref="<?= e($p['reference']) ?>" data-cat="<?= e($p['cat'] ?? '') ?>"
+            data-stock="<?= (int)$p['stock_magasin'] ?>" data-totalph="<?= $totalPh ?>">
           <td style="text-align:center;color:var(--text3);font-size:12px;"><?= $num++ ?></td>
           <td class="td-name"><?= e($p['nom']) ?>
             <?php if ($p['reference']): ?><div class="text-sm td-mono" style="color:var(--text3);"><?= e($p['reference']) ?></div><?php endif; ?>
           </td>
           <td class="text-sm"><?= e($p['cat'] ?? '—') ?></td>
-          <td class="fw-mono text-right <?= $alerte ? 'c-gold' : '' ?>" style="text-align:right;"><?= fmtInt((int)$p['stock_magasin']) ?></td>
+          <td class="fw-mono text-right <?= $alerte ? 'c-gold' : '' ?>" style="text-align:right;<?= hasPermission('magasin.gerer') ? 'cursor:ns-resize;' : '' ?>"
+              <?php if (hasPermission('magasin.gerer')): ?>ondblclick="startInlineEdit(this, <?= (int)$p['id'] ?>, <?= (int)$p['stock_magasin'] ?>)"
+              title="Double-cliquez pour modifier la quantité"<?php endif; ?>><?= fmtInt((int)$p['stock_magasin']) ?></td>
           <td class="fw-mono text-sm" style="text-align:right;color:var(--text3);"><?= fmtInt((int)$p['seuil_magasin']) ?></td>
-          <?php foreach ($pharmacies as $i => $ph):
-            $stk = $ppMap[(int)$p['id']][(int)$ph['id']] ?? 0;
-          ?>
-          <td class="fw-mono" style="text-align:right;<?= ($i === 0 ? 'border-left:2px solid var(--border2);' : '') . ($stk <= 0 ? 'color:var(--text3);' : '') ?>"><?= fmtInt($stk) ?></td>
-          <?php endforeach; ?>
+          <td style="text-align:center;">
+            <button type="button" class="btn btn-ghost btn-sm" title="Voir la répartition par pharmacie" onclick="openStockPharmaModal(<?= (int)$p['id'] ?>, <?= htmlspecialchars(json_encode($p['nom']), ENT_QUOTES) ?>)">
+              <?= icon('eye',14) ?> <span class="fw-mono"><?= fmtInt($totalPh) ?></span>
+            </button>
+          </td>
           <td>
             <?php if ($alerte): ?>
               <span class="badge badge-gold"><?= (int)$p['stock_magasin'] === 0 ? 'Rupture mag.' : 'Stock bas' ?></span>
@@ -729,13 +878,13 @@ showFlash();
           </td>
           <?php if (hasPermission('magasin.gerer')): ?>
           <td style="text-align:right;">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="openTransfertModal(<?= (int)$p['id'] ?>)"><?= icon('truck',14) ?> Transférer</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openTransfertModal(<?= (int)$p['id'] ?>, <?= htmlspecialchars(json_encode($p['nom']), ENT_QUOTES) ?>)"><?= icon('truck',14) ?> Transférer</button>
           </td>
           <?php endif; ?>
         </tr>
         <?php endforeach; ?>
         <?php if (!$produits): ?>
-        <tr><td colspan="<?= 6 + count($pharmacies) + (hasPermission('magasin.gerer') ? 1 : 0) ?>">
+        <tr><td colspan="<?= 7 + (hasPermission('magasin.gerer') ? 1 : 0) ?>">
           <div class="empty">
             <div style="color:var(--text3);margin-bottom:8px;"><?= icon('box',36) ?></div>
             <div>Aucun produit</div>
@@ -747,8 +896,174 @@ showFlash();
   </div>
   <?= renderPagination($page, $perPage, $total, ['onglet'=>'stock','q'=>$_GET['q'] ?? '','perPage'=>$perPage]) ?>
 </div>
+
+<!-- ═══ ÉDITION DES QUANTITÉS (sélection, impression A4) ═══ -->
+<div id="print-mag-sel" class="print-only">
+  <div style="text-align:center;margin-bottom:8px;">
+    <div style="font-size:18px;font-weight:700;"><?= e(getParam('app_nom', 'PharmaCare')) ?> — État des quantités magasin</div>
+    <div style="font-size:12px;color:#555;">Édité le <?= date('d/m/Y à H:i') ?> — dépôt central (magasin)</div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead>
+      <tr>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:center;background:#eee;width:26px;">N°</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Article</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Réf.</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Catégorie</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:right;background:#eee;">Stock magasin</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:right;background:#eee;">Total pharmacies</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:center;background:#eee;">Qté constatée</th>
+        <th style="border:1px solid #999;padding:5px 7px;text-align:left;background:#eee;">Observations</th>
+      </tr>
+    </thead>
+    <tbody id="pm-tbody"></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" style="border:1px solid #999;padding:5px 7px;text-align:right;font-weight:600;background:#eee;">TOTAUX</td>
+        <td id="pm-tot-mag" style="border:1px solid #999;padding:5px 7px;text-align:right;font-weight:600;background:#eee;"></td>
+        <td id="pm-tot-ph" style="border:1px solid #999;padding:5px 7px;text-align:right;font-weight:600;background:#eee;"></td>
+        <td style="border:1px solid #999;padding:5px 7px;background:#eee;"></td>
+        <td style="border:1px solid #999;padding:5px 7px;background:#eee;"></td>
+      </tr>
+    </tfoot>
+  </table>
+  <div style="display:flex;justify-content:space-between;margin-top:40px;text-align:center;font-size:11px;">
+    <div style="width:40%;"><div style="border-top:1px solid #555;padding-top:4px;">Le Magasinier</div></div>
+    <div style="width:40%;"><div style="border-top:1px solid #555;padding-top:4px;">Le Pharmacien</div></div>
+  </div>
+</div>
 <script>
-// La recherche de la liste principale est désormais côté serveur (form GET q=).
+// Édition des quantités : remplit le bloc print-only avec les articles
+// affichés (page courante, filtre de recherche inclus) puis imprime.
+function magEscSel(s){ var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+function printSelectionMagasin() {
+  var rows = document.querySelectorAll('#table-mag tbody tr[data-pid]');
+  if (!rows.length) { alert('Aucun article à éditer.'); return; }
+  var tbody = document.getElementById('pm-tbody');
+  var totMag = 0, totPh = 0, html = '';
+  rows.forEach(function(r, i) {
+    var stock = parseInt(r.getAttribute('data-stock'), 10) || 0;
+    var totph = parseInt(r.getAttribute('data-totalph'), 10) || 0;
+    totMag += stock; totPh += totph;
+    html += '<tr>'
+      + '<td style="border:1px solid #999;padding:5px 7px;text-align:center;">' + (i + 1) + '</td>'
+      + '<td style="border:1px solid #999;padding:5px 7px;">' + magEscSel(r.getAttribute('data-noml')) + '</td>'
+      + '<td style="border:1px solid #999;padding:5px 7px;">' + magEscSel(r.getAttribute('data-ref')) + '</td>'
+      + '<td style="border:1px solid #999;padding:5px 7px;">' + magEscSel(r.getAttribute('data-cat')) + '</td>'
+      + '<td style="border:1px solid #999;padding:5px 7px;text-align:right;">' + stock + '</td>'
+      + '<td style="border:1px solid #999;padding:5px 7px;text-align:right;">' + totph + '</td>'
+      + '<td style="border:1px solid #999;padding:5px 7px;"></td>'
+      + '<td style="border:1px solid #999;padding:5px 7px;"></td>'
+      + '</tr>';
+  });
+  tbody.innerHTML = html;
+  document.getElementById('pm-tot-mag').textContent = totMag;
+  document.getElementById('pm-tot-ph').textContent = totPh;
+  window.print();
+}
+// ── Édition inline de la quantité (double-clic sur la ligne) ──
+// La cellule « Stock magasin » devient un champ de saisie ; Entrée valide
+// (POST action=ajuster, valeur cible absolue), Échap annule.
+var magInlineForm = null;
+var MAG_CSRF = <?= json_encode(csrf()) ?>;
+var MAG_APP_URL = <?= json_encode(APP_URL) ?>;
+function startInlineEdit(td, pid, current) {
+  // Un seul champ actif à la fois : valider/annuler l'édition en cours
+  cancelInlineEdit(true);
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = MAG_APP_URL + '/magasin?onglet=stock';
+  form.style.display = 'inline';
+  form.innerHTML =
+    '<input type="hidden" name="csrf" value="' + MAG_CSRF + '">' +
+    '<input type="hidden" name="action" value="ajuster">' +
+    '<input type="hidden" name="produit_id" value="' + pid + '">' +
+    '<input type="number" name="quantite" min="0" value="' + current + '" style="width:84px;text-align:right;font-family:var(--font-mono,monospace);padding:2px 6px;" ' +
+    'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.form.submit();}' +
+    'else if(event.key===\'Escape\'){event.preventDefault();cancelInlineEdit();}">';
+  td.innerHTML = '';
+  td.appendChild(form);
+  td.ondblclick = null;
+  magInlineForm = { td: td, pid: pid, current: current };
+  var inp = form.querySelector('input[name=quantite]');
+  inp.focus(); inp.select();
+}
+function cancelInlineEdit() {
+  if (!magInlineForm) return;
+  var f = magInlineForm;
+  magInlineForm = null;
+  f.td.innerHTML = fmtIntStr(f.current);
+  f.td.ondblclick = function(){ startInlineEdit(f.td, f.pid, f.current); };
+  // Remove cursor change until re-render
+  f.td.style.cursor = 'ns-resize';
+}
+function fmtIntStr(n) {
+  try { return fmtInt(parseInt(n, 10)); } catch (err) { return String(n); }
+}
+</script>
+
+<!-- ═══ Modale RÉPARTITION PAR PHARMACIE (produit) ═══ -->
+<div class="modal-overlay" id="modal-stock-pharma">
+  <div class="modal" style="width:560px;max-width:94vw;">
+    <div class="modal-header" style="padding:18px 24px;">
+      <div class="modal-title"><?= icon('building',16) ?> <span id="sp-title">Répartition par pharmacie</span></div>
+      <button class="modal-close" onclick="closeModal('modal-stock-pharma')">✕</button>
+    </div>
+    <div class="card-pad" style="padding:18px 24px;">
+      <div id="sp-summary" class="text-sm" style="color:var(--text3);margin-bottom:14px;"></div>
+      <div class="table-wrap" style="max-height:380px;overflow-y:auto;">
+        <table id="sp-table">
+          <thead>
+            <tr>
+              <th>Pharmacie</th>
+              <th style="text-align:right;">Stock</th>
+              <th style="text-align:center;">État</th>
+            </tr>
+          </thead>
+          <tbody id="sp-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding:14px 24px;">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('modal-stock-pharma')">Fermer</button>
+    </div>
+  </div>
+</div>
+<script>
+// Répartition par pharmacie d'un produit — ppMap + liste des pharmacies
+// partagés avec les modales de transfert (magasin.gerer) ci-dessous.
+var MAG_ppMap = <?= json_encode($ppMap, JSON_UNESCAPED_UNICODE) ?>;
+var MAG_pharmacies = <?= json_encode(array_values($pharmacies), JSON_UNESCAPED_UNICODE) ?>;
+
+function openStockPharmaModal(pid, nom) {
+  pid = parseInt(pid, 10) || 0;
+  var title   = document.getElementById('sp-title');
+  var tbody   = document.getElementById('sp-tbody');
+  var summary = document.getElementById('sp-summary');
+  title.textContent = 'Répartition — ' + nom;
+  function esc(s){ var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+  var stocks = (MAG_ppMap && MAG_ppMap[pid]) ? MAG_ppMap[pid] : {};
+  var html = '', total = 0;
+  for (var i = 0; i < MAG_pharmacies.length; i++) {
+    var ph = MAG_pharmacies[i];
+    var s = (stocks[ph.id] !== undefined) ? parseInt(stocks[ph.id], 10) : 0;
+    total += s;
+    var etat = s <= 0
+      ? '<span class="badge badge-red">Rupture</span>'
+      : '<span class="badge badge-green">OK</span>';
+    html += '<tr>'
+      + '<td>' + esc(ph.nom) + '</td>'
+      + '<td class="fw-mono" style="text-align:right;' + (s <= 0 ? 'color:var(--text3);' : '') + '">' + s + '</td>'
+      + '<td style="text-align:center;">' + etat + '</td>'
+      + '</tr>';
+  }
+  if (!MAG_pharmacies.length) {
+    html = '<tr><td colspan="3"><div class="empty">Aucune pharmacie active.</div></td></tr>';
+  }
+  tbody.innerHTML = html;
+  summary.textContent = MAG_pharmacies.length + ' pharmacie(s) — ' + total + ' unité(s) au total';
+  openModal('modal-stock-pharma');
+}
 </script>
 
 <?php if (hasPermission('magasin.gerer')): ?>
@@ -784,7 +1099,7 @@ showFlash();
         <div class="flex-between" style="margin-bottom:16px;gap:12px;flex-wrap:wrap;">
           <div class="search-box" style="flex:1;min-width:220px;">
             <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
-            <input type="text" id="trf-search" placeholder="Filtrer les produits..." oninput="filterTrfList()">
+            <input type="text" id="trf-search" placeholder="Rechercher un produit..." oninput="onTrfSearchInput()">
           </div>
           <label class="text-sm" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="trf-select-all" onchange="toggleAllTrf(this.checked)">
@@ -829,6 +1144,83 @@ showFlash();
 var ppMap = <?= json_encode($ppMap, JSON_UNESCAPED_UNICODE) ?>;
 var trfPharmacies = <?= json_encode(array_values($pharmacies), JSON_UNESCAPED_UNICODE) ?>;
 
+// Échappement HTML pour les cellules construites en JS (défense XSS).
+function magEsc(s){ var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+// ── Chargement ajax de la liste des produits (endpoint ?ajax=produits) ──
+// La modale ne contient aucune ligne au chargement de la page : on ne charge
+// que les produits correspondant à la recherche (50 max), pour ne pas embarquer
+// tout le catalogue dans le HTML.
+var trfSearchTimer = null;
+var trfPendingPid = 0;
+
+function onTrfSearchInput() {
+  clearTimeout(trfSearchTimer);
+  var q = document.getElementById('trf-search').value;
+  trfSearchTimer = setTimeout(function(){ loadTrfProducts(q); }, 250);
+}
+
+function loadTrfProducts(q) {
+  var tbody = document.getElementById('trf-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5"><div class="empty">Chargement…</div></td></tr>';
+  var url = (window.APP_URL || '') + '/modules/magasin.php?ajax=produits&q=' + encodeURIComponent(q || '');
+  fetch(url, { credentials: 'same-origin' })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      // Fusionner les stocks par pharmacie reçus dans ppMap (utilisé par
+      // updateDispoPharmacie()) — les produits chargés peuvent être hors page.
+      if (data && data.pp) {
+        for (var pid in data.pp) {
+          ppMap[pid] = ppMap[pid] || {};
+          for (var phid in data.pp[pid]) { ppMap[pid][phid] = data.pp[pid][phid]; }
+        }
+      }
+      buildTrfRows((data && data.produits) ? data.produits : []);
+    })
+    .catch(function(){
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty">Erreur de chargement. Réessayez.</div></td></tr>';
+    });
+}
+
+function buildTrfRows(produits) {
+  var tbody = document.getElementById('trf-tbody');
+  if (!produits.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty">Aucun produit trouvé.</div></td></tr>';
+    document.getElementById('trf-select-all').checked = false;
+    updateTrfSummary();
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < produits.length; i++) {
+    var p = produits[i];
+    var pid = parseInt(p.id, 10);
+    var dispo = parseInt(p.stock_magasin, 10) || 0;
+    var disabled = dispo <= 0 ? 'disabled' : '';
+    var refHtml = p.reference ? '<div class="text-sm td-mono" style="color:var(--text3);">' + magEsc(p.reference) + '</div>' : '';
+    html += '<tr data-nom="' + magEsc((p.nom + ' ' + (p.reference || '')).toLowerCase()) + '" data-pid="' + pid + '">'
+      + '<td style="text-align:center;"><input type="checkbox" class="trf-check" data-pid="' + pid + '" data-dispo="' + dispo + '" ' + disabled + ' onchange="onTrfCheck(this)"></td>'
+      + '<td class="td-name">' + magEsc(p.nom) + refHtml + '</td>'
+      + '<td class="fw-mono text-right" style="text-align:right;' + (dispo <= 0 ? 'color:var(--text3);' : '') + '">' + dispo + '</td>'
+      + '<td class="fw-mono trf-dispo-ph" data-pid="' + pid + '" style="text-align:right;color:var(--text3);">0</td>'
+      + '<td style="text-align:right;"><input type="number" class="trf-qte" data-pid="' + pid + '" data-dispo="' + dispo + '" min="1" max="' + Math.max(1, dispo) + '" value="1" disabled style="width:80px;text-align:right;" oninput="onTrfQte(this)"></td>'
+      + '</tr>';
+  }
+  tbody.innerHTML = html;
+  document.getElementById('trf-select-all').checked = false;
+  updateDispoPharmacie();
+  // pré-cocher le produit demandé (bouton « Transférer » d'une ligne)
+  if (trfPendingPid) {
+    var cb = document.querySelector('#trf-table .trf-check[data-pid="' + trfPendingPid + '"]');
+    if (cb && !cb.disabled) {
+      cb.checked = true; onTrfCheck(cb);
+      var row = cb.closest('tr'); if (row) row.scrollIntoView({block:'center'});
+    }
+    trfPendingPid = 0;
+  }
+  updateTrfSummary();
+}
+
 function updateDispoPharmacie() {
   var sel = document.getElementById('trf-pharmacie');
   if (!sel) return;
@@ -840,7 +1232,7 @@ function updateDispoPharmacie() {
   });
 }
 
-function openTransfertModal(pid) {
+function openTransfertModal(pid, nom) {
   // réinitialiser la sélection
   document.querySelectorAll('#trf-table .trf-check').forEach(function(c){ c.checked = false; });
   document.querySelectorAll('#trf-table .trf-qte').forEach(function(q){ q.value = '1'; q.disabled = true; q.style.borderColor = ''; });
@@ -851,15 +1243,12 @@ function openTransfertModal(pid) {
   var sel = document.getElementById('trf-pharmacie');
   if (sel && sel.options.length) sel.selectedIndex = 0;
   updateDispoPharmacie();
-  // pré-cocher le produit demandé (bouton « Transférer » d'une ligne)
-  if (pid) {
-    var cb = document.querySelector('#trf-table .trf-check[data-pid="' + pid + '"]');
-    if (cb && !cb.disabled) {
-      cb.checked = true; onTrfCheck(cb);
-      var row = cb.closest('tr'); if (row) row.scrollIntoView({block:'center'});
-    }
-  }
-  updateTrfSummary();
+  // (Re)charger la liste via ajax — pré-remplir la recherche avec le nom du
+  // produit demandé pour garantir sa présence dans les résultats.
+  var search = document.getElementById('trf-search');
+  trfPendingPid = parseInt(pid, 10) || 0;
+  if (search) search.value = nom || '';
+  loadTrfProducts(nom || '');
   openModal('modal-transfert');
 }
 
@@ -949,13 +1338,6 @@ function toggleAllTrf(checked) {
     }
   }
   updateTrfSummary();
-}
-
-function filterTrfList() {
-  var q = document.getElementById('trf-search').value.toLowerCase();
-  document.querySelectorAll('#trf-table tbody tr').forEach(function(r){
-    r.style.display = r.getAttribute('data-nom').indexOf(q) > -1 ? '' : 'none';
-  });
 }
 
 function submitTransfert(e) {
@@ -1305,10 +1687,160 @@ function submitAjustLot(e) {
 <?php endif; ?>
 
 <?php elseif ($onglet === 'reception' && hasPermission('magasin.gerer')): ?>
-<!-- ═══ Onglet RÉCEPTION / AJUSTEMENT ══════════════════════ -->
+<?php
+// Carte de scan : référentiel reference → produit (le code-barres = colonne reference)
+$scanMap = [];
+foreach ($produitsSelect as $ps) {
+    $ref = trim((string)($ps['reference'] ?? ''));
+    if ($ref !== '' && !isset($scanMap[strtolower($ref)])) {
+        $scanMap[strtolower($ref)] = [
+            'id'    => (int)$ps['id'],
+            'nom'   => $ps['nom'],
+            'stock' => (int)$ps['stock_magasin'],
+            'ref'   => $ref,
+        ];
+    }
+}
+?>
+<div class="card no-print" style="margin-bottom:16px;border-color:var(--teal2);">
+  <div class="card-header">
+    <div class="card-title">📡 Réception par scanner (codes-barres / QR)</div>
+    <span class="text-sm">Chaque scan ajoute +1 — quantités modifiables avant enregistrement.</span>
+  </div>
+  <div class="card-pad">
+    <div class="form-group">
+      <label for="scan-input">Scanner ou taper le code, puis Entrée *</label>
+      <input type="text" id="scan-input" autocomplete="off" autofocus
+             placeholder="Douchette : le code est envoyé + Entrée automatiquement"
+             style="width:100%;font-size:16px;font-family:var(--font-mono,monospace);">
+      <div id="scan-feedback" class="text-sm" style="margin-top:6px;min-height:18px;"></div>
+    </div>
+
+    <div id="scan-unknown" class="alert alert-error" style="display:none;"></div>
+
+    <div class="table-wrap" style="margin:10px 0;">
+      <table>
+        <thead><tr><th>Référence</th><th>Produit</th><th style="text-align:right;">Stock actuel</th><th style="width:110px;text-align:right;">Qté reçue</th><th style="width:40px;"></th></tr></thead>
+        <tbody id="scan-tbody">
+          <tr><td colspan="5" class="empty">Aucun produit scanné — scannez ou tapez un code puis Entrée.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <form method="POST" action="?onglet=reception" id="scan-form">
+      <input type="hidden" name="csrf" value="<?= csrf() ?>">
+      <input type="hidden" name="action" value="reception_scan">
+      <div id="scan-hidden"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+        <div class="form-group" style="flex:1;min-width:240px;margin:0;">
+          <label>Motif (origine de la réception)</label>
+          <input type="text" name="motif" placeholder="Ex. : livraison LABOREX du jour" style="width:100%;">
+        </div>
+        <button type="button" class="btn btn-ghost" onclick="scanClear()">Vider</button>
+        <button type="submit" class="btn btn-primary" id="scan-submit" disabled><?= icon('save',14) ?> Enregistrer la réception</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+var SCAN_MAP   = <?= json_encode($scanMap, JSON_UNESCAPED_UNICODE) ?>;
+var SCAN_LINES = {};   // pid → {nom, ref, stock, qte}
+
+function scanFlash(msg, ok) {
+  var f = document.getElementById('scan-feedback');
+  f.textContent = msg;
+  f.style.color = ok ? 'var(--teal2)' : 'var(--red)';
+}
+
+function scanBeep(ok) {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = ok ? 1200 : 300; g.gain.value = 0.06;
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); setTimeout(function(){ o.stop(); ctx.close(); }, ok ? 90 : 220);
+  } catch (e) { /* audio indisponible — feedback visuel seul */ }
+}
+
+function scanAdd(pid, info) {
+  if (SCAN_LINES[pid]) SCAN_LINES[pid].qte += 1;
+  else SCAN_LINES[pid] = { nom: info.nom, ref: info.ref, stock: info.stock, qte: 1 };
+  scanRender();
+}
+
+function scanRender() {
+  var tb = document.getElementById('scan-tbody');
+  var keys = Object.keys(SCAN_LINES);
+  if (keys.length === 0) {
+    tb.innerHTML = '<tr><td colspan="5" class="empty">Aucun produit scanné — scannez ou tapez un code puis Entrée.</td></tr>';
+  } else {
+    tb.innerHTML = '';
+    keys.forEach(function(pid) {
+      var l = SCAN_LINES[pid];
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="td-mono">' + l.ref + '</td>' +
+        '<td>' + l.nom + '</td>' +
+        '<td style="text-align:right;" class="fw-mono">' + l.stock + '</td>' +
+        '<td style="text-align:right;"><input type="number" min="1" value="' + l.qte + '" data-pid="' + pid + '" class="scan-qte" style="width:90px;text-align:right;"></td>' +
+        '<td><button type="button" class="btn btn-ghost btn-xs" onclick="scanRemove(' + pid + ')">✕</button></td>';
+      tb.appendChild(tr);
+    });
+  }
+  document.getElementById('scan-submit').disabled = keys.length === 0;
+}
+
+document.addEventListener('input', function(e) {
+  if (e.target.classList && e.target.classList.contains('scan-qte')) {
+    var pid = e.target.getAttribute('data-pid');
+    if (SCAN_LINES[pid]) SCAN_LINES[pid].qte = Math.max(1, parseInt(e.target.value, 10) || 1);
+  }
+});
+
+document.getElementById('scan-form').addEventListener('submit', function(ev) {
+  if (Object.keys(SCAN_LINES).length === 0) { ev.preventDefault(); return false; }
+  if (!confirm('Confirmer la réception de ' + Object.keys(SCAN_LINES).length + ' produit(s) au magasin ?')) { ev.preventDefault(); return false; }
+  var hidden = document.getElementById('scan-hidden');
+  hidden.innerHTML = '';
+  Object.keys(SCAN_LINES).forEach(function(pid) {
+    var i1 = document.createElement('input'); i1.type = 'hidden'; i1.name = 'scan_pid[]'; i1.value = pid;
+    var i2 = document.createElement('input'); i2.type = 'hidden'; i2.name = 'scan_qte[]'; i2.value = SCAN_LINES[pid].qte;
+    hidden.appendChild(i1); hidden.appendChild(i2);
+  });
+});
+
+function scanRemove(pid) { delete SCAN_LINES[pid]; scanRender(); }
+function scanClear() { SCAN_LINES = {}; document.getElementById('scan-unknown').style.display = 'none'; document.getElementById('scan-feedback').textContent = ''; scanRender(); }
+
+var scanInput = document.getElementById('scan-input');
+scanInput.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter' && e.key !== 'Tab') return;
+  e.preventDefault();
+  var code = this.value.trim();
+  if (code === '') return;
+  var info = SCAN_MAP[code.toLowerCase()];
+  var unk = document.getElementById('scan-unknown');
+  if (info) {
+    scanAdd(info.id, info);
+    scanFlash('✓ ' + info.nom + ' — stock magasin actuel : ' + info.stock, true);
+    unk.style.display = 'none';
+    scanBeep(true);
+  } else {
+    scanFlash('✗ Code inconnu : ' + code, false);
+    unk.style.display = 'block';
+    unk.textContent = 'Code « ' + code + ' » introuvable dans le catalogue. Vérifiez la référence du produit (ou créez-le d\'abord dans Médicaments).';
+    scanBeep(false);
+  }
+  this.value = '';
+  this.focus();
+});
+scanInput.focus();
+</script>
+
 <div class="card" style="max-width:620px;margin:0 auto;">
   <div class="card-header">
-    <div class="card-title">Réception / Ajustement magasin</div>
+    <div class="card-title">Saisie manuelle unitaire</div>
     <span class="text-sm">Entrée manuelle (hors commande) ou correction d'inventaire.</span>
   </div>
   <div class="card-pad">
@@ -1359,7 +1891,7 @@ function submitAjustLot(e) {
 <div class="card no-print" style="margin-bottom:16px;">
   <div class="card-header">
     <div class="card-title">Transferts Magasin → Pharmacie</div>
-    <span class="text-sm"><?= count($transferts) ?> transfert(s)</span>
+    <span class="text-sm"><?= fmtInt($totalTrf) ?> transfert(s)</span>
   </div>
   <div class="table-wrap">
     <table>
@@ -1398,12 +1930,13 @@ function submitAjustLot(e) {
       </tbody>
     </table>
   </div>
+  <?= renderPagination($pageTrf, $perPageTrf, $totalTrf, ['onglet'=>'historique'], 'page_trf') ?>
 </div>
 
 <div class="card no-print">
   <div class="card-header">
     <div class="card-title">Mouvements du magasin</div>
-    <span class="text-sm"><?= count($mouvements) ?> mouvement(s)</span>
+    <span class="text-sm"><?= fmtInt($totalMvt) ?> mouvement(s)</span>
   </div>
   <div class="table-wrap">
     <table>
@@ -1435,6 +1968,7 @@ function submitAjustLot(e) {
       </tbody>
     </table>
   </div>
+  <?= renderPagination($pageMvt, $perPageMvt, $totalMvt, ['onglet'=>'historique'], 'page_mvt') ?>
 </div>
 
 <!-- ── Bloc impression A4 ── -->

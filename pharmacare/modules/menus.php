@@ -36,10 +36,10 @@ $menus = $db->query("SELECT code, libelle, actif, position FROM menus ORDER BY p
 
 // Regroupement par section (pour l'affichage)
 $sections = [
-    'Principal'     => ['dashboard', 'vente', 'remise_codes', 'caisse'],
+    'Principal'     => ['dashboard', 'mon_compte', 'vente', 'remise_codes', 'caisse'],
     'Gestion'       => ['stock', 'produits', 'fournisseurs', 'clients', 'commandes', 'retours', 'magasin', 'marketing'],
-    'Rapports'      => ['ventes_hist', 'rapports', 'rapports_caissier', 'comptabilite'],
-    'Administration'=> ['utilisateurs', 'remise_approbateurs', 'roles', 'categories', 'pharmacies', 'parametres'],
+    'Rapports'      => ['ventes_hist', 'rapports', 'rapports_caissier', 'suivi_caissiers', 'comptabilite'],
+    'Administration'=> ['utilisateurs', 'en_ligne', 'remise_approbateurs', 'roles', 'categories', 'pharmacies', 'parametres'],
 ];
 $bySection = [];
 foreach ($menus as $m) {

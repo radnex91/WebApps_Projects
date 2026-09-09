@@ -227,7 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
 
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
-        flash('Erreur retour : ' . $e->getMessage(), 'error');
+        flashError($e, 'retour');
         header('Location: ' . $redir); exit;
     }
 }

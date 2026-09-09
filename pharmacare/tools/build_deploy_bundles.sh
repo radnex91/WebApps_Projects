@@ -60,10 +60,15 @@ tar -cf - \
   --exclude='./tools' \
   --exclude='./backups' \
   --exclude='./docs' \
+  --exclude='./dist' \
+  --exclude='./.specify' \
+  --exclude='./.pi' \
   --exclude='./.claude' \
   --exclude='./.impeccable' \
   --exclude='./.superpowers' \
+  --exclude='./.qwen' \
   --exclude='./.git' \
+  --exclude='./cache' \
   --exclude='./config/.rate_limit' \
   --exclude='./config/env.prod.php' \
   --exclude='./_archive' \
@@ -81,6 +86,8 @@ tar -cf - \
   --exclude='./licence_ledger.json' \
   --exclude='*licence_instance_id*' \
   --exclude='./PHARMACARE_REBUILD_PROMPT.md' \
+  --exclude='./*.html' \
+  --exclude='./*.sql' \
   --exclude='./apercu.html' \
   --exclude='./presentation.html' \
   . | tar -xf - -C "$STAGING"
@@ -90,23 +97,67 @@ echo "[3/7] Reintegration de _archive/database.sql (seed propre)..."
 mkdir -p "$STAGING/_archive"
 cp "$SRC/_archive/database.sql" "$STAGING/_archive/database.sql"
 
+# Dossier cache/ propre : l'app ecrit ses caches d'agregats ici des la 1re
+# page. On livre un dossier vide + .htaccess anti-listing (pas le contenu
+# runtime du poste de developpement).
+mkdir -p "$STAGING/cache"
+printf 'Require all denied\nDeny from all\nOptions -Indexes\n' > "$STAGING/cache/.htaccess"
+
+# Migrations BDD idempotentes : necessaires a l'installeur (install neuve,
+# etape 5.5) ET au script de mise a jour (update_prod.ps1, etape 5).
+# On ne livre QUE tools/patch/migrate_*.php — jamais le reste de tools/
+# (csc, cles privees, scripts de build...).
+mkdir -p "$STAGING/tools/patch"
+ls "$SRC/tools/patch"/migrate_*.php >/dev/null 2>&1 && \
+  cp -p "$SRC/tools/patch"/migrate_*.php "$STAGING/tools/patch/" || true
+echo "[3b/7] tools/patch/migrate_*.php livres : $(ls "$STAGING/tools/patch" 2>/dev/null | wc -l)"
+
 # Verifications de curation
 echo "[4/7] Verifications de curation..."
 assert_absent () { local f="$STAGING/$1"; if [ -e "$f" ]; then echo "  [FAIL] $1 present !"; exit 1; else echo "  [ok] absent: $1"; fi; }
-assert_absent "tools"
+# tools/ livre UNIQUE tools/patch/migrate_*.php (verifie plus bas) : aucun
+# autre fichier de tools/ ne doit fuiter (curation).
 assert_absent "backups"
 assert_absent "docs"
+assert_absent "dist"
 assert_absent ".claude"
+assert_absent ".specify"
+assert_absent ".pi"
+# tools/ n'est PAS livre, SAUF migrations idempotentes (tools/patch/migrate_*.php)
+# requises par l'installeur et par update_prod.ps1 — verifiees plus bas.
+assert_absent "tools/install_prod_gui.cs"
+assert_absent "tools/build_deploy_bundles.sh"
+assert_absent "tools/gen_licence.php"
+assert_absent "tools/licence_privatekey.php"
 assert_absent "_archive/alter_db.php"
 assert_absent "_archive/composer.json"
 assert_absent "_archive/phpunit.xml"
 assert_absent "config/env.prod.php"
+# Garde-fou critique : la clé privée / le secret HMAC / le ledger ne doivent
+# JAMAIS partir en déploiement (sinon n'importe qui peut générer des licences).
+assert_absent "licence_privatekey.php"
+assert_absent "licence_secret.php"
+assert_absent "licence_ledger.json"
+assert_absent "tools/licence_privatekey.php"
 if ls "$STAGING"/*.xlsx 2>/dev/null | head -1 | grep -q .; then echo "  [FAIL] xlsx present"; exit 1; fi
 echo "  [ok] aucun .xlsx"
 if [ ! -f "$STAGING/_archive/database.sql" ]; then echo "  [FAIL] database.sql manquant"; exit 1; fi
 echo "  [ok] _archive/database.sql present ($(stat -c%s "$STAGING/_archive/database.sql") octets)"
 if [ ! -f "$STAGING/data/import_articles_hopitaux_cliniques_cm.csv" ]; then echo "  [FAIL] data/csv manquant"; exit 1; fi
 echo "  [ok] data/import_articles_hopitaux_cliniques_cm.csv present"
+# Dossier cache/ : present, vide (hors .htaccess), protege du listing.
+if [ ! -d "$STAGING/cache" ]; then echo "  [FAIL] cache/ manquant"; exit 1; fi
+if [ ! -f "$STAGING/cache/.htaccess" ]; then echo "  [FAIL] cache/.htaccess manquant"; exit 1; fi
+N_CACHE_FILES="$(find "$STAGING/cache" -type f ! -name '.htaccess' | wc -l)"
+if [ "$N_CACHE_FILES" -ne 0 ]; then echo "  [FAIL] cache/ contient $N_CACHE_FILES fichiers runtime — doit être vide"; exit 1; fi
+echo "  [ok] cache/ present, vide, .htaccess anti-listing"
+# Migrations livrees (installeur 5.5/9 + update_prod.ps1 5/7) : au moins une.
+N_MIG="$(ls "$STAGING/tools/patch"/migrate_*.php 2>/dev/null | wc -l)"
+if [ "$N_MIG" -eq 0 ]; then echo "  [FAIL] tools/patch/migrate_*.php manquant (MAJ/installs en auraient besoin)"; exit 1; fi
+echo "  [ok] tools/patch/migrate_*.php present ($N_MIG)"
+# update_prod.ps1 (racine du bundle) : requis pour les mises a jour clientes.
+if [ ! -f "$STAGING/update_prod.ps1" ]; then echo "  [FAIL] update_prod.ps1 manquant (racine du bundle)"; exit 1; fi
+echo "  [ok] update_prod.ps1 present"
 
 # Preparation des 2 arbres (installers differs par plateforme)
 echo "[5/7] Arbres par plateforme..."

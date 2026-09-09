@@ -55,6 +55,11 @@ $ROUTES = [
     'ventes_hist'         => ['base' => 'ventes-hist'],
     'rapports'            => ['base' => 'rapports'],
     'rapports_caissier'   => ['base' => 'rapports-caissier'],
+    'suivi_caissiers'     => ['base' => 'suivi-caissiers'],
+    'mdp_oublie'          => ['base' => 'mot-de-passe-oublie'],
+    'utilisateurs_enligne' => ['base' => 'utilisateurs-en-ligne'],
+    'ping'                 => ['base' => 'ping'],
+    'mon_compte'           => ['base' => 'mon-compte'],
     'comptabilite'        => ['base' => 'comptabilite', 'actions' => [
         'saisie' => 'saisie', 'journal' => 'journal', 'balance' => 'balance',
         'resultat' => 'resultat', 'bilan' => 'bilan', 'grand-livre' => 'grand-livre',

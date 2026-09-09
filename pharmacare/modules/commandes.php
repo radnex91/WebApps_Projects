@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/pagination.php';
 require_once __DIR__ . '/../config/settings.php';
 require_once __DIR__ . '/../config/comptabilite.php';
 requirePermission('commandes.voir');
@@ -66,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($action === 'add' || $action === '
         flash($id ? 'Commande mise à jour.' : "Commande créée.");
     } catch (Exception $e) {
         $db->rollBack();
-        flash('Erreur : ' . $e->getMessage(), 'error');
+        flashError($e, 'commande');
     }
     header('Location: ' . url('commandes')); exit;
 }
@@ -155,7 +156,7 @@ if ($action === 'livrer' && $id && hasPermission('commandes.modifier') && $_SERV
             flash('Commande livrée — stock magasin mis à jour. Pensez à transférer vers la pharmacie.');
         } catch (Exception $e) {
             $db->rollBack();
-            flash('Erreur : ' . $e->getMessage(), 'error');
+            flashError($e, 'livraison commande');
         }
     } else {
         flash('Impossible de valider cette commande.', 'error');
@@ -877,19 +878,77 @@ if ($action === 'bon' && $id) {
     exit;
 }
 
-// ── Liste des commandes ──────────────────────────────────────
-$commandes = $db->query("
+// ── Liste des commandes (pagination serveur + batch des agrégats) ──
+// Avant : fetch de TOUTES les commandes + 1 SUM par commande + 1 COUNT
+// par ligne de rendu → N+1+N requêtes. Désormais : 1 COUNT total, 1 page
+// de lignes, et 2 requêtes groupées (SUM, COUNT) sur les IDs de la page.
+
+// ── Export Excel de toutes les commandes ────────────────────
+if ($action === 'export') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $statuts = ['en_attente' => 'En attente', 'en_cours' => 'En cours', 'livrée' => 'Livrée', 'annulée' => 'Annulée'];
+    $rowsX = [];
+    $stX = $db->query("
+        SELECT c.reference, f.nom AS fourn, CONCAT(u.prenom, ' ', u.nom) AS cree_par,
+               c.created_at, c.statut,
+               COUNT(cl.id) AS nb_lignes,
+               COALESCE(SUM(cl.quantite * cl.prix_unitaire), 0) AS montant
+        FROM commandes c
+        LEFT JOIN fournisseurs f ON c.fournisseur_id = f.id
+        LEFT JOIN utilisateurs u ON c.utilisateur_id = u.id
+        LEFT JOIN commande_lignes cl ON cl.commande_id = c.id
+        GROUP BY c.id
+        ORDER BY c.created_at DESC
+    ");
+    foreach ($stX->fetchAll() as $c) {
+        $rowsX[] = [
+            $c['reference'], $c['fourn'], $c['cree_par'],
+            date('d/m/Y H:i', strtotime($c['created_at'])),
+            $statuts[$c['statut']] ?? $c['statut'],
+            (int)$c['nb_lignes'], (float)$c['montant'],
+        ];
+    }
+    export_xlsx_send('commandes_' . date('Y-m-d'), 'Commandes',
+        ['Référence', 'Fournisseur', 'Créée par', 'Date', 'Statut', 'Nb lignes', 'Montant'], $rowsX);
+}
+
+$perPage = 25; // section Gestion : pagination uniforme à 25/page
+$page    = max(1, (int)($_GET['page'] ?? 1));
+$offset  = paginateOffset($page, $perPage);
+
+$total = (int)$db->query("SELECT COUNT(*) FROM commandes")->fetchColumn();
+
+$commandes = $db->prepare("
     SELECT c.*, f.nom AS fourn, u.prenom, u.nom AS u_nom
     FROM commandes c
     LEFT JOIN fournisseurs f ON c.fournisseur_id = f.id
     LEFT JOIN utilisateurs u ON c.utilisateur_id = u.id
     ORDER BY c.created_at DESC
-")->fetchAll();
-// Calculer le montant total depuis les lignes pour chaque commande
+    LIMIT $perPage OFFSET $offset
+");
+$commandes->execute();
+$commandes = $commandes->fetchAll();
+
+// Batch des agrégats : 1 SUM groupé + 1 COUNT groupé sur la page entière,
+// au lieu de 2 requêtes par commande → fini le N+1.
+$montantsParCmd = [];
+$nbLignesParCmd = [];
+if ($commandes) {
+    $ids = array_column($commandes, 'id');
+    $ph  = implode(',', array_fill(0, count($ids), '?'));
+
+    $stSum = $db->prepare("SELECT commande_id, COALESCE(SUM(quantite * prix_unitaire),0) AS mt
+                            FROM commande_lignes WHERE commande_id IN ($ph) GROUP BY commande_id");
+    $stSum->execute($ids);
+    foreach ($stSum->fetchAll(PDO::FETCH_ASSOC) as $r) $montantsParCmd[(int)$r['commande_id']] = (float)$r['mt'];
+
+    $stCnt = $db->prepare("SELECT commande_id, COUNT(*) AS nb
+                            FROM commande_lignes WHERE commande_id IN ($ph) GROUP BY commande_id");
+    $stCnt->execute($ids);
+    foreach ($stCnt->fetchAll(PDO::FETCH_ASSOC) as $r) $nbLignesParCmd[(int)$r['commande_id']] = (int)$r['nb'];
+}
 foreach ($commandes as &$c) {
-    $stmt = $db->prepare("SELECT COALESCE(SUM(quantite * prix_unitaire),0) FROM commande_lignes WHERE commande_id=?");
-    $stmt->execute([$c['id']]);
-    $c['montant_total'] = $stmt->fetchColumn();
+    $c['montant_total'] = $montantsParCmd[(int)$c['id']] ?? 0.0;
 }
 unset($c);
 
@@ -899,6 +958,7 @@ showFlash();
 <div class="card">
   <div class="card-header">
     <div class="card-title">Commandes fournisseurs</div>
+    <a href="<?= url('commandes', ['action'=>'export']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <?php if (hasPermission('commandes.creer')): ?>
     <a href="<?= url('commandes', ['action'=>'add']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Nouvelle commande</a>
     <?php endif; ?>
@@ -914,9 +974,7 @@ showFlash();
       <tbody>
         <?php foreach ($commandes as $c):
           [$badge, $label] = $statutMap[$c['statut']] ?? ['badge-gray', $c['statut']];
-          $nbLignes = $db->prepare("SELECT COUNT(*) FROM commande_lignes WHERE commande_id=?");
-          $nbLignes->execute([$c['id']]);
-          $nb = $nbLignes->fetchColumn();
+          $nb = $nbLignesParCmd[(int)$c['id']] ?? 0;
         ?>
         <tr>
           <td class="td-mono"><?= e($c['reference']) ?></td>
@@ -954,5 +1012,6 @@ showFlash();
       </tbody>
     </table>
   </div>
+  <?= renderPagination($page, $perPage, $total, []) ?>
 </div>
 <?php layout_foot(); ?>

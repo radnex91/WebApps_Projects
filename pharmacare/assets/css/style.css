@@ -212,9 +212,9 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
 /* ── TOAST / FLASH — PS5 style ────────────────────────────── */
 .toast-container{position:fixed !important;bottom:24px !important;right:24px !important;top:auto !important;left:auto !important;z-index:9999;display:flex;flex-direction:column-reverse;gap:10px;pointer-events:none;}
 .toast{pointer-events:auto;display:flex;flex-direction:column;min-width:300px;max-width:420px;border-radius:12px;overflow:hidden;
-  background:rgba(20,20,30,.90);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);
-  border:1px solid rgba(255,255,255,.10);box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.04);
-  animation:toast-in .4s cubic-bezier(.16,1,.3,1) forwards;font-size:13.5px;font-family:var(--font-body);color:#e8edf5;}
+  background:var(--toast-bg);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);
+  border:1px solid var(--toast-border);box-shadow:var(--shadow);
+  animation:toast-in .4s cubic-bezier(.16,1,.3,1) forwards;font-size:13.5px;font-family:var(--font-body);color:var(--toast-text);}
 .toast.removing{animation:toast-out .28s cubic-bezier(.4,0,1,1) forwards;}
 .toast-body{display:flex;align-items:center;gap:14px;padding:16px 20px;}
 .toast-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -231,9 +231,9 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
 
 /* PHP flash alerts — same PS5 toast */
 .alert{position:fixed !important;bottom:24px !important;right:24px !important;top:auto !important;left:auto !important;z-index:300;pointer-events:auto;display:flex;flex-direction:column;min-width:300px;max-width:420px;border-radius:12px;overflow:hidden;
-  background:rgba(20,20,30,.90);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);
-  border:1px solid rgba(255,255,255,.10);box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.04);
-  animation:toast-in .4s cubic-bezier(.16,1,.3,1);font-size:13.5px;color:#e8edf5;padding:0;}
+  background:var(--toast-bg);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);
+  border:1px solid var(--toast-border);box-shadow:var(--shadow);
+  animation:toast-in .4s cubic-bezier(.16,1,.3,1);font-size:13.5px;color:var(--toast-text);padding:0;}
 .alert.removing{animation:toast-out .28s cubic-bezier(.4,0,1,1) forwards;}
 .alert .toast-body{display:flex;align-items:center;gap:14px;padding:16px 20px;}
 .alert .toast-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}

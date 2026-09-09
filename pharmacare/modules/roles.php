@@ -25,6 +25,14 @@ $moduleLabels = [
     'caisse'        => 'Caisses',
     'pharmacies'    => 'Pharmacies',
     'menus'         => 'Menus',
+    'magasin'       => 'Stock magasin',
+    'marketing'     => 'Marketing',
+    'retours'       => 'Retours',
+    'remise'        => 'Remises',
+    'suivi_caissiers' => 'Suivi des caissiers',
+    'en_ligne'      => 'Utilisateurs en ligne',
+    'rapports_caissier' => 'Rapports caissier',
+    'assistant'     => 'Assistant',
 ];
 
 // ── Suppression d'un rôle personnalisé (POST + CSRF) ────────
@@ -110,6 +118,26 @@ foreach ($allRolePerms as $rp) {
 }
 
 // ── Liste des rôles ─────────────────────────────────────────
+// ── Export Excel ───────────────────────────────────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $rowsX = [];
+    foreach ($db->query("
+        SELECT r.code, r.libelle, r.est_systeme, r.created_at,
+               COUNT(DISTINCT rp.permission_id) AS nb_perms,
+               COUNT(DISTINCT u.id) AS nb_users
+        FROM roles r
+        LEFT JOIN role_permissions rp ON r.id = rp.role_id
+        LEFT JOIN utilisateurs u ON r.id = u.role_id
+        GROUP BY r.id ORDER BY r.est_systeme DESC, r.libelle
+    ")->fetchAll() as $r) {
+        $rowsX[] = [$r['code'], $r['libelle'], (int)$r['est_systeme'] ? 'Système' : 'Personnalisé',
+                    (int)$r['nb_perms'], (int)$r['nb_users'], date('d/m/Y', strtotime($r['created_at']))];
+    }
+    export_xlsx_send('roles_' . date('Y-m-d'), 'Rôles',
+        ['Code', 'Libellé', 'Type', 'Nb permissions', 'Nb utilisateurs', 'Créé le'], $rowsX);
+}
+
 $roles = $db->query("
     SELECT r.*, COUNT(DISTINCT rp.permission_id) AS nb_perms,
            COUNT(DISTINCT u.id) AS nb_users
@@ -126,6 +154,7 @@ showFlash();
 <div class="card">
   <div class="card-header">
     <div class="card-title">Rôles & Permissions</div>
+    <a href="<?= url('roles', ['export'=>'1']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <?php if (hasPermission('roles.gerer')): ?>
     <button type="button" class="btn btn-primary btn-sm" onclick="openModal('modal-new-role')"><?= icon('plus',14) ?> Nouveau rôle</button>
     <?php endif; ?>

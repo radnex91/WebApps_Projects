@@ -83,30 +83,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($erreur) {
         flash($erreur, 'error');
     } else {
-        $ancienStock = (int)$produit['stock'];
-        switch ($type) {
-            case 'entrée':     $newStock = $ancienStock + $qte;         break;
-            case 'sortie':     $newStock = $ancienStock - $qte;         break;
-            case 'ajustement': $newStock = $qte;                         break;
-            default:           $newStock = $ancienStock;
-        }
-        $deltaReel = abs($newStock - $ancienStock);
         try {
             $db->beginTransaction();
+
+            // ── Concurrence : même ordre de verrous que vente.php (pp → produits) ──
+            // vente.php décrémente produit_pharmacie (pharmacie 1) puis resynchronise
+            // produits.stock. On prend les verrous dans ce même ordre pour éviter
+            // tout interblocage entre une vente et cet ajustement.
+            // 1) Verrou sur la ligne produit_pharmacie de la pharmacie principale
+            //    (si elle existe — sinon le produit n'est pas vendable en pharmacie 1).
+            $stPP = $db->prepare("SELECT stock FROM produit_pharmacie WHERE produit_id=? AND pharmacie_id=1 FOR UPDATE");
+            $stPP->execute([$id]);
+            $ppRow = $stPP->fetch();
+
+            // 2) Lecture fraîche sous verrou exclusif : le snapshot affiché dans le
+            //    formulaire peut être périmé (vente simultanée). Recalculer le
+            //    nouveau stock depuis ce snapshot écraserait le décrément de la
+            //    vente (lost update). FOR UPDATE garantit une lecture à jour et
+            //    sérialise contre les ventes simultanées.
+            $stLock = $db->prepare("SELECT nom, reference, stock, prix_achat FROM produits WHERE id=? FOR UPDATE");
+            $stLock->execute([$id]);
+            $pLock = $stLock->fetch();
+            if (!$pLock) {
+                throw new Exception('Produit introuvable (supprimé entre-temps ?).');
+            }
+            $ancienStock = (int)$pLock['stock'];
+            switch ($type) {
+                case 'entrée':     $newStock = $ancienStock + $qte;         break;
+                case 'sortie':     $newStock = $ancienStock - $qte;         break;
+                case 'ajustement': $newStock = $qte;                         break;
+                default:           $newStock = $ancienStock;
+            }
+            if ($type === 'sortie' && $newStock < 0) {
+                // Contrôle autoritaire sous verrou (le contrôle avant transaction
+                // n'était qu'indicatif, sur le snapshot affiché).
+                $db->rollBack();
+                flash('Stock insuffisant (disponible : ' . $ancienStock . ').', 'error');
+                header('Location: ' . url('stock_ajust', ['id'=>$id])); exit;
+            }
+            $deltaReel = abs($newStock - $ancienStock);
             $db->prepare("UPDATE produits SET stock=? WHERE id=?")->execute([$newStock, $id]);
+            // Miroir pharmacie principale : produit_pharmacie (pharmacie 1) est la
+            // source des ventes (décrémentée par vente.php, puis resynchronisée vers
+            // produits.stock). Sans cette écriture, l'ajustement serait écrasé par
+            // la resync de la prochaine vente. Ligne absente = rien à synchroniser.
+            if ($ppRow !== false) {
+                $db->prepare("UPDATE produit_pharmacie SET stock=? WHERE produit_id=? AND pharmacie_id=1")
+                   ->execute([$newStock, $id]);
+            }
             $db->prepare("INSERT INTO mouvements_stock (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,?,?,?,?)")
                ->execute([$id, $type, $deltaReel, $motif, currentUser()['id']]);
-            $pa = (float)$produit['prix_achat'];
+            $pa = (float)$pLock['prix_achat'];
             if ($pa > 0 && $deltaReel > 0) {
                 $valeur = round($pa * $deltaReel, 2);
                 $compteStock  = compteFindOrCreate($db, '3111', 'Médicaments en stock', 3, 'debit');
                 $compteVarStk = compteFindOrCreate($db, '6031', 'Variation stocks marchandises', 6, 'debit');
                 if ($type === 'entrée' || ($type === 'ajustement' && $newStock > $ancienStock)) {
-                    $lignes = [[$compteStock, $valeur, 0, 'Entrée stock ' . e($produit['nom'])]];
-                    $lignes[] = [$compteVarStk, 0, $valeur, 'Variation stock ' . e($produit['nom'])];
+                    $lignes = [[$compteStock, $valeur, 0, 'Entrée stock ' . e($pLock['nom'])]];
+                    $lignes[] = [$compteVarStk, 0, $valeur, 'Variation stock ' . e($pLock['nom'])];
                 } elseif ($type === 'sortie' || ($type === 'ajustement' && $newStock < $ancienStock)) {
-                    $lignes = [[$compteVarStk, $valeur, 0, 'Sortie stock ' . e($produit['nom'])]];
-                    $lignes[] = [$compteStock, 0, $valeur, 'Variation stock ' . e($produit['nom'])];
+                    $lignes = [[$compteVarStk, $valeur, 0, 'Sortie stock ' . e($pLock['nom'])]];
+                    $lignes[] = [$compteStock, 0, $valeur, 'Variation stock ' . e($pLock['nom'])];
                 } else {
                     $lignes = [];
                 }
@@ -115,12 +152,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             $db->commit();
-            auditLog('stock.adjust', sprintf('%s %s : %d → %d (%s : %s)', ucfirst($type), e($produit['nom']), $ancienStock, $newStock, $type, $motif ?: '—'), $id, $produit['reference'] ?? null);
+            auditLog('stock.adjust', sprintf('%s %s : %d → %d (%s : %s)', ucfirst($type), e($pLock['nom']), $ancienStock, $newStock, $type, $motif ?: '—'), $id, $pLock['reference'] ?? null);
             flash("Stock mis à jour : $newStock unités.");
             header('Location: ' . url('stock')); exit;
         } catch (Exception $e) {
             $db->rollBack();
-            flash('Erreur : ' . $e->getMessage(), 'error');
+            flashError($e, 'ajustement stock');
             header('Location: ' . url('stock_ajust', ['id'=>$id])); exit;
         }
     }

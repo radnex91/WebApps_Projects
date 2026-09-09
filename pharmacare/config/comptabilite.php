@@ -44,15 +44,57 @@ function ecritureCreate(PDO $db, string $libelle, string $date, array $lignes,
         }
     }
 
-    // Référence séquentielle
-    $ecLike = 'EC-' . date('Y') . '-%';
-    $ecLast = $db->prepare("SELECT reference FROM ecritures WHERE reference LIKE ? ORDER BY reference DESC LIMIT 1");
-    $ecLast->execute([$ecLike]);
-    $ecNext = 1;
-    if ($ecLastRef = $ecLast->fetchColumn()) {
-        $ecNext = (int)end(explode('-', $ecLastRef)) + 1;
+    // Référence séquentielle ATOMIQUE via compteurs_ref (même pattern que genRef()
+    // dans includes/auth.php) : INSERT..ON DUPLICATE KEY UPDATE avec
+    // LAST_INSERT_ID(compteur+1). Deux écritures concurrentes (ex : deux ventes
+    // POS validées simultanément) obtiennent deux numéros distincts — l'ancien
+    // SELECT MAX + INSERT générait des collisions sur la clé UNIQUE de
+    // ecritures et provoquait un rollback complet de la vente.
+    // Amorçage initial depuis MAX(reference) pour reprendre une séquence existante.
+    $ref = '';
+    try {
+        $ecYear = (int)date('Y');
+        $chkSeq = $db->prepare("SELECT compteur FROM compteurs_ref WHERE prefix = 'EC' AND annee = ?");
+        $chkSeq->execute([$ecYear]);
+        if ($chkSeq->fetchColumn() === false) {
+            // Compteur absent (première écriture de l'année) : amorcer au-delà
+            // des références déjà présentes pour éviter tout doublon historique.
+            $stSeed = $db->prepare("SELECT reference FROM ecritures WHERE reference LIKE ? ORDER BY reference DESC LIMIT 1");
+            $stSeed->execute(['EC-' . $ecYear . '-%']);
+            $seed = 0;
+            if ($lastRef = $stSeed->fetchColumn()) {
+                $seedParts = explode('-', (string)$lastRef);
+                $seed = (int)end($seedParts);
+            }
+            $db->prepare("INSERT INTO compteurs_ref (prefix, annee, compteur) VALUES ('EC', ?, ?)
+                          ON DUPLICATE KEY UPDATE compteur = GREATEST(compteur, VALUES(compteur))")
+               ->execute([$ecYear, $seed]);
+        }
+        $db->prepare("INSERT INTO compteurs_ref (prefix, annee, compteur)
+                      VALUES ('EC', ?, 1)
+                      ON DUPLICATE KEY UPDATE compteur = LAST_INSERT_ID(compteur + 1)")
+           ->execute([$ecYear]);
+        $seq = (int)$db->query("SELECT LAST_INSERT_ID()")->fetchColumn();
+        if ($seq > 0) {
+            $ref = 'EC-' . $ecYear . '-' . str_pad((string)$seq, 4, '0', STR_PAD_LEFT);
+        }
+    } catch (Exception $e) {
+        $ref = ''; // table compteurs_ref absente → fallback legacy ci-dessous
     }
-    $ref = 'EC-' . date('Y') . '-' . str_pad($ecNext, 4, '0', STR_PAD_LEFT);
+
+    if ($ref === '') {
+        // Fallback legacy : MAX(reference) — séquence NON protégée en concurrence,
+        // conservée uniquement si la table compteurs_ref n'existe pas encore.
+        $ecLike = 'EC-' . date('Y') . '-%';
+        $ecLast = $db->prepare("SELECT reference FROM ecritures WHERE reference LIKE ? ORDER BY reference DESC LIMIT 1");
+        $ecLast->execute([$ecLike]);
+        $ecNext = 1;
+        if ($ecLastRef = $ecLast->fetchColumn()) {
+            $ecParts = explode('-', (string)$ecLastRef);
+            $ecNext = (int)end($ecParts) + 1;
+        }
+        $ref = 'EC-' . date('Y') . '-' . str_pad((string)$ecNext, 4, '0', STR_PAD_LEFT);
+    }
 
     $stmt = $db->prepare("
         INSERT INTO ecritures (reference, libelle, date_ecriture, exercice_id, utilisateur_id, source, source_ref)
@@ -89,7 +131,7 @@ function exercicesAll(PDO $db): array {
 /**
  * Récupère les écritures avec filtres (journal)
  */
-function journalGet(PDO $db, string $debut = '', string $fin = '', string $source = ''): array {
+function journalGet(PDO $db, string $debut = '', string $fin = '', string $source = '', int $limit = 200, int $offset = 0): array {
     $sql = "SELECT e.*, u.prenom, u.nom AS u_nom
             FROM ecritures e
             LEFT JOIN utilisateurs u ON e.utilisateur_id = u.id
@@ -98,10 +140,25 @@ function journalGet(PDO $db, string $debut = '', string $fin = '', string $sourc
     if ($debut) { $sql .= " AND e.date_ecriture >= ?"; $params[] = $debut; }
     if ($fin)   { $sql .= " AND e.date_ecriture <= ?"; $params[] = $fin; }
     if ($source) { $sql .= " AND e.source = ?"; $params[] = $source; }
-    $sql .= " ORDER BY e.date_ecriture DESC, e.id DESC LIMIT 200";
+    $sql .= " ORDER BY e.date_ecriture DESC, e.id DESC LIMIT " . max(1, $limit) . " OFFSET " . max(0, $offset);
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchAll();
+}
+
+/**
+ * Nombre total d'écritures correspondant aux mêmes filtres que journalGet
+ * (pour la pagination du journal comptable).
+ */
+function journalCount(PDO $db, string $debut = '', string $fin = '', string $source = ''): int {
+    $sql = "SELECT COUNT(*) FROM ecritures e WHERE 1=1";
+    $params = [];
+    if ($debut) { $sql .= " AND e.date_ecriture >= ?"; $params[] = $debut; }
+    if ($fin)   { $sql .= " AND e.date_ecriture <= ?"; $params[] = $fin; }
+    if ($source) { $sql .= " AND e.source = ?"; $params[] = $source; }
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    return (int)$stmt->fetchColumn();
 }
 
 /**

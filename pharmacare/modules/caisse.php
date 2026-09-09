@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
             $db->commit();
         } catch (Exception $ex) {
             $db->rollBack();
-            flash('Caisse ouverte mais écriture comptable du fond échouée : ' . $ex->getMessage(), 'error');
+            flashError($ex, 'écriture comptable du fond de caisse');
             header('Location: ' . url('caisse')); exit;
         }
     }
@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
         $db->commit();
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
-        flash('Erreur mouvement caisse : ' . $e->getMessage(), 'error');
+        flashError($e, 'mouvement caisse');
         header('Location: ' . url('caisse')); exit;
     }
 
@@ -628,6 +628,30 @@ if ($action === 'z'):
       </div>
     </form>
 
+    <script>
+    // Garde offline-first : bloquer la clôture (Z) si des ventes sont encore
+    // en file d'attente dans le navigateur — une fois la caisse fermée, le
+    // serveur refuserait leur rejeu (vente exige une caisse ouverte).
+    (function(){
+      var f = document.getElementById('form-z');
+      if (!f) return;
+      f.addEventListener('submit', function(e){
+        if (!window.PC_OFFLINE || !PC_OFFLINE.queueSize) return;
+        var q = PC_OFFLINE.queueSize();
+        if (!q) return;
+        e.preventDefault();
+        var msg = q + ' vente(s) hors ligne en attente de transmission.\n\n'
+                + 'Clôturer maintenant : ces ventes seront REFUSÉES à la reprise (caisse fermée).\n'
+                + 'Recommandé : attendez la transmission automatique (pill verte, badge 0).';
+        if (typeof showConfirm === 'function') {
+          showConfirm('Ventes hors ligne en attente', msg.replace(/\n/g, ' '), function(){ f.submit(); });
+        } else if (window.confirm(msg)) {
+          f.submit();
+        }
+      });
+    })();
+    </script>
+
     <?php if ($mvts): ?>
     <div style="border-top:1px solid var(--border);padding-top:20px;">
       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Détail des mouvements</div>
@@ -933,8 +957,11 @@ if ($action === 'rapport_session'):
     if ($action === 'historique'):
     ?>
     <?php
-    $filtreCaisse = $_GET['caisse'] ?? '';
-    $filtreDate   = $_GET['date']   ?? '';
+    $filtreCaisse = isset($_GET['caisse']) && is_string($_GET['caisse']) ? $_GET['caisse'] : '';
+    // Date GET validée strictement (Y-m-d) : une valeur arbitraire ferait
+    // rejeter la comparaison DATE() par MySQL → exception PDO → page 500.
+    $fd = (isset($_GET['date']) && is_string($_GET['date'])) ? DateTime::createFromFormat('Y-m-d', $_GET['date']) : false;
+    $filtreDate = ($fd instanceof DateTime && $fd->format('Y-m-d') === $_GET['date']) ? $_GET['date'] : '';
 
     $sql = "
         SELECT s.*, u.prenom, u.nom AS u_nom, c.nom AS caisse_nom
@@ -948,6 +975,29 @@ if ($action === 'rapport_session'):
     if ($filtreDate !== '')   { $sql .= " AND DATE(s.date_ouverture) = ?"; $params[] = $filtreDate; }
     $sql .= " ORDER BY s.date_ouverture DESC LIMIT 50";
 
+    // ── Export Excel de l'historique (mêmes filtres, sans limite) ──
+    if (($_GET['export'] ?? '') === '1') {
+        require_once __DIR__ . '/../includes/export_xlsx.php';
+        $sqlX = str_replace(' LIMIT 50', '', $sql);
+        $stX = $db->prepare($sqlX);
+        $stX->execute($params);
+        $rowsX = [];
+        foreach ($stX->fetchAll() as $s) {
+            $rowsX[] = [
+                $s['caisse_nom'], trim(($s['prenom'] ?? '') . ' ' . ($s['u_nom'] ?? '')),
+                date('d/m/Y H:i', strtotime($s['date_ouverture'])),
+                $s['date_fermeture'] ? date('d/m/Y H:i', strtotime($s['date_fermeture'])) : '—',
+                (float)$s['fond_initial'],
+                $s['solde_attendu'] !== null ? (float)$s['solde_attendu'] : null,
+                $s['solde_reel'] === null ? null : (float)$s['solde_reel'],
+                $s['ecart'] === null ? null : (float)$s['ecart'],
+                $s['statut'] === 'ouverte' ? 'En cours' : 'Fermée',
+            ];
+        }
+        export_xlsx_send('sessions_caisse_' . date('Y-m-d'), 'Sessions caisse',
+            ['Poste', 'Caissier', 'Ouverture', 'Fermeture', 'Fond initial', 'Attendu', 'Réel', 'Écart', 'Statut'], $rowsX);
+    }
+
     $stmtH = $db->prepare($sql);
     $stmtH->execute($params);
     $sessions = $stmtH->fetchAll();
@@ -960,6 +1010,7 @@ if ($action === 'rapport_session'):
 <div class="card">
   <div class="card-header">
     <div class="card-title">Historique des sessions</div>
+    <a href="<?= url('caisse', ['action'=>'historique', 'export'=>'1', 'caisse'=>$filtreCaisse, 'date'=>$filtreDate]) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <a href="<?= url('caisse') ?>" class="btn btn-ghost btn-sm">← Dashboard</a>
   </div>
   <div class="card-pad" style="padding-bottom:10px;">

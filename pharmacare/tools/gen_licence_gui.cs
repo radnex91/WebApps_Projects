@@ -19,9 +19,9 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("PharmaCare Licence Manager")]
 [assembly: AssemblyProduct("PharmaCare Licence Manager")]
 [assembly: AssemblyCompany("RADNEX")]
-[assembly: AssemblyVersion("1.2.1.0")]
-[assembly: AssemblyFileVersion("1.2.1.0")]
-[assembly: AssemblyInformationalVersion("1.2.1.0")]
+[assembly: AssemblyVersion("1.3.1.0")]
+[assembly: AssemblyFileVersion("1.3.1.0")]
+[assembly: AssemblyInformationalVersion("1.3.1.0 — portable (runtime PHP embarqué)")]
 
 namespace PharmaCareLicence
 {
@@ -61,12 +61,13 @@ namespace PharmaCareLicence
         {
             Text = "PharmaCare — Gestionnaire de licences";
             StartPosition = FormStartPosition.CenterScreen;
-            Width = 820; Height = 780;
-            MinimumSize = new Size(790, 720);
-            FormBorderStyle = FormBorderStyle.FixedSingle;
-            MaximizeBox = false;
+            Width = 840; Height = 740;                 // tient sur un écran 1366×768
+            MinimumSize = new Size(700, 550);          // fenêtre redimensionnable
+            FormBorderStyle = FormBorderStyle.Sizable;
+            MaximizeBox = true;
             BackColor = Bg;
             Font = new Font("Segoe UI", 9F);
+            AutoScaleMode = AutoScaleMode.Dpi;         // net sur écrans 125/150 %
 
             // ── Bandeau ──
             var banner = new Panel { Dock = DockStyle.Top, Height = 68, BackColor = Color.White };
@@ -75,7 +76,7 @@ namespace PharmaCareLicence
                 Font = new Font("Segoe UI", 15F, FontStyle.Bold), TextAlign = ContentAlignment.MiddleCenter });
             var lt = new Label { Text = "Gestionnaire de licences PharmaCare", Font = new Font("Segoe UI", 14F, FontStyle.Bold),
                 ForeColor = Ink, Location = new Point(78, 12), AutoSize = true };
-            var ls = new Label { Text = "Outil développeur — émission de codes d'activation (RSA / HMAC)",
+            var ls = new Label { Text = "Outil développeur — émission de codes d'activation (RSA / HMAC) — portable, PHP embarqué",
                 Font = new Font("Segoe UI", 9F), ForeColor = Mute, Location = new Point(78, 37), AutoSize = true };
             banner.Controls.AddRange(new Control[] { logo, lt, ls });
             Controls.Add(banner);
@@ -87,10 +88,13 @@ namespace PharmaCareLicence
                 AutoScroll = true, BackColor = Bg, Padding = new Padding(16)
             };
             Controls.Add(_flow);
+            _flow.Resize += (s, e) => StretchCards();
+            _flow.ClientSizeChanged += (s, e) => StretchCards();   // scrollbar qui apparaît/disparaît
 
             // ── Bas de page (statut) ──
             var foot = new Panel { Dock = DockStyle.Bottom, Height = 34, BackColor = Color.White };
-            _status = new Label { Text = "Initialisation…", Location = new Point(16, 8), AutoSize = true,
+            _status = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                AutoEllipsis = true, Padding = new Padding(16, 0, 12, 0),
                 ForeColor = Ink, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
             foot.Controls.Add(_status);
             Controls.Add(foot);
@@ -130,6 +134,8 @@ namespace PharmaCareLicence
                 Location = new Point(16, 60), Width = 410, DropDownStyle = ComboBoxStyle.DropDown,
                 AutoCompleteMode = AutoCompleteMode.SuggestAppend, AutoCompleteSource = AutoCompleteSource.ListItems
             };
+            // Entrée = générer directement
+            _instance.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; OnGenerate(s, e); } };
             c.Controls.Add(_instance);
 
             c.Controls.Add(new Label { Text = "Format", Location = new Point(16, 92), AutoSize = true, ForeColor = Mute });
@@ -143,7 +149,7 @@ namespace PharmaCareLicence
             c.Controls.AddRange(new Control[] { _modePack, _modeSet });
 
             c.Controls.Add(new Label { Text = "Lignes / plafond", Location = new Point(16, 152), AutoSize = true, ForeColor = Mute });
-            _value = new NumericUpDown { Location = new Point(160, 150), Width = 120, Minimum = 1, Maximum = 100000000, Value = 5000 };
+            _value = new NumericUpDown { Location = new Point(160, 150), Width = 120, Minimum = 1, Maximum = 1000000000, Value = 5000 };
             c.Controls.Add(_value);
 
             c.Controls.Add(new Label { Text = "Expiration (long uniquement)", Location = new Point(300, 152), AutoSize = true, ForeColor = Mute });
@@ -169,6 +175,7 @@ namespace PharmaCareLicence
             _code = new TextBox
             {
                 Location = new Point(16, 38), Width = 708, Height = 56, ReadOnly = true, Multiline = true,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right,
                 Font = new Font("Consolas", 10F), BackColor = Color.FromArgb(13, 22, 34), ForeColor = Color.FromArgb(245, 158, 11),
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -188,7 +195,7 @@ namespace PharmaCareLicence
 
             c.Controls.Add(new Label { Text = "Lignes offertes à tout nouveau client (const LICENCE_FREE_CAP)",
                 Location = new Point(16, 40), AutoSize = true, ForeColor = Mute, Font = new Font("Segoe UI", 8.5F) });
-            _freeCap = new NumericUpDown { Location = new Point(480, 38), Width = 140, Minimum = 1, Maximum = 100000000, Value = 150 };
+            _freeCap = new NumericUpDown { Location = new Point(480, 38), Width = 140, Minimum = 1, Maximum = 1000000000, Value = 150 };
             c.Controls.Add(_freeCap);
             var b = new Button { Text = "Enregistrer", FlatStyle = FlatStyle.Flat, Size = new Size(110, 30), Location = new Point(628, 37) };
             b.FlatAppearance.BorderColor = Mute;
@@ -205,6 +212,7 @@ namespace PharmaCareLicence
             _grid = new DataGridView
             {
                 Location = new Point(16, 40), Width = 708, Height = 170,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right,
                 AllowUserToAddRows = false, AllowUserToDeleteRows = false, AllowUserToResizeRows = false,
                 ReadOnly = true, RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 BackgroundColor = Card, BorderStyle = BorderStyle.FixedSingle, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
@@ -219,6 +227,15 @@ namespace PharmaCareLicence
             _grid.Columns.Add(cReset);
             _grid.Columns.Add(cRem);
             _grid.CellContentClick += OnGridCellClick;
+            // Double-clic sur une ligne → pré-remplit l'identifiant d'instance
+            _grid.CellDoubleClick += (s, e) =>
+            {
+                if (e.RowIndex >= 0)
+                {
+                    _instance.Text = Convert.ToString(_grid.Rows[e.RowIndex].Cells[0].Value);
+                    _instance.Focus();
+                }
+            };
             c.Controls.Add(_grid);
 
             _flow.Controls.Add(c);
@@ -235,6 +252,12 @@ namespace PharmaCareLicence
         }
         private static string ResolvePhp()
         {
+            // 1) Runtime PHP portable embarqué : dossier php\ à côté de l'exe
+            //    (bundle PharmaCare-Licence-Manager — fonctionne sur toute machine
+            //    Windows sans XAMPP ni PHP installé).
+            string portable = Path.Combine(AppDir(), "php", "php.exe");
+            if (File.Exists(portable)) return portable;
+            // 2) XAMPP local (repo complet sur une machine de dev), puis PATH.
             string[] cands = { @"C:\xampp\php\php.exe", @"C:\xampp64\php\php.exe" };
             foreach (var c in cands) if (File.Exists(c)) return c;
             try
@@ -261,7 +284,7 @@ namespace PharmaCareLicence
         // ═══ Appel PHP ═══════════════════════════════════════════════════════
         private Dictionary<string, object> RunPhp(string args)
         {
-            if (_php == null) { Status("PHP introuvable.", true); return null; }
+            if (_php == null) { Status("PHP introuvable — dossier php\\ manquant à côté de l'exe et aucun PHP sur cette machine.", true); return null; }
             string script = GenScript();
             if (!File.Exists(script)) { Status("gen_licence.php introuvable : " + script, true); return null; }
 
@@ -300,13 +323,25 @@ namespace PharmaCareLicence
         private void Init()
         {
             _php = ResolvePhp();
-            if (_php == null) { Status("PHP introuvable (C:\\xampp\\php\\php.exe ni PATH).", true); return; }
+            if (_php == null) { Status("PHP introuvable : ni php\\php.exe (portable), ni C:\\xampp\\php\\php.exe, ni PATH.", true); return; }
             Status("Chargement…");
             var res = RunPhp("--json --op=status");
             if (res == null) return;
             ApplyLedger(res);
             object ok; res.TryGetValue("ok", out ok);
             if (ok is bool && (bool)ok) Status("Prêt — " + _grid.Rows.Count + " client(s) dans le ledger.");
+            StretchCards();
+        }
+
+        // Adapte la largeur des cartes à la largeur disponible (fenêtre redimensionnable).
+        private void StretchCards()
+        {
+            if (_flow == null) return;
+            int w = _flow.ClientSize.Width - _flow.Padding.Left - _flow.Padding.Right;
+            if (_flow.VerticalScroll.Visible) w -= SystemInformation.VerticalScrollBarWidth;
+            if (w < 420) w = 420;
+            foreach (Control c in _flow.Controls)
+                if (Math.Abs(c.Width - w) > 1) c.Width = w;
         }
 
         private void OnGenerate(object s, EventArgs e)

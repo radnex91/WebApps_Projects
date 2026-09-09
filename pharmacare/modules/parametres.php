@@ -28,9 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'ticket_pied'       => trim($_POST['ticket_pied'] ?? 'Merci pour votre achat !'),
         'ticket_nb_copies'  => (string)max(1, min(5, (int)($_POST['ticket_nb_copies'] ?? 2))),
         'prefix_vente'       => strtoupper(trim($_POST['prefix_vente'] ?? 'VNT')),
+        'delai_inactivite_min' => (string)max(0, min(240, (int)($_POST['delai_inactivite_min'] ?? '15'))),
         'caisse_fermeture_mode'   => ($_POST['caisse_fermeture_mode'] ?? 'manuel') === 'auto' ? 'auto' : 'manuel',
         'caisse_heure_fermeture'  => preg_match('/^\d{2}:\d{2}$/', $_POST['caisse_heure_fermeture'] ?? '') ? $_POST['caisse_heure_fermeture'] : '22:00',
         'assistant_active'        => ($_POST['assistant_active'] ?? '0') === '1' ? '1' : '0',
+        'mail_smtp_host'     => trim($_POST['mail_smtp_host'] ?? ''),
+        'mail_smtp_port'     => (string)max(1, min(65535, (int)($_POST['mail_smtp_port'] ?? 25))),
+        'mail_smtp_user'     => trim($_POST['mail_smtp_user'] ?? ''),
+        'mail_smtp_pass'     => (string)($_POST['mail_smtp_pass'] ?? ''),
+        'mail_from'          => trim($_POST['mail_from'] ?? ''),
+        'mail_from_name'     => trim($_POST['mail_from_name'] ?? 'PharmaCare'),
     ];
 
     $stmt = $db->prepare("INSERT INTO parametres (cle,valeur) VALUES (?,?) ON DUPLICATE KEY UPDATE valeur=?");
@@ -146,6 +153,11 @@ showFlash();
         ?>
       </div>
     </div>
+    <div class="form-group">
+      <label>Déconnexion auto après inactivité (minutes)</label>
+      <input type="number" name="delai_inactivite_min" min="0" max="240" step="1" value="<?= e($p['delai_inactivite_min'] ?? '15') ?>">
+      <div class="form-hint">Sans aucune interaction (souris/clavier) pendant ce délai, l'utilisateur est automatiquement déconnecté. Tant qu'il travaille, il reste connecté. Recommandé : 10 à 15 min. 0 = jamais.</div>
+    </div>
   </div>
 </div>
 
@@ -178,6 +190,35 @@ showFlash();
         Activer l'assistant intégré (aide + recherche, sans serveur IA)
       </label>
       <div class="form-hint">Affiche le bouton flottant de l'assistant sur toutes les pages. Aucune action sensible, aucune donnée personnelle.</div>
+    </div>
+
+    <div class="form-group full">
+      <label style="font-weight:700;color:var(--teal2);">📧 Email / SMTP — réinitialisation de mot de passe en libre-service</label>
+      <div class="form-hint" style="margin-bottom:10px;">Renseignez le serveur SMTP de l'établissement (ou de la boîte mail utilisée pour l'app). Sans ces champs, l'app tentera la fonction mail() du serveur.</div>
+    </div>
+    <div class="form-group">
+      <label>Serveur SMTP (hôte)</label>
+      <input type="text" name="mail_smtp_host" value="<?= e($p['mail_smtp_host'] ?? '') ?>" placeholder="ex. : smtp.orange.cm ou 192.168.1.10">
+    </div>
+    <div class="form-group">
+      <label>Port SMTP</label>
+      <input type="number" name="mail_smtp_port" value="<?= e($p['mail_smtp_port'] ?? '25') ?>" min="1" max="65535" style="max-width:120px;">
+    </div>
+    <div class="form-group">
+      <label>Utilisateur SMTP (optionnel)</label>
+      <input type="text" name="mail_smtp_user" value="<?= e($p['mail_smtp_user'] ?? '') ?>" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Mot de passe SMTP (optionnel)</label>
+      <input type="password" name="mail_smtp_pass" value="<?= e($p['mail_smtp_pass'] ?? '') ?>" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>Adresse d'expédition (From)</label>
+      <input type="email" name="mail_from" value="<?= e($p['mail_from'] ?? '') ?>" placeholder="noreply@pharmacare.cm">
+    </div>
+    <div class="form-group">
+      <label>Nom d'expéditeur</label>
+      <input type="text" name="mail_from_name" value="<?= e($p['mail_from_name'] ?? 'PharmaCare') ?>">
     </div>
     <div class="form-group">
       <label>Préfixe des références de vente</label>
@@ -332,17 +373,17 @@ function previewTheme(tid) {
   root.style.setProperty('--blue',  t[4]);
   if (isLight) {
     root.style.setProperty('--bg',    t[5]);
-    root.style.setProperty('--bg2',   t[6] || '#faf5f3');
-    root.style.setProperty('--bg3',   t[7] || '#f0e8e4');
-    root.style.setProperty('--card',  t[8] || '#ffffff');
-    root.style.setProperty('--text',  '#1e293b');
-    root.style.setProperty('--text2', '#475569');
-    root.style.setProperty('--text3', '#94a3b8');
-    root.style.setProperty('--border','rgba(0,0,0,.08)');
-    root.style.setProperty('--border2','rgba(0,0,0,.12)');
-    root.style.setProperty('--glass', 'rgba(0,0,0,.04)');
-    root.style.setProperty('--shadow', '0 8px 32px rgba(0,0,0,.10)');
-    root.style.setProperty('--shadow-sm', '0 2px 12px rgba(0,0,0,.06)');
+    root.style.setProperty('--bg2',   t[6] || '#eceee9');
+    root.style.setProperty('--bg3',   t[7] || '#e3e8e0');
+    root.style.setProperty('--card',  t[8] || '#fcfcfa');
+    root.style.setProperty('--text',  '#2a3640');
+    root.style.setProperty('--text2', '#4e5c55');
+    root.style.setProperty('--text3', '#8b968f');
+    root.style.setProperty('--border','rgba(30,50,40,.09)');
+    root.style.setProperty('--border2','rgba(30,50,40,.14)');
+    root.style.setProperty('--glass', 'rgba(30,50,40,.04)');
+    root.style.setProperty('--shadow', '0 10px 34px rgba(40,60,50,.08)');
+    root.style.setProperty('--shadow-sm', '0 2px 12px rgba(40,60,50,.06)');
     root.style.setProperty('--btn-text', '#fff');
   } else {
     root.style.setProperty('--bg',    t[5]);

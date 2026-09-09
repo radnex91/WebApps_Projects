@@ -57,12 +57,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'generer') {
         header('Location: ' . url('remise_codes', ['action'=>'show','id'=>$cid])); exit;
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
-        flash('Erreur génération code : ' . $e->getMessage(), 'error');
+        flashError($e, 'génération code remise');
         header('Location: ' . url('remise_codes')); exit;
     }
 }
 
 // ── Données pour les vues ────────────────────────────────────
+// ── Export Excel de tous les codes de remise ──────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $rowsX = [];
+    $now = time();
+    foreach ($db->query("
+        SELECT c.*, u.prenom, u.nom AS u_nom, v.reference AS vente_ref
+        FROM codes_remise c
+        LEFT JOIN utilisateurs u ON c.created_by = u.id
+        LEFT JOIN ventes v ON c.used_vente_id = v.id
+        ORDER BY c.created_at DESC
+    ")->fetchAll() as $c) {
+        $reste = strtotime($c['expires_at']) - $now;
+        $statut = $c['used'] ? 'Utilisé' : ($reste <= 0 ? 'Expiré' : 'Valide');
+        $rowsX[] = [
+            $c['code'], (float)$c['remise_pct'],
+            trim(($c['prenom'] ?? '') . ' ' . ($c['u_nom'] ?? '')),
+            date('d/m/Y H:i', strtotime($c['created_at'])),
+            $c['expires_at'] ? date('d/m/Y H:i', strtotime($c['expires_at'])) : '',
+            $statut,
+            $c['used_at'] ? date('d/m/Y H:i', strtotime($c['used_at'])) : '',
+            $c['vente_ref'],
+        ];
+    }
+    export_xlsx_send('codes_remise_' . date('Y-m-d'), 'Codes remise',
+        ['Code', 'Remise %', 'Généré par', 'Créé le', 'Expire', 'Statut', 'Utilisé le', 'Vente'], $rowsX);
+}
+
 $title = 'Codes d\'autorisation de remise';
 if ($action === 'show' && $id) {
     $stmt = $db->prepare("SELECT c.*, u.prenom, u.nom AS u_nom,
@@ -129,6 +157,7 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title"><?= icon('key',18) ?> Codes d'autorisation de remise</div>
+      <a href="<?= url('remise_codes', ['export'=>'1']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
       <form method="POST" action="?action=generer" style="margin:0;display:flex;gap:8px;align-items:center;">
         <input type="hidden" name="csrf" value="<?= csrf() ?>">
         <input type="number" name="remise_pct" min="0.01" max="<?= (float)getParam('remise_max_pct','100') ?>"

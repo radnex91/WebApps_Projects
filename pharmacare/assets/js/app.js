@@ -85,7 +85,7 @@ function fmtMoney(n) {
 // sur un navigateur partagé. Aucune migration de l'ancienne clé globale
 // 'pharmacare_cart' (évite toute fuite du panier d'un autre utilisateur) ;
 // on se contente de l'effacer une fois pour nettoyer l'orphelin.
-const CART_KEY = 'pharmacare_cart_' + (typeof POS_USER_ID !== 'undefined' ? POS_USER_ID : 'anon');
+const CART_KEY = 'pharmacare_cart_' + (typeof PC_USER_ID !== 'undefined' && PC_USER_ID ? PC_USER_ID : 'anon');
 let cart = {};
 
 function saveCart() {

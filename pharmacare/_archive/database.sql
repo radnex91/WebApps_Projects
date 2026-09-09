@@ -1151,8 +1151,10 @@ CREATE TABLE `ventes` (
   `remise_montant` decimal(10,2) DEFAULT 0.00,
   `autorise_par` int(11) DEFAULT NULL,
   `pharmacie_id` int(11) DEFAULT NULL,
+  `client_ref` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `reference` (`reference`),
+  UNIQUE KEY `client_ref` (`client_ref`),
   KEY `caissier_id` (`caissier_id`),
   KEY `client_id` (`client_id`),
   KEY `fk_ventes_autorise_par` (`autorise_par`),
@@ -1234,7 +1236,7 @@ CREATE TABLE `parametres` (
 
 LOCK TABLES `parametres` WRITE;
 /*!40000 ALTER TABLE `parametres` DISABLE KEYS */;
-INSERT INTO `parametres` VALUES ('app_nom','PharmaCare','Nom de la pharmacie','général'),('caisse_fermeture_mode','manuel','Mode fermeture caisse','caisse'),('caisse_heure_fermeture','18:00','Heure fermeture auto','caisse'),('delai_inactivite_min','20',NULL,'general'),('devise','XAF','Devise','général'),('devise_pos','after','Position symbole','général'),('devise_symbole','FCFA','Symbole devise','général'),('fidelite_active','1',NULL,'general'),('pharmacie_adresse','',NULL,'général'),('pharmacie_nif','',NULL,'général'),('pharmacie_telephone','',NULL,'général'),('police','Manrope','Police principale','général'),('police_titre','Manrope','Police titres','général'),('prefix_vente','VNT',NULL,'general'),('remise_code_ttl_min','15','Validité code remise (min)','ventes'),('remise_max_pct','100','Remise max (%)','ventes'),('theme','dark-rose','Thème couleur','général'),('ticket_pied','Merci pour votre achat ! pharmaCare (c) 2026',NULL,'général'),('ticket_sous_titre','PharmaCare',NULL,'général'),('tva','0.00','Taux TVA (%)','général');
+INSERT INTO `parametres` VALUES ('app_nom','PharmaCare','Nom de la pharmacie','général'),('caisse_fermeture_mode','manuel','Mode fermeture caisse','caisse'),('caisse_heure_fermeture','18:00','Heure fermeture auto','caisse'),('delai_inactivite_min','15','Délai d''inactivité (min)','general'),('devise','XAF','Devise','général'),('devise_pos','after','Position symbole','général'),('devise_symbole','FCFA','Symbole devise','général'),('fidelite_active','1',NULL,'general'),('pharmacie_adresse','',NULL,'général'),('pharmacie_nif','',NULL,'général'),('pharmacie_telephone','',NULL,'général'),('police','Manrope','Police principale','général'),('police_titre','Manrope','Police titres','général'),('prefix_vente','VNT',NULL,'general'),('remise_code_ttl_min','15','Validité code remise (min)','ventes'),('remise_max_pct','100','Remise max (%)','ventes'),('theme','dark-rose','Thème couleur','général'),('ticket_pied','Merci pour votre achat ! pharmaCare (c) 2026',NULL,'général'),('ticket_sous_titre','PharmaCare',NULL,'général'),('tva','0.00','Taux TVA (%)','général');
 /*!40000 ALTER TABLE `parametres` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -1248,3 +1250,35 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-07-22 12:26:19
+
+-- ── PharmaCare 1.3.1 — Permissions manquantes (patch idempotent) ────────────
+-- Permissions vérifiées dans le code (requirePermission/hasPermission) mais non
+-- insérées dans ce dump : invisibles dans l'éditeur de rôles, non attribuables.
+-- INSERT IGNORE + clé UNIQUE sur code → ré-exécution sûre.
+-- Audit : php tools/audit_permissions.php
+INSERT IGNORE INTO `permissions` (`code`, `libelle`, `module`) VALUES
+('marketing.voir', 'Voir le module marketing (promos & fidélité)', 'marketing'),
+('marketing.promos', 'Créer et gérer les promotions', 'marketing'),
+('marketing.fidelite', 'Gérer le programme de fidélité', 'marketing'),
+('suivi_caissiers.voir', 'Voir le suivi des caissiers', 'suivi_caissiers'),
+('suivi_caissiers.recompenser', 'Attribuer des récompenses aux caissiers', 'suivi_caissiers'),
+('enligne.voir', 'Voir les utilisateurs en ligne', 'en_ligne'),
+('rapports_caissier.voir', 'Voir les rapports caissier', 'rapports_caissier'),
+('assistant.utiliser', 'Utiliser l''assistant intégré', 'assistant');
+
+-- ── PharmaCare 1.3.1 — Attributions marketing + rôle Magasinier ─────────────
+-- Marketing accordé aux rôles de direction (leur seul trou selon l'audit).
+-- Rôle magasinier (réceptionnaire) : magasin + suivi/livraison des commandes.
+-- Idempotent : INSERT IGNORE + PK (role_id, permission_id) + clé UNIQUE code.
+INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)
+SELECT r.id, p.id FROM `roles` r JOIN `permissions` p
+  ON p.`code` IN ('marketing.voir','marketing.promos','marketing.fidelite')
+WHERE r.`code` IN ('directeur','informaticien');
+
+INSERT IGNORE INTO `roles` (`code`, `libelle`, `est_systeme`) VALUES ('magasinier', 'Magasinier', 0);
+
+INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)
+SELECT r.id, p.id FROM `roles` r JOIN `permissions` p
+  ON p.`code` IN ('dashboard.voir','magasin.voir','magasin.gerer','stock.voir',
+                  'produits.voir','commandes.voir','commandes.modifier','assistant.utiliser')
+WHERE r.`code` = 'magasinier';

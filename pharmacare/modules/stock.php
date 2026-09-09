@@ -25,12 +25,50 @@ if ($q !== '') {
 $joins = "LEFT JOIN categories c ON p.categorie_id = c.id
           LEFT JOIN fournisseurs f ON p.fournisseur_id = f.id";
 
+// ── Export Excel (mêmes filtres que l'inventaire) ────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $st = $db->prepare("SELECT p.reference, p.nom, c.nom AS cat, f.nom AS fournisseur,
+                               p.stock, p.seuil_alerte, p.prix_achat, p.prix_vente,
+                               p.date_expiration,
+                               COALESCE(de.derniere_entree, p.created_at) AS derniere_entree
+                        FROM produits p
+                        $joins
+                        LEFT JOIN (
+                            SELECT produit_id, MAX(created_at) AS derniere_entree
+                            FROM mouvements_stock
+                            WHERE type = 'entrée'
+                            GROUP BY produit_id
+                        ) de ON de.produit_id = p.id
+                        WHERE $where
+                        ORDER BY p.nom");
+    $st->execute($params);
+    $rows = [];
+    $n = 0;
+    foreach ($st->fetchAll() as $p) {
+        $n++;
+        $rows[] = [
+            $n,
+            $p['reference'], $p['nom'], $p['cat'], $p['fournisseur'],
+            (int)$p['stock'], (int)$p['seuil_alerte'],
+            (float)$p['prix_achat'], (float)$p['prix_vente'],
+            (float)$p['stock'] * (float)$p['prix_achat'],
+            $p['date_expiration'] ? date('d/m/Y', strtotime($p['date_expiration'])) : '',
+            date('d/m/Y H:i', strtotime($p['derniere_entree'])),
+        ];
+    }
+    $lbl = ['tous' => 'inventaire', 'alerte' => 'stock_bas', 'rupture' => 'ruptures', 'ok' => 'stock_ok'][$filtre] ?? 'inventaire';
+    export_xlsx_send($lbl . '_' . date('Y-m-d'), 'Stock',
+        ['N°', 'Référence', 'Nom', 'Catégorie', 'Fournisseur', 'Stock', 'Seuil alerte',
+         'Prix achat', 'Prix vente', 'Valeur stock (achat)', 'Expiration', 'Dernière entrée'], $rows);
+}
+
 // Comptage pour pagination (mêmes filtres, sans la jointure dérivée).
 $cntStmt = $db->prepare("SELECT COUNT(*) FROM produits p $joins WHERE $where");
 $cntStmt->execute($params);
 $total = (int)$cntStmt->fetchColumn();
 
-$perPage = 50;
+$perPage = 25; // section Gestion : pagination uniforme à 25/page
 $page    = max(1, (int)($_GET['page'] ?? 1));
 $offset  = paginateOffset($page, $perPage);
 
@@ -94,6 +132,7 @@ showFlash();
 <div class="card">
   <div class="card-header">
     <div class="card-title">Inventaire des médicaments</div>
+    <a href="<?= url('stock', ['export'=>'1', 'filtre'=>$filtre, 'cat'=>$cat, 'q'=>$q]) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <div class="flex gap-8" style="flex-wrap:wrap;">
       <form method="GET" action="<?= url('stock') ?>" style="display:flex;flex:2;min-width:420px;max-width:640px;">
         <div class="search-box" style="flex:1;">
@@ -126,21 +165,22 @@ showFlash();
     <table id="stock-table">
       <thead>
         <tr>
-          <th class="sortable" data-col="0" data-type="text">Médicament <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="1" data-type="text">Réf. <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="2" data-type="text">Catégorie <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="3" data-type="num">Stock <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="4" data-type="num">Seuil <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="5" data-type="num">P. Achat <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="6" data-type="num">P. Vente <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="7" data-type="text">Expiration <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="8" data-type="text">Fournisseur <span class="sort-arrow"></span></th>
-          <th class="sortable" data-col="9" data-type="text">Statut <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="0" data-type="num" style="width:56px;">N° <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="1" data-type="text">Médicament <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="2" data-type="text">Réf. <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="3" data-type="text">Catégorie <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="4" data-type="num">Stock <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="5" data-type="num">Seuil <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="6" data-type="num">P. Achat <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="7" data-type="num">P. Vente <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="8" data-type="text">Expiration <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="9" data-type="text">Fournisseur <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="10" data-type="text">Statut <span class="sort-arrow"></span></th>
           <?php if (hasPermission('stock.ajuster') || hasPermission('produits.modifier')): ?><th>Actions</th><?php endif; ?>
         </tr>
       </thead>
       <tbody id="stock-tbody">
-        <?php foreach ($produits as $p):
+        <?php $ordreBase = ($page - 1) * $perPage; foreach ($produits as $i => $p):
           $exp     = $p['date_expiration'] ? date('m/Y', strtotime($p['date_expiration'])) : '—';
           $expSoon = $p['date_expiration'] && strtotime($p['date_expiration']) < strtotime('+3 months');
           if     ($p['stock'] == 0)                    { $badge='badge-red';  $txt='Rupture';    }
@@ -148,6 +188,7 @@ showFlash();
           else                                          { $badge='badge-green';$txt='Disponible'; }
         ?>
         <tr>
+          <td class="fw-mono text-sm" style="color:var(--text3);background:var(--bg2);text-align:center;"><?= $ordreBase + $i + 1 ?></td>
           <td class="td-name"><?= e($p['nom']) ?></td>
           <td class="td-mono"><?= e($p['reference'] ?? '—') ?></td>
           <td><span class="badge badge-gray"><?= e($p['cat'] ?? '—') ?></span></td>
@@ -173,7 +214,7 @@ showFlash();
         </tr>
         <?php endforeach; ?>
         <?php if (!$produits): ?>
-        <tr><td colspan="11">
+        <tr><td colspan="12">
           <div class="empty">
             <div style="color:var(--text3);margin-bottom:8px;"><?= icon('box',36) ?></div>
             <div>Aucun produit trouvé</div>

@@ -27,11 +27,12 @@ if (!isset($_SESSION['csrf'])) {
 }
 
 // 3) Charger la config + helpers (env.php détecte PHARMACARE_ENV=test → pharmacare_test).
-require_once __DIR__ . '/../config/env.php';
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../config/settings.php';
-require_once __DIR__ . '/../config/comptabilite.php';
-require_once __DIR__ . '/../includes/auth.php';
+// NB : les tests ont été archivés dans _archive/tests/ → remonter de DEUX niveaux.
+require_once __DIR__ . '/../../config/env.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../config/settings.php';
+require_once __DIR__ . '/../../config/comptabilite.php';
+require_once __DIR__ . '/../../includes/auth.php';
 
 // 4) Initialiser la BDD de test (idempotent : crée le schéma si la base est vide).
 require_once __DIR__ . '/_dbinit.php';

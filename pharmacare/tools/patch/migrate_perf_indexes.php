@@ -56,6 +56,11 @@ $indexes = [
     ['produits',           'idx_produits_actif_nom',   '(actif, nom)',                   'ORDER BY nom WHERE actif=1 (stock/magasin/produits)'],
     ['commandes',          'idx_cmd_created',          '(created_at)',                   'ORDER BY created_at (commandes.php)'],
     ['retours_vente',      'idx_retr_created',          '(created_at)',                   'ORDER BY created_at (retours.php)'],
+    // ── Index de performance complémentaires (stabilisation prod) ──
+    ['ventes',             'idx_ventes_date_annul_pharma', '(created_at, est_annulee, pharmacie_id)', 'agrégats etat-date / rapports (ventes non annulées)'],
+    ['vente_lignes',       'idx_vl_vente_cov',            '(vente_id, produit_id, quantite, total_ligne)', 'covering : top-produits/catégories, coût d\'achat (rapports)'],
+    ['mouvements_caisse',  'idx_mc_session_type_ref',     '(session_id, type, reference_vente)', 'caisse.php : sous-requêtes session/type/référence'],
+    ['produits',           'idx_produits_cat_nom',        '(categorie_id, nom)',            'POS ORDER BY c.nom, p.nom (vente.php)'],
 ];
 
 echo "PharmaCare — migration des index de performance\n";
