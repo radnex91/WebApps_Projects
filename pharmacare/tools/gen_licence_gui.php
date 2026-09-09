@@ -139,8 +139,7 @@ function renderMain($message, $gen, array $ledger, bool $privOk, int $freeCap): 
        . '<a class="link" href="?logout=1">Déconnexion</a></header>';
 
     if (!$privOk) {
-        echo '<div class="msg err">⚠ Clé privée introuvable (' . htmlspecialchars(licence_lib_privkey_path()) . '). '
-           . 'Lancez d\'abord <code>php tools/gen_licence_keypair.php</code>.</div>';
+        echo '<div class="msg err">⚠ ' . htmlspecialchars(licence_lib_privkey_hint()) . '</div>';
     }
 
     if ($message) echo '<div class="msg ' . ($message['ok'] ? 'ok' : 'err') . '">' . htmlspecialchars($message['text']) . '</div>';

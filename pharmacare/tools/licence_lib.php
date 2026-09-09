@@ -39,10 +39,36 @@ function licence_lib_b64u(string $bin): string {
 function licence_lib_privkey_path(): string {
     return __DIR__ . '/licence_privatekey.php';
 }
+
+/** Vrai si config/licence.php embarque déjà une clé publique (LICENCE_PUBKEY non vide). */
+function licence_lib_pubkey_configured(): bool {
+    $cfg = dirname(__DIR__, 1) . '/config/licence.php';
+    if (!is_file($cfg)) return false;
+    return (bool)preg_match("/const LICENCE_PUBKEY = '([^']*)';/", (string)file_get_contents($cfg), $m) && $m[1] !== '';
+}
+
+/**
+ * Message contextuel quand la clé privée manque (affiché par les GUI).
+ * Piège : si une clé publique est déjà en place, régénérer la paire
+ * (--force de gen_licence_keypair.php) écraserait la clé et invaliderait
+ * TOUS les codes déjà émis — il faut RESTAURER le fichier, pas le recréer.
+ */
+function licence_lib_privkey_hint(): string {
+    $f = licence_lib_privkey_path();
+    if (licence_lib_pubkey_configured()) {
+        return "Clé privée RSA absente ($f) — NE PAS lancer gen_licence_keypair.php : "
+            . "une clé publique est déjà en place, régénérer la paire invaliderait TOUS les codes déjà émis. "
+            . "Restaurez licence_privatekey.php depuis votre sauvegarde "
+            . "(bundle dist/PharmaCare-Licence-Manager, PC de secours).";
+    }
+    return "Clé privée RSA absente ($f) — lancez : php tools/gen_licence_keypair.php "
+        . "(aucune clé publique en place : création normale de la paire).";
+}
+
 function licence_lib_privkey_pem(): string {
     $f = licence_lib_privkey_path();
     if (!file_exists($f)) {
-        throw new RuntimeException('Clé privée absente : ' . $f . " — lancez d'abord tools/gen_licence_keypair.php");
+        throw new RuntimeException(licence_lib_privkey_hint());
     }
     $b64 = require $f;
     $pem = base64_decode((string)$b64, true);
@@ -215,13 +241,31 @@ function licence_lib_secret_path(): string {
 function licence_lib_hmac_secret(): string {
     $f = licence_lib_secret_path();
     if (!file_exists($f)) {
-        throw new RuntimeException('Secret HMAC absent : ' . $f . " — lancez d'abord tools/gen_licence_secret.php");
+        throw new RuntimeException(licence_lib_secret_hint());
     }
     $s = require $f;
     if (!is_string($s) || $s === '') {
         throw new RuntimeException('Secret HMAC illisible dans ' . $f);
     }
     return $s;
+}
+
+/**
+ * Message contextuel quand le secret HMAC dev manque. Même piège que la clé
+ * privée : si l'app embarque déjà un secret (config/licence_secret.php), le
+ * régénérer le désynchroniserait de l'app et invaliderait tous les codes
+ * courts déjà appliqués chez les clients (repli au palier gratuit).
+ */
+function licence_lib_secret_hint(): string {
+    $f = licence_lib_secret_path();
+    if (is_file(dirname(__DIR__, 1) . '/config/licence_secret.php')) {
+        return "Secret HMAC absent ($f) — NE PAS lancer gen_licence_secret.php : "
+            . "l'app embarque déjà un secret (config/licence_secret.php), le régénérer invaliderait "
+            . "tous les codes courts déjà appliqués. Restaurez licence_secret.php depuis votre "
+            . "sauvegarde (il doit rester IDENTIQUE à config/licence_secret.php).";
+    }
+    return "Secret HMAC absent ($f) — lancez : php tools/gen_licence_secret.php "
+        . "(crée la paire dev + app d'un seul coup).";
 }
 
 /** Alphabet 32 symboles sans ambigüité (pas de I, O, 0, 1). */

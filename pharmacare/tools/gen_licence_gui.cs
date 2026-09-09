@@ -455,7 +455,15 @@ namespace PharmaCareLicence
 
             object pok;
             bool privOk = res.TryGetValue("priv_ok", out pok) && pok is bool && (bool)pok;
-            if (!privOk) Status("⚠ Clé privée introuvable — lancez d'abord gen_licence_keypair.php", true);
+            if (!privOk)
+            {
+                // Message contextuel fourni par gen_licence.php (status) : restauration
+                // si une clé publique existe déjà (régénérer invaliderait tous les
+                // codes émis), création normale sinon.
+                object hint;
+                string privHint = res.TryGetValue("priv_hint", out hint) && hint is string ? (string)hint : null;
+                Status(privHint ?? "⚠ Clé privée introuvable — restaurez licence_privatekey.php depuis votre sauvegarde (NE PAS régénérer la paire si des codes ont déjà été émis).", true);
+            }
         }
 
         // ═══ Helpers ══════════════════════════════════════════════════════════

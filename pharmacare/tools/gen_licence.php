@@ -107,6 +107,7 @@ function json_emit(array $opts): array {
                 return [
                     'ok'       => true,
                     'priv_ok'  => file_exists(licence_lib_privkey_path()),
+                    'priv_hint'=> licence_lib_privkey_hint(),
                     'free_cap'  => licence_lib_free_cap(),
                     'ledger'   => ledger_view(),
                 ];
