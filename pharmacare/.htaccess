@@ -54,6 +54,8 @@ ServerSignature Off
     RewriteRule ^parametres/?$         modules/parametres.php [L,QSA]
     RewriteRule ^pharmacies/?$            modules/pharmacies.php [L,QSA]
     RewriteRule ^pharmacies/stock/?$      modules/pharmacies.php?action=stock [L,QSA]
+    RewriteRule ^pharmacies/importer/modele/?$        modules/pharmacies.php?action=import_template [L,QSA]
+    RewriteRule ^pharmacies/importer/?$               modules/pharmacies.php?action=import [L,QSA]
     RewriteRule ^pharmacies/new/?$        modules/pharmacies.php?action=add [L,QSA]
     RewriteRule ^pharmacies/(\d+)(?:-[^/]+)?/edit/?$  modules/pharmacies.php?action=edit&id=$1 [L,QSA]
     RewriteRule ^pharmacies/(\d+)(?:-[^/]+)?/stock/?$ modules/pharmacies.php?action=stock&id=$1 [L,QSA]

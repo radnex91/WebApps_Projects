@@ -531,8 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Live search tables
-  liveSearch('search-stock',    'stock-tbody');
+  // Live search tables (client-side filtering for pages without server-side search)
   liveSearch('search-produits', 'produits-tbody');
   liveSearch('search-users',    'users-tbody');
 

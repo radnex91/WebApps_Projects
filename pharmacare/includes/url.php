@@ -77,6 +77,7 @@ $ROUTES = [
     'parametres'          => ['base' => 'parametres'],
     'pharmacies'          => ['base' => 'pharmacies', 'idSlug' => true, 'actions' => [
         'add' => 'new', 'edit' => 'edit', 'stock' => 'stock',
+        'import' => 'importer', 'import_template' => 'importer/modele',
     ]],
     'menus'               => ['base' => 'menus'],
     'sauvegarde'          => ['base' => 'sauvegarde'],

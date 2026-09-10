@@ -9,7 +9,7 @@ $db = getDB();
 
 // Module « client fidèle » désactivé partout pour l'instant (paramètre fidelite_active).
 $fideliteActive = fideliteActive();
-// Vente à crédit / dettes suspendues pour l'instant (paramètre credit_active).
+// Vente à crédit : pilotée dans Paramètres → Caisse (paramètre credit_active).
 $creditActive   = creditActive();
 
 $modeLabels = [
@@ -1286,6 +1286,7 @@ function setClientMode(mode) {
     if (btnSimple)   { btnSimple.style.background = 'var(--bg3)';    btnSimple.style.color = 'var(--text)'; }
     if (btnExistant) { btnExistant.style.background = 'transparent'; btnExistant.style.color = 'var(--text2)'; }
     if (inputSimple) inputSimple.style.display = '';
+    if (inputSimple) inputSimple.required = true;
     if (selectExist) selectExist.style.display = 'none';
     if (hdnMode) hdnMode.value = 'simple';
     if (selectExist) selectExist.value = '';
@@ -1297,6 +1298,9 @@ function setClientMode(mode) {
     if (btnSimple)   { btnSimple.style.background = 'transparent'; btnSimple.style.color = 'var(--text2)'; }
     if (selectExist) selectExist.style.display = '';
     if (inputSimple) inputSimple.style.display = 'none';
+    // Le champ libre est masqué : retirer required, sinon la validation
+    // HTML5 natif bloque la soumission du POS sans message visible.
+    if (inputSimple) inputSimple.required = false;
     if (hdnMode) hdnMode.value = 'existant';
     if (inputSimple) inputSimple.value = '';
   }

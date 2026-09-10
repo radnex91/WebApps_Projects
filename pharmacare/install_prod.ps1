@@ -449,29 +449,30 @@ function Import-Database([string]$rootIni) {
     if (-not $ok) { throw 'Echec creation base pharmacare.' }
 
     # Importer le schema.
-    # IMPORTANT : on force l'encodage UTF-8 sur les deux bouts du tuyau.
-    #   - Get-Content -Encoding UTF8 : lit le fichier (BOM UTF-8) en UTF-8 -> string .NET
-    #   - [Console]::OutputEncoding = UTF8 : le pipe vers mysql.exe encode en UTF-8
-    #   - --default-character-set=utf8mb4 : mysql interpretant le stdin comme utf8mb4
-    #   Sans cela, les accents des seed (roles « Pharmacien », permissions, menus
-    #   « Medicaments », « Roles ») sont corrompus (bug constate en dev).
+    # IMPORTANT : PAS de pipe PowerShell vers mysql.exe. En PS 5.1, le stdin
+    # d'un exe natif est encode via $OutputEncoding (US-ASCII par defaut) ;
+    # [Console]::OutputEncoding ne gouverne que le DECODAGE de la sortie.
+    # Piped, chaque accent du SQL ('entrée', 'espèces', 'Gérer'…) devenait '?'
+    # dans la base : ENUM ('entrée','sortie') casses -> mouvements de caisse a
+    # '' -> solde fige au fond initial + sessions non cloturables (bug client
+    # 2026-09-09). mysql.exe lit directement le FICHIER (UTF-8) via SOURCE :
+    # le contenu traverse le client sans reencodage Windows.
     Write-Host "  Import de $SQL_FILE ..." -ForegroundColor Gray
-    $prevEncoding = $ErrorActionPreference
+    $prevEap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'   # local : stderr natif -> pas de throw
     $errFile = [System.IO.Path]::GetTempFileName()
     $ok2 = $false
-    $errText = ''
-    $prevOut = [Console]::OutputEncoding
     try {
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-        Get-Content $SQL_FILE -Raw -Encoding UTF8 | & $MYSQL "--defaults-extra-file=$rootIni" --default-character-set=utf8mb4 pharmacare 2>$errFile
+        # Slashes forward obligatoires : dans SOURCE, le \ est un escape SQL
+        # ('C:\xampp' serait relu 'C:xampp'). mysql.exe les accepte sous Windows.
+        $sqlPath = (Resolve-Path $SQL_FILE).Path -replace '\\', '/'
+        & $MYSQL "--defaults-extra-file=$rootIni" --default-character-set=utf8mb4 pharmacare -e "SOURCE $sqlPath" 2>$errFile | Out-Null
         $ok2 = ($LASTEXITCODE -eq 0)
-        $errText = Get-Content $errFile -Raw -ErrorAction SilentlyContinue
     } finally {
-        [Console]::OutputEncoding = $prevOut
-        $ErrorActionPreference = $prevEncoding
-        Remove-Item $errFile -Force -ErrorAction SilentlyContinue
+        $ErrorActionPreference = $prevEap
     }
+    $errText = Get-Content $errFile -Raw -ErrorAction SilentlyContinue
+    Remove-Item $errFile -Force -ErrorAction SilentlyContinue
     if (-not $ok2) { throw "Echec import schema SQL.`n$errText" }
 
     # Verifier le nombre de tables

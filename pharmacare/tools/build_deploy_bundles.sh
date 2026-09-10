@@ -8,7 +8,7 @@
 set -euo pipefail
 
 SRC="/c/xampp/htdocs/pharmacare"
-OUT_DIR="/c/xampp/htdocs"
+OUT_DIR="/c/xampp/htdocs/pharmacare/dist"
 ZIP_WIN="${OUT_DIR}/pharmacare_deploy.zip"
 TAR_LINUX="${OUT_DIR}/pharmacare_deploy_linux.tar.gz"
 
@@ -86,6 +86,9 @@ tar -cf - \
   --exclude='./licence_ledger.json' \
   --exclude='*licence_instance_id*' \
   --exclude='./PHARMACARE_REBUILD_PROMPT.md' \
+  --exclude='./_patch_backup' \
+  --exclude='./.qwen_tmp_*' \
+  --exclude='./used_perms_audit.txt' \
   --exclude='./*.html' \
   --exclude='./*.sql' \
   --exclude='./apercu.html' \
@@ -123,6 +126,8 @@ assert_absent "dist"
 assert_absent ".claude"
 assert_absent ".specify"
 assert_absent ".pi"
+assert_absent "_patch_backup"
+assert_absent "used_perms_audit.txt"
 # tools/ n'est PAS livre, SAUF migrations idempotentes (tools/patch/migrate_*.php)
 # requises par l'installeur et par update_prod.ps1 — verifiees plus bas.
 assert_absent "tools/install_prod_gui.cs"
@@ -141,6 +146,9 @@ assert_absent "licence_ledger.json"
 assert_absent "tools/licence_privatekey.php"
 if ls "$STAGING"/*.xlsx 2>/dev/null | head -1 | grep -q .; then echo "  [FAIL] xlsx present"; exit 1; fi
 echo "  [ok] aucun .xlsx"
+# Garde-fou dev : aucun fichier temporaire de dev (.qwen_tmp_*, .qwen/, .pi/…) ne doit fuiter.
+if ls -A "$STAGING" | grep -Eq '^\.qwen_tmp_|^\.qwen$|^\.pi$|^\.specify$|^\.claude$' ; then echo "  [FAIL] fichiers de dev présents à la racine du staging"; ls -A "$STAGING" | grep -E '^\.qwen|^\.pi|^\.specify|^\.claude'; exit 1; fi
+echo "  [ok] aucun fichier de dev a la racine"
 if [ ! -f "$STAGING/_archive/database.sql" ]; then echo "  [FAIL] database.sql manquant"; exit 1; fi
 echo "  [ok] _archive/database.sql present ($(stat -c%s "$STAGING/_archive/database.sql") octets)"
 if [ ! -f "$STAGING/data/import_articles_hopitaux_cliniques_cm.csv" ]; then echo "  [FAIL] data/csv manquant"; exit 1; fi
@@ -189,7 +197,7 @@ PS1="$BASE/_zip.ps1"
 cat > "$PS1" <<'PSEOF'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $src = 'C:\Users\RADNEX\AppData\Local\Temp\pc_rebuild\win\pharmacare'
-$dst = 'C:\xampp\htdocs\pharmacare_deploy.zip'
+$dst = 'C:\xampp\htdocs\pharmacare\dist\pharmacare_deploy.zip'
 [System.IO.Compression.ZipFile]::CreateFromDirectory($src, $dst, [System.IO.Compression.CompressionLevel]::Optimal, $true)
 Write-Output ("ZIP_OK:" + (Get-Item $dst).Length)
 PSEOF
@@ -200,7 +208,7 @@ echo "=== Bundles regeneres ==="
 ls -lh "$ZIP_WIN" "$TAR_LINUX"
 echo
 echo "Contenu (top-level) Windows zip :"
-powershell -NoProfile -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; \$z=[System.IO.Compression.ZipFile]::OpenRead('C:\xampp\htdocs\pharmacare_deploy.zip'); \$z.Entries | Where-Object { \$_.FullName -notmatch '/' } | ForEach-Object { \$_.FullName }; \$z.Dispose()" 2>/dev/null || true
+powershell -NoProfile -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; \$z=[System.IO.Compression.ZipFile]::OpenRead('C:\xampp\htdocs\pharmacare\dist\pharmacare_deploy.zip'); \$z.Entries | Where-Object { \$_.FullName -notmatch '/' } | ForEach-Object { \$_.FullName }; \$z.Dispose()" 2>/dev/null || true
 echo "--- Linux tar (top-level + data) ---"
 tar -tzf "$TAR_LINUX" | grep -E '^pharmacare/[^/]*/?$' | head -30
 echo "data/ dans tar :"

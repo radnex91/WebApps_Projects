@@ -162,12 +162,11 @@ function fideliteActive(): bool {
 
 /**
  * Vente à crédit / dettes clients — activée via le paramètre 'credit_active'.
- * Désactivée par défaut (les dettes sont suspendues pour l'instant). Bloque
- * la création de nouvelles ventes à crédit au POS ; l'existant (dettes déjà
- * enregistrées, règlements, compta OHADA) reste visible et intact.
- * Pour réactiver :
- *   INSERT INTO parametres (cle, valeur) VALUES ('credit_active', '1')
- *     ON DUPLICATE KEY UPDATE valeur='1';
+ * Désactivée par défaut dans le code ; les nouvelles installations la seedent
+ * à '1' (_archive/database.sql) et le réglage est pilotable dans Paramètres →
+ * Caisse (« Autoriser la vente à crédit »). Bloque la création de nouvelles
+ * ventes à crédit au POS ; l'existant (dettes déjà enregistrées, règlements,
+ * compta OHADA) reste visible et intact.
  */
 function creditActive(): bool {
     return getParam('credit_active', '0') === '1';

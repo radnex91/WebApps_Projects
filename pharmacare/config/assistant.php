@@ -84,6 +84,14 @@ $ASSISTANT_HELP = [
             'À la réception, validez les quantités reçues — le stock magasin est mis à jour.',
         ],
     ],
+    'pharmacies' => [
+        'titre' => 'Pharmacies',
+        'points' => [
+            'Le stock est géré par pharmacie : « Stock par pharmacie » édite les quantités site par site.',
+            'Le transfert inter-pharmacies débite la pharmacie source et approvisionne la destination immédiatement (bon TVP imprimable).',
+            'L\'historique des transferts se filtre par pharmacie source ou destination.',
+        ],
+    ],
     'clients' => [
         'titre' => 'Clients',
         'points' => [

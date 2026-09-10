@@ -9,7 +9,7 @@
 #   <files_list>   text file, one path per line, relative to pharmacare/
 #                  (e.g. modules/produits.php, config/env.php, assets/css/style.css)
 #
-# Output: <htdocs>/pharmacare_patch_<from>_to_<to>.zip and ...tar.gz
+# Output: <pharmacare>/dist/pharmacare_patch_<from>_to_<to>.zip and ...tar.gz
 set -euo pipefail
 
 FROM="${1:?usage: build_patch.sh <from> <to> <files_list>}"
@@ -18,7 +18,8 @@ LIST="${3:?usage: build_patch.sh <from> <to> <files_list>}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"          # pharmacare/
 PTOOLS="$(cd "$(dirname "$0")" && pwd)/patch"     # tools/patch/
-HTDOCS="$(dirname "$ROOT")"                        # C:\xampp\htdocs\
+OUTDIR="$ROOT/dist"                               # pharmacare/dist/ (archives livrables)
+mkdir -p "$OUTDIR"
 NAME="pharmacare_patch_${FROM}_to_${TO}"
 STAGING="$(cd "$(dirname "$0")" && pwd)/_patch_staging/${NAME}"
 
@@ -68,6 +69,13 @@ fi
 cp -p "$PTOOLS/apply_patch.bat" "$STAGING/"
 cp -p "$PTOOLS/apply_patch.ps1" "$STAGING/"
 cp -p "$PTOOLS/apply_patch.sh"  "$STAGING/"
+# GUI Windows : apply_patch.exe (assistant graphique generique, lit le nom du
+# patch et APP_VERSION du payload ; meme style que install_prod.exe). Le .bat
+# reste en secours (et pour les postes sans .NET Framework).
+if [ -f "$PTOOLS/apply_patch.exe" ]; then
+  cp -p "$PTOOLS/apply_patch.exe" "$STAGING/"
+  echo "[patch] apply_patch.exe (GUI Windows) inclus."
+fi
 
 # ── 2b. Migrations BDD eventuelles (tools/patch/migrate_*.php) ────────────────
 # Tout fichier tools/patch/migrate_*.php est inclus au patch et exécuté
@@ -104,7 +112,9 @@ fi
   echo
   echo "APPLICATION (Windows, XAMPP) :"
   echo "  1. Decompressez l'archive .zip ou vous voulez (ex: Bureau)."
-  echo "  2. Double-cliquez sur apply_patch.bat."
+  echo "  2. Double-cliquez sur apply_patch.exe (assistant graphique ; il detecte"
+  echo "     l'installation, verifie la version, sauvegarde et applique)."
+  echo "     Alternative sans GUI : double-cliquez sur apply_patch.bat."
   echo "  3. Confirmez le dossier d'installation (defaut C:\\xampp\\htdocs\\pharmacare)."
   echo "  4. Les anciens fichiers sont sauvegardes dans pharmacare\\_patch_backup\\<horodatage>."
   echo "  5. Les migrations BDD (index) sont executees automatiquement si php CLI est trouve."
@@ -123,9 +133,9 @@ fi
 
 # ── 4. Archiver (Windows zip + Linux tar) ──
 WIN_STAGING=$(cygpath -w "$STAGING" 2>/dev/null || echo "$STAGING")
-WIN_OUT=$(cygpath -w "$HTDOCS" 2>/dev/null || echo "$HTDOCS")
-ZIP="$HTDOCS/${NAME}.zip"
-TAR="$HTDOCS/${NAME}.tar.gz"
+WIN_OUT=$(cygpath -w "$OUTDIR" 2>/dev/null || echo "$OUTDIR")
+ZIP="$OUTDIR/${NAME}.zip"
+TAR="$OUTDIR/${NAME}.tar.gz"
 
 rm -f "$ZIP" "$TAR"
 powershell.exe -NoProfile -Command \

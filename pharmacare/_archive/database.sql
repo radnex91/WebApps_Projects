@@ -284,7 +284,7 @@ CREATE TABLE `compteurs_ref` (
 
 LOCK TABLES `compteurs_ref` WRITE;
 /*!40000 ALTER TABLE `compteurs_ref` DISABLE KEYS */;
-INSERT INTO `compteurs_ref` VALUES ('CMD',2026,0),('TRF',2026,0),('VNT',2026,0);
+INSERT INTO `compteurs_ref` VALUES ('CMD',2026,0),('TRF',2026,0),('TVP',2026,0),('VNT',2026,0);
 /*!40000 ALTER TABLE `compteurs_ref` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -488,7 +488,7 @@ CREATE TABLE `mouvements_caisse` (
   `type` enum('entrée','sortie') NOT NULL,
   `montant` decimal(10,2) NOT NULL,
   `motif` varchar(255) NOT NULL,
-  `moyen` enum('esp?ces','carte','ch?que','assurance','cr?dit') NOT NULL DEFAULT 'esp?ces',
+  `moyen` enum('espèces','carte','chèque','assurance','crédit') NOT NULL DEFAULT 'espèces',
   `reference_vente` varchar(20) DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
@@ -598,7 +598,7 @@ CREATE TABLE `permissions` (
 
 LOCK TABLES `permissions` WRITE;
 /*!40000 ALTER TABLE `permissions` DISABLE KEYS */;
-INSERT INTO `permissions` VALUES (1,'dashboard.voir','Voir le tableau de bord','dashboard','2026-05-04 16:56:45'),(2,'vente.creer','Créer des ventes (Point de Vente)','vente','2026-05-04 16:56:45'),(3,'stock.voir','Voir le stock','stock','2026-05-04 16:56:45'),(4,'stock.ajuster','Ajuster le stock','stock','2026-05-04 16:56:45'),(5,'produits.voir','Voir les médicaments','produits','2026-05-04 16:56:45'),(6,'produits.ajouter','Ajouter des médicaments','produits','2026-05-04 16:56:45'),(7,'produits.modifier','Modifier des médicaments','produits','2026-05-04 16:56:45'),(8,'produits.archiver','Archiver des médicaments','produits','2026-05-04 16:56:45'),(9,'fournisseurs.voir','Voir les fournisseurs','fournisseurs','2026-05-04 16:56:45'),(10,'fournisseurs.ajouter','Ajouter des fournisseurs','fournisseurs','2026-05-04 16:56:45'),(11,'fournisseurs.modifier','Modifier des fournisseurs','fournisseurs','2026-05-04 16:56:45'),(12,'fournisseurs.supprimer','Supprimer des fournisseurs','fournisseurs','2026-05-04 16:56:45'),(13,'commandes.voir','Voir les commandes','commandes','2026-05-04 16:56:45'),(14,'commandes.creer','Créer des commandes','commandes','2026-05-04 16:56:45'),(15,'commandes.modifier','Modifier des commandes','commandes','2026-05-04 16:56:45'),(16,'ventes_hist.voir','Voir l\'historique des ventes','ventes_hist','2026-05-04 16:56:45'),(17,'rapports.voir','Voir les rapports','rapports','2026-05-04 16:56:45'),(18,'utilisateurs.voir','Voir les utilisateurs','utilisateurs','2026-05-04 16:56:45'),(19,'utilisateurs.gerer','Gérer les utilisateurs','utilisateurs','2026-05-04 16:56:45'),(20,'categories.voir','Voir les catégories','categories','2026-05-04 16:56:45'),(21,'categories.gerer','Gérer les catégories','categories','2026-05-04 16:56:45'),(22,'parametres.voir','Voir les paramètres','parametres','2026-05-04 16:56:45'),(23,'parametres.gerer','Gérer les paramètres','parametres','2026-05-04 16:56:45'),(24,'roles.voir','Voir les rôles & permissions','roles','2026-05-04 16:56:45'),(25,'roles.gerer','Gérer les rôles & permissions','roles','2026-05-04 16:56:45'),(26,'caisse.voir','Voir le dashboard des caisses','caisse','2026-05-06 19:59:26'),(27,'caisse.gerer','Gérer les caisses','caisse','2026-05-06 19:59:26'),(28,'caisse.ouvrir','Ouvrir une session de caisse','caisse','2026-05-06 19:59:26'),(29,'comptabilite.voir','Accéder à la comptabilité','comptabilite','2026-05-09 17:25:41'),(30,'comptabilite.saisie','Saisir des écritures manuelles','comptabilite','2026-05-09 17:25:41'),(31,'comptabilite.plan','Gérer le plan comptable','comptabilite','2026-05-09 17:25:41'),(32,'clients.voir','Voir la liste des clients','clients','2026-05-14 12:44:54'),(33,'clients.ajouter','Créer un client','clients','2026-05-14 12:44:54'),(34,'clients.modifier','Modifier une fiche client','clients','2026-05-14 12:44:54'),(35,'clients.supprimer','Désactiver un client','clients','2026-05-14 12:44:54'),(36,'clients.paiements','Enregistrer des règlements','clients','2026-05-14 12:44:54'),(37,'magasin.voir','Voir le stock magasin','magasin','2026-07-16 18:22:19'),(38,'magasin.gerer','Gérer le magasin (réceptions & transferts)','magasin','2026-07-16 18:22:19'),(39,'retours.gerer','Gérer les retours de ventes','retours','2026-07-18 16:37:29'),(41,'remise.approuver','Approuver une remise (générer un code)','vente','2026-07-18 17:09:18'),(44,'remise.approbateurs.gerer','Gérer la liste des approbateurs de remise','remise','2026-07-18 17:48:32'),(54,'pharmacies.voir','Voir les pharmacies','pharmacies','2026-07-21 14:26:47'),(55,'pharmacies.gerer','G├®rer les pharmacies','pharmacies','2026-07-21 14:26:47'),(58,'menus.voir','Voir les menus','menus','2026-07-21 15:15:53'),(59,'menus.gerer','G├®rer les menus','menus','2026-07-21 15:15:53');
+INSERT INTO `permissions` VALUES (1,'dashboard.voir','Voir le tableau de bord','dashboard','2026-05-04 16:56:45'),(2,'vente.creer','Créer des ventes (Point de Vente)','vente','2026-05-04 16:56:45'),(3,'stock.voir','Voir le stock','stock','2026-05-04 16:56:45'),(4,'stock.ajuster','Ajuster le stock','stock','2026-05-04 16:56:45'),(5,'produits.voir','Voir les médicaments','produits','2026-05-04 16:56:45'),(6,'produits.ajouter','Ajouter des médicaments','produits','2026-05-04 16:56:45'),(7,'produits.modifier','Modifier des médicaments','produits','2026-05-04 16:56:45'),(8,'produits.archiver','Archiver des médicaments','produits','2026-05-04 16:56:45'),(9,'fournisseurs.voir','Voir les fournisseurs','fournisseurs','2026-05-04 16:56:45'),(10,'fournisseurs.ajouter','Ajouter des fournisseurs','fournisseurs','2026-05-04 16:56:45'),(11,'fournisseurs.modifier','Modifier des fournisseurs','fournisseurs','2026-05-04 16:56:45'),(12,'fournisseurs.supprimer','Supprimer des fournisseurs','fournisseurs','2026-05-04 16:56:45'),(13,'commandes.voir','Voir les commandes','commandes','2026-05-04 16:56:45'),(14,'commandes.creer','Créer des commandes','commandes','2026-05-04 16:56:45'),(15,'commandes.modifier','Modifier des commandes','commandes','2026-05-04 16:56:45'),(16,'ventes_hist.voir','Voir l\'historique des ventes','ventes_hist','2026-05-04 16:56:45'),(17,'rapports.voir','Voir les rapports','rapports','2026-05-04 16:56:45'),(18,'utilisateurs.voir','Voir les utilisateurs','utilisateurs','2026-05-04 16:56:45'),(19,'utilisateurs.gerer','Gérer les utilisateurs','utilisateurs','2026-05-04 16:56:45'),(20,'categories.voir','Voir les catégories','categories','2026-05-04 16:56:45'),(21,'categories.gerer','Gérer les catégories','categories','2026-05-04 16:56:45'),(22,'parametres.voir','Voir les paramètres','parametres','2026-05-04 16:56:45'),(23,'parametres.gerer','Gérer les paramètres','parametres','2026-05-04 16:56:45'),(24,'roles.voir','Voir les rôles & permissions','roles','2026-05-04 16:56:45'),(25,'roles.gerer','Gérer les rôles & permissions','roles','2026-05-04 16:56:45'),(26,'caisse.voir','Voir le dashboard des caisses','caisse','2026-05-06 19:59:26'),(27,'caisse.gerer','Gérer les caisses','caisse','2026-05-06 19:59:26'),(28,'caisse.ouvrir','Ouvrir une session de caisse','caisse','2026-05-06 19:59:26'),(29,'comptabilite.voir','Accéder à la comptabilité','comptabilite','2026-05-09 17:25:41'),(30,'comptabilite.saisie','Saisir des écritures manuelles','comptabilite','2026-05-09 17:25:41'),(31,'comptabilite.plan','Gérer le plan comptable','comptabilite','2026-05-09 17:25:41'),(32,'clients.voir','Voir la liste des clients','clients','2026-05-14 12:44:54'),(33,'clients.ajouter','Créer un client','clients','2026-05-14 12:44:54'),(34,'clients.modifier','Modifier une fiche client','clients','2026-05-14 12:44:54'),(35,'clients.supprimer','Désactiver un client','clients','2026-05-14 12:44:54'),(36,'clients.paiements','Enregistrer des règlements','clients','2026-05-14 12:44:54'),(37,'magasin.voir','Voir le stock magasin','magasin','2026-07-16 18:22:19'),(38,'magasin.gerer','Gérer le magasin (réceptions & transferts)','magasin','2026-07-16 18:22:19'),(39,'retours.gerer','Gérer les retours de ventes','retours','2026-07-18 16:37:29'),(41,'remise.approuver','Approuver une remise (générer un code)','vente','2026-07-18 17:09:18'),(44,'remise.approbateurs.gerer','Gérer la liste des approbateurs de remise','remise','2026-07-18 17:48:32'),(54,'pharmacies.voir','Voir les pharmacies','pharmacies','2026-07-21 14:26:47'),(55,'pharmacies.gerer','Gérer les pharmacies','pharmacies','2026-07-21 14:26:47'),(58,'menus.voir','Voir les menus','menus','2026-07-21 15:15:53'),(59,'menus.gerer','Gérer les menus','menus','2026-07-21 15:15:53');
 /*!40000 ALTER TABLE `permissions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -774,7 +774,7 @@ CREATE TABLE `reglements` (
   `client_id` int(11) NOT NULL,
   `vente_id` int(11) DEFAULT NULL,
   `montant` decimal(10,2) NOT NULL,
-  `mode_paiement` enum('esp├¿ces','carte','ch├¿que','mobile') NOT NULL DEFAULT 'esp├¿ces',
+  `mode_paiement` enum('espèces','carte','chèque','mobile') NOT NULL DEFAULT 'espèces',
   `note` varchar(255) DEFAULT NULL,
   `date_reglement` datetime DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
@@ -1055,6 +1055,72 @@ LOCK TABLES `transferts_magasin` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `transferts_pharmacies`
+--
+
+DROP TABLE IF EXISTS `transferts_pharmacies`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `transferts_pharmacies` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `reference` varchar(20) NOT NULL,
+  `utilisateur_id` int(11) DEFAULT NULL,
+  `pharmacie_source_id` int(11) NOT NULL,
+  `pharmacie_dest_id` int(11) NOT NULL,
+  `note` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `reference` (`reference`),
+  KEY `utilisateur_id` (`utilisateur_id`),
+  KEY `pharmacie_source_id` (`pharmacie_source_id`),
+  KEY `pharmacie_dest_id` (`pharmacie_dest_id`),
+  KEY `idx_tvp_date` (`created_at`),
+  CONSTRAINT `transferts_pharmacies_ibfk_1` FOREIGN KEY (`utilisateur_id`) REFERENCES `utilisateurs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `transferts_pharmacies_ibfk_2` FOREIGN KEY (`pharmacie_source_id`) REFERENCES `pharmacies` (`id`),
+  CONSTRAINT `transferts_pharmacies_ibfk_3` FOREIGN KEY (`pharmacie_dest_id`) REFERENCES `pharmacies` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `transferts_pharmacies`
+--
+
+LOCK TABLES `transferts_pharmacies` WRITE;
+/*!40000 ALTER TABLE `transferts_pharmacies` DISABLE KEYS */;
+/*!40000 ALTER TABLE `transferts_pharmacies` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `transfert_pharmacie_lignes`
+--
+
+DROP TABLE IF EXISTS `transfert_pharmacie_lignes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `transfert_pharmacie_lignes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `transfert_id` int(11) NOT NULL,
+  `produit_id` int(11) DEFAULT NULL,
+  `produit_nom` varchar(200) DEFAULT NULL,
+  `quantite` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `transfert_id` (`transfert_id`),
+  KEY `produit_id` (`produit_id`),
+  CONSTRAINT `transfert_pharmacie_lignes_ibfk_1` FOREIGN KEY (`transfert_id`) REFERENCES `transferts_pharmacies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `transfert_pharmacie_lignes_ibfk_2` FOREIGN KEY (`produit_id`) REFERENCES `produits` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `transfert_pharmacie_lignes`
+--
+
+LOCK TABLES `transfert_pharmacie_lignes` WRITE;
+/*!40000 ALTER TABLE `transfert_pharmacie_lignes` DISABLE KEYS */;
+/*!40000 ALTER TABLE `transfert_pharmacie_lignes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `utilisateurs`
 --
 
@@ -1141,7 +1207,7 @@ CREATE TABLE `ventes` (
   `tva_total` decimal(10,2) DEFAULT 0.00,
   `total` decimal(10,2) DEFAULT 0.00,
   `mode_paiement` varchar(50) NOT NULL,
-  `statut_paiement` enum('pay├®','en_attente','partiel') DEFAULT 'pay├®',
+  `statut_paiement` enum('payé','en_attente','partiel') DEFAULT 'payé',
   `montant_recu` decimal(10,2) DEFAULT 0.00,
   `monnaie` decimal(10,2) DEFAULT 0.00,
   `note` text DEFAULT NULL,
@@ -1236,7 +1302,7 @@ CREATE TABLE `parametres` (
 
 LOCK TABLES `parametres` WRITE;
 /*!40000 ALTER TABLE `parametres` DISABLE KEYS */;
-INSERT INTO `parametres` VALUES ('app_nom','PharmaCare','Nom de la pharmacie','général'),('caisse_fermeture_mode','manuel','Mode fermeture caisse','caisse'),('caisse_heure_fermeture','18:00','Heure fermeture auto','caisse'),('delai_inactivite_min','15','Délai d''inactivité (min)','general'),('devise','XAF','Devise','général'),('devise_pos','after','Position symbole','général'),('devise_symbole','FCFA','Symbole devise','général'),('fidelite_active','1',NULL,'general'),('pharmacie_adresse','',NULL,'général'),('pharmacie_nif','',NULL,'général'),('pharmacie_telephone','',NULL,'général'),('police','Manrope','Police principale','général'),('police_titre','Manrope','Police titres','général'),('prefix_vente','VNT',NULL,'general'),('remise_code_ttl_min','15','Validité code remise (min)','ventes'),('remise_max_pct','100','Remise max (%)','ventes'),('theme','dark-rose','Thème couleur','général'),('ticket_pied','Merci pour votre achat ! pharmaCare (c) 2026',NULL,'général'),('ticket_sous_titre','PharmaCare',NULL,'général'),('tva','0.00','Taux TVA (%)','général');
+INSERT INTO `parametres` VALUES ('app_nom','PharmaCare','Nom de la pharmacie','général'),('caisse_fermeture_mode','manuel','Mode fermeture caisse','caisse'),('caisse_heure_fermeture','18:00','Heure fermeture auto','caisse'),('credit_active','1','Vente à crédit activée','ventes'),('delai_inactivite_min','15','Délai d''inactivité (min)','general'),('devise','XAF','Devise','général'),('devise_pos','after','Position symbole','général'),('devise_symbole','FCFA','Symbole devise','général'),('fidelite_active','1',NULL,'general'),('pharmacie_adresse','',NULL,'général'),('pharmacie_nif','',NULL,'général'),('pharmacie_telephone','',NULL,'général'),('police','Manrope','Police principale','général'),('police_titre','Manrope','Police titres','général'),('prefix_vente','VNT',NULL,'general'),('remise_code_ttl_min','15','Validité code remise (min)','ventes'),('remise_max_pct','100','Remise max (%)','ventes'),('theme','dark-rose','Thème couleur','général'),('ticket_pied','Merci pour votre achat ! pharmaCare (c) 2026',NULL,'général'),('ticket_sous_titre','PharmaCare',NULL,'général'),('tva','0.00','Taux TVA (%)','général');
 /*!40000 ALTER TABLE `parametres` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

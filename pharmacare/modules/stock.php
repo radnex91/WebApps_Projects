@@ -134,26 +134,25 @@ showFlash();
     <div class="card-title">Inventaire des médicaments</div>
     <a href="<?= url('stock', ['export'=>'1', 'filtre'=>$filtre, 'cat'=>$cat, 'q'=>$q]) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <div class="flex gap-8" style="flex-wrap:wrap;">
-      <form method="GET" action="<?= url('stock') ?>" style="display:flex;flex:2;min-width:420px;max-width:640px;">
+      <form method="GET" action="<?= url('stock') ?>" style="display:flex;flex:2;min-width:420px;max-width:800px;gap:8px;align-items:center;">
         <div class="search-box" style="flex:1;">
           <span style="color:var(--text3);display:flex;"><?= icon('search',14) ?></span>
           <input type="text" id="search-stock" name="q" value="<?= e($q) ?>" placeholder="Rechercher par nom ou référence...">
         </div>
-        <?php if ($filtre !== 'tous'): ?><input type="hidden" name="filtre" value="<?= e($filtre) ?>"><?php endif; ?>
-        <?php if ($cat   !== ''):   ?><input type="hidden" name="cat"    value="<?= e($cat) ?>"><?php endif; ?>
+        <select name="filtre" onchange="this.form.submit()" style="padding:6px 12px;font-size:12px;width:auto;">
+          <option value="tous"    <?= $filtre==='tous'   ?'selected':'' ?>>Tous</option>
+          <option value="alerte"  <?= $filtre==='alerte' ?'selected':'' ?>>Stock bas</option>
+          <option value="rupture" <?= $filtre==='rupture'?'selected':'' ?>>Rupture</option>
+          <option value="ok"      <?= $filtre==='ok'     ?'selected':'' ?>>Disponible</option>
+        </select>
+        <select name="cat" onchange="this.form.submit()" style="padding:6px 12px;font-size:12px;width:auto;">
+          <option value="">Toutes catégories</option>
+          <?php foreach ($categories as $c): ?>
+          <option value="<?= e($c) ?>" <?= $cat===$c?'selected':'' ?>><?= e($c) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <button type="submit" class="btn btn-ghost btn-sm">Filtrer</button>
       </form>
-      <select onchange="location.href='<?= url('stock') ?>?filtre='+this.value+'&cat=<?= urlencode($cat) ?>'+(<?= json_encode((string)$q) ?>?'&q='+encodeURIComponent(<?= json_encode((string)$q) ?>):'')" style="padding:6px 12px;font-size:12px;width:auto;">
-        <option value="tous"    <?= $filtre==='tous'   ?'selected':'' ?>>Tous</option>
-        <option value="alerte"  <?= $filtre==='alerte' ?'selected':'' ?>>Stock bas</option>
-        <option value="rupture" <?= $filtre==='rupture'?'selected':'' ?>>Rupture</option>
-        <option value="ok"      <?= $filtre==='ok'     ?'selected':'' ?>>Disponible</option>
-      </select>
-      <select onchange="location.href='<?= url('stock') ?>?filtre=<?= urlencode($filtre) ?>&cat='+encodeURIComponent(this.value)+(<?= json_encode((string)$q) ?>?'&q='+encodeURIComponent(<?= json_encode((string)$q) ?>):'')" style="padding:6px 12px;font-size:12px;width:auto;">
-        <option value="">Toutes catégories</option>
-        <?php foreach ($categories as $c): ?>
-        <option value="<?= e($c) ?>" <?= $cat===$c?'selected':'' ?>><?= e($c) ?></option>
-        <?php endforeach; ?>
-      </select>
       <?php if (hasPermission('produits.ajouter')): ?>
       <a href="<?= url('produits', ['action'=>'add']) ?>" class="btn btn-primary btn-sm">
         <?= icon('plus',14) ?> Médicament

@@ -347,14 +347,19 @@ function genRef(string $prefix): string {
     $db   = getDB();
     $year = (int)date('Y');
 
-    // Séquence atomique sans race : INSERT…ON DUPLICATE KEY UPDATE avec
-    // LAST_INSERT_ID(compteur+1) incrémente et expose la valeur de façon
-    // atomique et par-connexion. Deux caissiers concurrents obtiennent deux
-    // numéros distincts, sans retry ni collision.
+    // Séquence atomique sans race : INSERT IGNORE (crée le compteur s'il
+    // manque) puis UPDATE ... LAST_INSERT_ID(compteur+1), qui incrémente et
+    // expose la valeur de façon atomique et par-connexion. Deux caissiers
+    // concurrents obtiennent deux numéros distincts, sans retry ni collision.
+    // NB : le pattern INSERT ... ON DUPLICATE KEY UPDATE seul ne convient pas :
+    // quand la ligne n'existe pas encore (premier appel d'un préfixe), l'INSERT
+    // ne déclenche PAS l'UPDATE et LAST_INSERT_ID() renvoie l'auto-increment
+    // d'une autre table — numéro incohérent et collision ultérieure garantie.
     try {
-        $db->prepare("INSERT INTO compteurs_ref (prefix, annee, compteur)
-                      VALUES (?, ?, 1)
-                      ON DUPLICATE KEY UPDATE compteur = LAST_INSERT_ID(compteur + 1)")
+        $db->prepare("INSERT IGNORE INTO compteurs_ref (prefix, annee, compteur) VALUES (?, ?, 0)")
+           ->execute([$prefix, $year]);
+        $db->prepare("UPDATE compteurs_ref SET compteur = LAST_INSERT_ID(compteur + 1)
+                      WHERE prefix = ? AND annee = ?")
            ->execute([$prefix, $year]);
         $seq = (int)$db->query("SELECT LAST_INSERT_ID()")->fetchColumn();
         if ($seq > 0) {
@@ -369,6 +374,7 @@ function genRef(string $prefix): string {
         'VNT' => 'ventes',
         'CMD' => 'commandes',
         'TRF' => 'transferts_magasin',
+        'TVP' => 'transferts_pharmacies',
     ];
     $table = $tables[$prefix] ?? 'ventes';
     $like  = $prefix . '-' . $year . '-%';

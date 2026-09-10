@@ -267,9 +267,9 @@ document.addEventListener('click',function(e){
     $mMenus        = hasPermission('menus.voir');
 
     $showPrincipal = $mDashboard || $mVente || $mRemiseCodes || $mCaisse;
-    $showGestion   = $mStock || $mProduits || $mFournisseurs || $mClients || $mCommandes || $mRetours || $mMagasin || $mMarketing;
+    $showGestion   = $mStock || $mProduits || $mFournisseurs || $mClients || $mCommandes || $mRetours || $mMagasin || $mMarketing || $mPharmacies;
     $showRapports  = $mVentesHist || $mRapports || $mRapportsCaissier || $mSuiviCaissiers || $mCompta;
-    $showAdmin     = $mUtilisateurs || $mEnLigne || $mRemiseAppr || $mRoles || $mCategories || $mPharmacies || $mParametres || $mMenus || $mLicence || $mSauvegarde;
+    $showAdmin     = $mUtilisateurs || $mEnLigne || $mRemiseAppr || $mRoles || $mCategories || $mParametres || $mMenus || $mLicence || $mSauvegarde;
     ?>
     <?php if ($showPrincipal): ?>
     <div class="nav-section">Principal</div>
@@ -340,6 +340,11 @@ document.addEventListener('click',function(e){
       <?php endif; ?>
     </a>
     <?php endif; ?>
+    <?php if($mPharmacies): ?>
+    <a href="<?= url('pharmacies') ?>" class="nav-item <?= $activePage==='pharmacies'?'active':'' ?>">
+      <span class="nav-icon i-teal"><?= icon('building',14) ?></span> Pharmacies
+    </a>
+    <?php endif; ?>
     <?php if($mMarketing): ?>
     <a href="<?= url('marketing') ?>" class="nav-item <?= $activePage==='marketing'?'active':'' ?>">
       <span class="nav-icon i-pink"><?= icon('megaphone',14) ?></span> Marketing
@@ -399,11 +404,6 @@ document.addEventListener('click',function(e){
     <?php if($mCategories): ?>
     <a href="<?= url('categories') ?>" class="nav-item <?= $activePage==='categories'?'active':'' ?>">
       <span class="nav-icon i-orange"><?= icon('tag',14) ?></span> Catégories
-    </a>
-    <?php endif; ?>
-    <?php if($mPharmacies): ?>
-    <a href="<?= url('pharmacies') ?>" class="nav-item <?= $activePage==='pharmacies'?'active':'' ?>">
-      <span class="nav-icon i-teal"><?= icon('building',14) ?></span> Pharmacies
     </a>
     <?php endif; ?>
     <?php if($mMenus): ?>

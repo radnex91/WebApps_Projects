@@ -3,20 +3,29 @@ declare(strict_types=1);
 /**
  * Vérification e2e de la vente à crédit réactivée.
  *
- *  1. fidelite_active=1  → fideliteActive() === true  (le paramètre débloque la voie crédit)
+ *  1. credit_active=1 (verrou serveur du POS) ET fidelite_active=1
+ *     (sélecteur « client existant », requis pour le crédit)
  *  2. Crée un client enregistré
  *  3. Exécute la branche crédit de vente.php (D 4112 / C 7011 + C 4411)
  *  4. Vérifie : créance 4112 = total, vente 7011 = subtotal, TVA 4411 = tva, écriture équilibrée
  *  5. Vérifie le règlement client solde la créance (D 5711 / C 4112)
+ *
+ * Régression 2026-09-09 : credit_active absent de parametres → creditActive()
+ * false → POST crédit rejeté (« La vente à crédit est actuellement désactivée. »)
+ * et bloc « Vendre à crédit » masqué au POS.
  */
 require_once __DIR__ . '/bootstrap.php';
 
 $db = getDB();
 $uid = 1;
 
-// 1) Activer fidelite_active dans la BDD de test (hors transaction, persistant)
+// 1) Activer credit_active + fidelite_active dans la BDD de test
+//    (hors transaction, persistant) puis rafraîchir le cache statique.
+$db->exec("INSERT INTO parametres (cle, valeur) VALUES ('credit_active','1')
+           ON DUPLICATE KEY UPDATE valeur='1'");
 $db->exec("INSERT INTO parametres (cle, valeur) VALUES ('fidelite_active','1')
            ON DUPLICATE KEY UPDATE valeur='1'");
+paramCacheClear();
 
 function soldeCompte(PDO $db, string $code): float {
     $s = $db->prepare("SELECT COALESCE(SUM(el.debit),0)-COALESCE(SUM(el.credit),0)
@@ -34,8 +43,9 @@ function ecritureEquilibree(PDO $db, int $eid): bool {
 
 $checks = [];
 
-// 1. fideliteActive() true
-$checks['fidelite_active=1 en base'] = (getParam('fidelite_active', '0') === '1');
+// 1. Paramètres de déblocage
+$checks['credit_active=1 en base (verrou POS)']      = (getParam('credit_active', '0') === '1');
+$checks['fidelite_active=1 en base (client existant)'] = (getParam('fidelite_active', '0') === '1');
 
 $db->beginTransaction();
 try {
@@ -84,7 +94,7 @@ try {
 
     $ok = true;
     foreach ($checks as $label => $res) {
-        echo ($res ? '✓' : '✗ FAIL') . "  $label\n";
+        echo ($res ? 'OK ' : 'FAIL ') . "  $label\n";
         if (!$res) $ok = false;
     }
 

@@ -8,6 +8,75 @@ $uid    = currentUser()['id'];
 $onglet = $_GET['onglet'] ?? 'stock';
 
 // ════════════════════════════════════════════════════════════
+//  Import CSV d'articles → stock magasin (dépôt central)
+// ════════════════════════════════════════════════════════════
+function magasin_csv_normalize(string $s): string {
+    $s = mb_strtolower(trim($s), 'UTF-8');
+    $s = strtr($s, [
+        'à'=>'a','â'=>'a','ä'=>'a','á'=>'a','ã'=>'a','å'=>'a',
+        'é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+        'í'=>'i','ì'=>'i','î'=>'i','ï'=>'i',
+        'ó'=>'o','ò'=>'o','ô'=>'o','ö'=>'o','õ'=>'o',
+        'ú'=>'u','ù'=>'u','û'=>'u','ü'=>'u',
+        'ç'=>'c','ñ'=>'n',
+    ]);
+    $s = preg_replace('/[^a-z0-9]+/', ' ', $s);
+    $s = preg_replace('/\s+/', ' ', $s);
+    return trim($s);
+}
+function magasin_csv_cell(string $s): string {
+    $s = trim($s);
+    if ($s !== '' && !mb_check_encoding($s, 'UTF-8')) {
+        $conv = @mb_convert_encoding($s, 'UTF-8', 'CP1252');
+        if ($conv !== false && $conv !== '') $s = $conv;
+    }
+    return $s;
+}
+function magasin_csv_num(string $s): float {
+    $s = str_replace([' ', "\xc2\xa0"], '', trim($s));
+    $s = str_replace(',', '.', $s);
+    return (float)$s;
+}
+function magasin_csv_parse_date(string $s): ?string {
+    $s = trim($s);
+    if ($s === '') return null;
+    foreach (['d/m/Y', 'Y-m-d', 'd-m-Y', 'd.m.Y'] as $fmt) {
+        $d = DateTime::createFromFormat($fmt, $s);
+        if ($d instanceof DateTime && $d->format($fmt) === $s) return $d->format('Y-m-d');
+    }
+    $ts = strtotime($s);
+    return $ts ? date('Y-m-d', $ts) : null;
+}
+$MAGASIN_CSV_FIELDS = [
+    'nom'             => ['nom', 'designation', 'design', 'libelle', 'produit', 'medicament', 'name'],
+    'reference'       => ['reference', 'ref', 'code', 'codebarres', 'code barres', 'ean', 'cip'],
+    'unite'           => ['unite', 'unite de vente', 'conditionnement', 'forme', 'presentation'],
+    'categorie'       => ['categorie', 'category', 'rayon', 'famille'],
+    'fournisseur'     => ['fournisseur', 'supplier', 'labo', 'laboratoire', 'fabriquant'],
+    'stock'           => ['stock', 'quantite', 'qte', 'dispo'],
+    'seuil_alerte'    => ['seuil', 'seuil alerte', 'alerte'],
+    'prix_achat'      => ['prix achat', 'pa', 'cout', 'prixa'],
+    'prix_vente'      => ['prix vente', 'pv', 'prix', 'prixv'],
+    'tva'             => ['tva', 'taux tva'],
+    'date_expiration' => ['expiration', 'peremption', 'dlc', 'dluo', 'date expiration'],
+    'description'     => ['description', 'notes', 'remarque', 'commentaire'],
+];
+
+// ── Téléchargement du modèle CSV ────────────────────────────
+if (isset($_GET['action']) && $_GET['action'] === 'import_template') {
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="modele_import_magasin.csv"');
+    header('Cache-Control: no-store');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
+    fputcsv($out, ['nom', 'reference', 'unite', 'categorie', 'fournisseur', 'stock', 'seuil_alerte', 'prix_achat', 'prix_vente', 'tva', 'date_expiration', 'description'], ';');
+    fputcsv($out, ['Paracétamol 500mg', 'MED-001', 'comprimé', 'Antalgiques', 'PharmaPlus', '100', '10', '150', '200', '9', '31/12/2027', 'Boîte de 16 comprimés'], ';');
+    fputcsv($out, ['Amoxicilline 1g', 'MED-002', 'comprimé', 'Antibiotiques', '', '50', '10', '320', '450', '9', '', ''], ';');
+    fclose($out);
+    exit;
+}
+
+// ════════════════════════════════════════════════════════════
 // POST — actions de gestion (magasin.gerer)
 // ════════════════════════════════════════════════════════════
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
@@ -385,8 +454,276 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && hasPermission('magasin.gerer')) {
         }
     }
 
+    // ── Import CSV → stock magasin ─────────────────────────
+    if ($action === 'import') {
+        $mode     = (($_POST['doublons'] ?? 'skip') === 'update') ? 'update' : 'skip';
+        $file     = $_FILES['file'] ?? null;
+        $ajoutes  = 0; $maj = 0; $ignores = 0; $avert = 0;
+        $errors   = [];
+        $warnings = [];
+
+        $aliasMap = [];
+        foreach ($MAGASIN_CSV_FIELDS as $field => $aliases) {
+            foreach ($aliases as $a) $aliasMap[magasin_csv_normalize($a)] = $field;
+        }
+
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'] ?? '')) {
+            $errors[] = 'Aucun fichier reçu ou upload échoué.';
+        } elseif (strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION)) !== 'csv') {
+            $errors[] = 'Le fichier doit avoir l\'extension .csv.';
+        } elseif ((int)($file['size'] ?? 0) > 40 * 1024 * 1024) {
+            $errors[] = 'Le fichier dépasse 40 Mo.';
+        } else {
+            $fh = @fopen($file['tmp_name'], 'r');
+            if (!$fh) {
+                $errors[] = 'Impossible de lire le fichier.';
+            } else {
+                if (fread($fh, 3) !== "\xEF\xBB\xBF") fseek($fh, 0);
+                $pos = ftell($fh);
+                $firstLine = (string)fgets($fh);
+                fseek($fh, $pos);
+                $delim = (substr_count($firstLine, ';') > substr_count($firstLine, ',')) ? ';' : ',';
+                $header = fgetcsv($fh, 0, $delim);
+                if (!$header) {
+                    $errors[] = 'Fichier vide ou illisible.';
+                } else {
+                    $colMap = [];
+                    foreach ($header as $i => $h) {
+                        $key = magasin_csv_normalize(magasin_csv_cell((string)$h));
+                        if (isset($aliasMap[$key])) $colMap[$aliasMap[$key]] = (int)$i;
+                    }
+                    if (!isset($colMap['nom'])) {
+                        $errors[] = 'Colonne « nom » manquante. En-têtes détectés : ' . implode(', ', array_map('trim', $header));
+                    } else {
+                        $canProcess = true;
+                    }
+                }
+                if ($canProcess) {
+                    $stmtCat   = $db->prepare("SELECT id FROM categories WHERE LOWER(nom)=LOWER(?) LIMIT 1");
+                    $stmtFourn = $db->prepare("SELECT id FROM fournisseurs WHERE LOWER(nom)=LOWER(?) ORDER BY actif DESC LIMIT 1");
+                    $stmtFind  = $db->prepare("SELECT id FROM produits WHERE reference=? LIMIT 1");
+                    $IMPORT_PALETTE = ['#00c9a7','#4895ef','#f0b429','#ef4444','#9b59b6','#e74c3c','#e67e22','#1abc9c','#3498db','#e91e63'];
+                    $importCatIdx    = 0;
+                    $importCatsCrees = [];
+                    $stmtIns   = $db->prepare("INSERT INTO produits (nom,reference,unite,categorie_id,fournisseur_id,description,stock,stock_magasin,seuil_alerte,prix_achat,prix_vente,tva,date_expiration) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                    $stmtUpd   = $db->prepare("UPDATE produits SET nom=?,unite=?,categorie_id=?,fournisseur_id=?,description=?,seuil_alerte=?,prix_achat=?,prix_vente=?,tva=?,date_expiration=?,stock_magasin=stock_magasin+? WHERE id=?");
+                    $stmtMvtMag= $db->prepare("INSERT INTO mouvements_magasin (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,'entrée',?,?,?)");
+                    $stmtCatIns= $db->prepare("INSERT INTO categories (nom,couleur) VALUES (?,?)");
+                    $ligne = 1;
+                    $db->beginTransaction();
+                    try {
+                    while (($row = fgetcsv($fh, 0, $delim)) !== false) {
+                        $ligne++;
+                        $nonEmpty = false;
+                        foreach ($row as $c) if (trim((string)$c) !== '') { $nonEmpty = true; break; }
+                        if (!$nonEmpty) continue;
+                        $cell = function (int $i) use ($row): string {
+                            return isset($row[$i]) ? magasin_csv_cell((string)$row[$i]) : '';
+                        };
+                        $nom = $cell($colMap['nom']);
+                        if ($nom === '') { $errors[] = "Ligne $ligne : nom vide, ligne ignorée."; continue; }
+                        $reference = $cell($colMap['reference'] ?? -1);
+                        $reference = $reference !== '' ? $reference : null;
+                        $unite = isset($colMap['unite']) ? $cell($colMap['unite']) : '';
+                        $unite = $unite !== '' ? $unite : null;
+                        $existingId = null;
+                        if ($reference !== null) {
+                            $stmtFind->execute([$reference]); $r = $stmtFind->fetch();
+                            if ($r) $existingId = (int)$r['id'];
+                        }
+                        if ($existingId !== null && $mode === 'skip') { $ignores++; continue; }
+                        $catId = null;
+                        if (isset($colMap['categorie'])) {
+                            $cn = $cell($colMap['categorie']);
+                            if ($cn !== '') {
+                                $stmtCat->execute([$cn]); $r = $stmtCat->fetch();
+                                if ($r) {
+                                    $catId = (int)$r['id'];
+                                } else {
+                                    $stmtCatIns->execute([$cn, $IMPORT_PALETTE[$importCatIdx % count($IMPORT_PALETTE)]]);
+                                    $catId = (int)$db->lastInsertId();
+                                    $importCatIdx++;
+                                    $importCatsCrees[] = $cn;
+                                }
+                            }
+                        }
+                        $fournId = null;
+                        if (isset($colMap['fournisseur'])) {
+                            $fn = $cell($colMap['fournisseur']);
+                            if ($fn !== '') {
+                                $stmtFourn->execute([$fn]); $r = $stmtFourn->fetch();
+                                if ($r) $fournId = (int)$r['id'];
+                                else { $avert++; $warnings[] = "Ligne $ligne : fournisseur « $fn » introuvable → vide."; }
+                            }
+                        }
+                        $stockCell = isset($colMap['stock']) ? $cell($colMap['stock']) : '';
+                        $stock = $stockCell !== '' ? max(0, (int)magasin_csv_num($stockCell)) : 0;
+                        $seuilCell = isset($colMap['seuil_alerte']) ? $cell($colMap['seuil_alerte']) : '';
+                        $seuil = $seuilCell !== '' ? max(0, (int)magasin_csv_num($seuilCell)) : 10;
+                        $paCell = isset($colMap['prix_achat']) ? $cell($colMap['prix_achat']) : '';
+                        $pa = $paCell !== '' ? magasin_csv_num($paCell) : 0.0;
+                        $pvCell = isset($colMap['prix_vente']) ? $cell($colMap['prix_vente']) : '';
+                        $pv = $pvCell !== '' ? magasin_csv_num($pvCell) : 0.0;
+                        $tvaCell = isset($colMap['tva']) ? $cell($colMap['tva']) : '';
+                        $tva = $tvaCell !== '' ? magasin_csv_num($tvaCell) : 9.00;
+                        $desc = isset($colMap['description']) ? $cell($colMap['description']) : '';
+                        $exp = null;
+                        if (isset($colMap['date_expiration'])) {
+                            $dCell = $cell($colMap['date_expiration']);
+                            if ($dCell !== '') {
+                                $exp = magasin_csv_parse_date($dCell);
+                                if ($exp === null) { $avert++; $warnings[] = "Ligne $ligne : date « $dCell » invalide → vide."; }
+                            }
+                        }
+                        if ($existingId !== null) {
+                            $stmtUpd->execute([$nom, $unite, $catId, $fournId, $desc, $seuil, $pa, $pv, $tva, $exp, $stock, $existingId]);
+                            if ($stock > 0) $stmtMvtMag->execute([$existingId, $stock, 'Import CSV magasin — ravitaillement', $uid]);
+                            $maj++;
+                        } else {
+                            $stmtIns->execute([$nom, $reference, $unite, $catId, $fournId, $desc, 0, $stock, $seuil, $pa, $pv, $tva, $exp]);
+                            if ($stock > 0) {
+                                $newId = (int)$db->lastInsertId();
+                                $stmtMvtMag->execute([$newId, $stock, 'Import CSV magasin — création + stock initial', $uid]);
+                            }
+                            $ajoutes++;
+                        }
+                    }
+                    $db->commit();
+                    } catch (Throwable $e) {
+                        $db->rollBack();
+                        if (!defined('IS_PROD') || !IS_PROD) {
+                            $errors[] = 'Erreur BDD — import annulé : ' . $e->getMessage();
+                        } else {
+                            error_log('PharmaCare import magasin: ' . $e->getMessage());
+                            $errors[] = 'Erreur BDD — import annulé. Contactez un administrateur.';
+                        }
+                        $ajoutes = 0; $maj = 0;
+                    }
+                }
+                fclose($fh);
+            }
+        }
+
+        auditLog('magasin.import', "CSV ($mode) : $ajoutes ajoutés, $maj mis à jour, $ignores ignorés, $avert avert., " . count($importCatsCrees) . " catégories créées, " . count($errors) . " erreurs");
+
+        layout_head('Import magasin', 'magasin');
+        showFlash();
+        ?>
+        <div class="card" style="max-width:860px;margin:0 auto;">
+          <div class="card-header">
+            <div class="card-title">Résultat de l'importation</div>
+            <a href="<?= url('magasin', ['action' => 'import']) ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left', 14) ?> Nouvel import</a>
+          </div>
+          <div class="flex gap-8" style="flex-wrap:wrap;margin:12px 0;">
+            <span class="badge badge-green">Ajoutés : <?= $ajoutes ?></span>
+            <span class="badge badge-blue">Mis à jour : <?= $maj ?></span>
+            <span class="badge badge-gray">Ignorés : <?= $ignores ?></span>
+            <span class="badge badge-gold">Avertissements : <?= $avert ?></span>
+            <span class="badge badge-purple">Catégories créées : <?= count($importCatsCrees) ?></span>
+            <span class="badge badge-red">Erreurs : <?= count($errors) ?></span>
+          </div>
+          <?php if ($importCatsCrees): ?>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Catégories créées automatiquement</th></tr></thead>
+              <tbody>
+              <?php foreach (array_slice(array_unique($importCatsCrees), 0, 50) as $cn): ?>
+                <tr><td class="text-sm"><?= e($cn) ?></td></tr>
+              <?php endforeach; ?>
+              <?php if (count(array_unique($importCatsCrees)) > 50): ?>
+                <tr><td class="text-sm" style="color:var(--text3);">… et <?= count(array_unique($importCatsCrees)) - 50 ?> autres.</td></tr>
+              <?php endif; ?>
+              </tbody>
+            </table></div>
+          <?php endif; ?>
+          <?php if ($errors): ?>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Erreurs</th></tr></thead>
+              <tbody>
+              <?php foreach (array_slice($errors, 0, 50) as $err): ?>
+                <tr><td class="text-sm" style="color:var(--text2);"><?= e($err) ?></td></tr>
+              <?php endforeach; ?>
+              <?php if (count($errors) > 50): ?>
+                <tr><td class="text-sm" style="color:var(--text3);">… et <?= count($errors) - 50 ?> autres.</td></tr>
+              <?php endif; ?>
+              </tbody>
+            </table></div>
+          <?php endif; ?>
+          <?php if ($warnings): ?>
+            <div class="table-wrap" style="margin-top:12px;"><table>
+              <thead><tr><th>Avertissements</th></tr></thead>
+              <tbody>
+              <?php foreach (array_slice($warnings, 0, 50) as $w): ?>
+                <tr><td class="text-sm" style="color:var(--text2);"><?= e($w) ?></td></tr>
+              <?php endforeach; ?>
+              <?php if (count($warnings) > 50): ?>
+                <tr><td class="text-sm" style="color:var(--text3);">… et <?= count($warnings) - 50 ?> autres.</td></tr>
+              <?php endif; ?>
+              </tbody>
+            </table></div>
+          <?php endif; ?>
+          <div class="modal-footer">
+            <a href="<?= url('magasin', ['onglet'=>'stock']) ?>" class="btn btn-ghost">Retour au magasin</a>
+            <a href="<?= url('magasin', ['action' => 'import']) ?>" class="btn btn-primary"><?= icon('upload', 14) ?> Importer un autre fichier</a>
+          </div>
+        </div>
+        <?php layout_foot();
+        exit;
+    }
+
     flash('Action inconnue.', 'error');
     header('Location: ' . url('magasin')); exit;
+}
+
+// ── Import CSV (GET) : formulaire ─────────────────────────────
+if (isset($_GET['action']) && $_GET['action'] === 'import') {
+    if (!hasPermission('magasin.gerer')) {
+        flash('Accès refusé.', 'error');
+        header('Location: ' . url('magasin')); exit;
+    }
+    layout_head('Importer dans le magasin', 'magasin');
+    showFlash();
+    ?>
+    <div class="card" style="max-width:820px;margin:0 auto;">
+      <div class="card-header">
+        <div class="card-title">Importer des articles (CSV) — Magasin</div>
+        <a href="<?= url('magasin', ['onglet'=>'stock']) ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left', 14) ?> Retour</a>
+      </div>
+      <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf" value="<?= csrf() ?>">
+        <input type="hidden" name="action" value="import">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Fichier CSV *</label>
+            <input type="file" name="file" accept=".csv,text/csv" required>
+            <small>UTF-8 de préférence. Délimiteur virgule ou point-virgule (auto). Une ligne d'en-tête est attendue.</small>
+          </div>
+          <div class="form-group full">
+            <label>Doublons (référence déjà existante)</label>
+            <label style="display:flex;gap:8px;align-items:center;font-weight:normal;margin:4px 0;">
+              <input type="radio" name="doublons" value="skip" checked> Ignorer les doublons (défaut)
+            </label>
+            <label style="display:flex;gap:8px;align-items:center;font-weight:normal;margin:4px 0;">
+              <input type="radio" name="doublons" value="update"> Mettre à jour les articles existants
+            </label>
+          </div>
+          <div class="form-group full">
+            <small>
+              Colonnes reconnues : <strong>nom</strong>* (requis), reference, unite, categorie, fournisseur,
+              stock, seuil_alerte, prix_achat, prix_vente, tva, date_expiration (jj/mm/aaaa), description.
+              <strong>stock</strong> = quantité livrée au <strong>magasin</strong> (dépôt central).
+              Mode « mettre à jour » : la quantité s'<em>ajoute</em> au stock magasin existant.
+              Catégorie inconnue → créée automatiquement. Fournisseur inconnu → laissé vide.
+            </small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <a href="<?= url('magasin', ['action' => 'import_template']) ?>" class="btn btn-ghost"><?= icon('download', 14) ?> Télécharger le modèle</a>
+          <button type="submit" class="btn btn-primary"><?= icon('upload', 14) ?> Importer</button>
+        </div>
+      </form>
+    </div>
+    <?php layout_foot();
+    exit;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -809,6 +1146,9 @@ showFlash();
   <div class="card-header">
     <div class="card-title">Stock du dépôt central (magasin)</div>
     <a href="<?= url('magasin', ['onglet'=>'stock', 'export'=>'1', 'q'=>$q]) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
+    <?php if (hasPermission('magasin.gerer')): ?>
+    <a href="<?= url('magasin', ['action'=>'import']) ?>" class="btn btn-ghost btn-sm"><?= icon('upload',14) ?> Importer</a>
+    <?php endif; ?>
     <div class="flex gap-8" style="flex-wrap:wrap;align-items:center;">
       <form method="GET" action="<?= url('magasin') ?>" style="display:flex;flex:1;min-width:300px;max-width:100%;">
         <input type="hidden" name="onglet" value="stock">
@@ -837,7 +1177,7 @@ showFlash();
     <table id="table-mag">
       <thead>
         <tr>
-          <th style="width:32px;text-align:center;">#</th><th>Médicament</th><th>Catégorie</th>
+          <th style="width:32px;text-align:center;">#</th><th>Médicament</th><th>Référence</th><th>Catégorie</th>
           <th style="text-align:right;">Stock magasin</th>
           <th style="text-align:right;">Seuil mag.</th>
           <th style="text-align:center;color:var(--teal2);">Pharmacies</th>
@@ -856,9 +1196,8 @@ showFlash();
             data-ref="<?= e($p['reference']) ?>" data-cat="<?= e($p['cat'] ?? '') ?>"
             data-stock="<?= (int)$p['stock_magasin'] ?>" data-totalph="<?= $totalPh ?>">
           <td style="text-align:center;color:var(--text3);font-size:12px;"><?= $num++ ?></td>
-          <td class="td-name"><?= e($p['nom']) ?>
-            <?php if ($p['reference']): ?><div class="text-sm td-mono" style="color:var(--text3);"><?= e($p['reference']) ?></div><?php endif; ?>
-          </td>
+          <td class="td-name"><?= e($p['nom']) ?></td>
+          <td class="text-sm td-mono"><?= $p['reference'] ? e($p['reference']) : '—' ?></td>
           <td class="text-sm"><?= e($p['cat'] ?? '—') ?></td>
           <td class="fw-mono text-right <?= $alerte ? 'c-gold' : '' ?>" style="text-align:right;<?= hasPermission('magasin.gerer') ? 'cursor:ns-resize;' : '' ?>"
               <?php if (hasPermission('magasin.gerer')): ?>ondblclick="startInlineEdit(this, <?= (int)$p['id'] ?>, <?= (int)$p['stock_magasin'] ?>)"

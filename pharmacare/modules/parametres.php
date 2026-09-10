@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'caisse_fermeture_mode'   => ($_POST['caisse_fermeture_mode'] ?? 'manuel') === 'auto' ? 'auto' : 'manuel',
         'caisse_heure_fermeture'  => preg_match('/^\d{2}:\d{2}$/', $_POST['caisse_heure_fermeture'] ?? '') ? $_POST['caisse_heure_fermeture'] : '22:00',
         'assistant_active'        => ($_POST['assistant_active'] ?? '0') === '1' ? '1' : '0',
+        'credit_active'           => ($_POST['credit_active'] ?? '0') === '1' ? '1' : '0',
         'mail_smtp_host'     => trim($_POST['mail_smtp_host'] ?? ''),
         'mail_smtp_port'     => (string)max(1, min(65535, (int)($_POST['mail_smtp_port'] ?? 25))),
         'mail_smtp_user'     => trim($_POST['mail_smtp_user'] ?? ''),
@@ -261,6 +262,13 @@ showFlash();
       <label>Heure de fermeture automatique</label>
       <input type="time" name="caisse_heure_fermeture" value="<?= e($p['caisse_heure_fermeture'] ?? '22:00') ?>" id="heure-fermeture">
       <div class="form-hint">À cette heure, les sessions ouvertes seront signalées pour clôture.</div>
+    </div>
+    <div class="form-group full">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" name="credit_active" value="1" <?= (($p['credit_active'] ?? '0') === '1') ? 'checked' : '' ?> style="width:18px;height:18px;">
+        Autoriser la vente à crédit (dettes clients)
+      </label>
+      <div class="form-hint">Affiche la case « Vendre à crédit » au Point de Vente (client enregistré obligatoire ; créance suivie en comptabilité 4112, soldée par les règlements). L'existant — dettes déjà enregistrées et règlements — reste visible même désactivé.</div>
     </div>
   </div>
 </div>

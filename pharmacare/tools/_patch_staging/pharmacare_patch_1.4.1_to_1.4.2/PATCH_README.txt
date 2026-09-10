@@ -1,4 +1,4 @@
-PharmaCare — patch de mise a jour 1.4.1 -> 1.4.2
+﻿PharmaCare — patch de mise a jour 1.4.1 -> 1.4.2
 ==================================================
 
 Ce patch contient UNIQUEMENT les fichiers modifies. Il ne touche pas a la
@@ -12,7 +12,9 @@ Fichiers inclus (2) :
 
 APPLICATION (Windows, XAMPP) :
   1. Decompressez l'archive .zip ou vous voulez (ex: Bureau).
-  2. Double-cliquez sur apply_patch.bat.
+  2. Double-cliquez sur apply_patch.exe (assistant graphique ; il detecte
+     l'installation, verifie la version, sauvegarde et applique).
+     Alternative sans GUI : double-cliquez sur apply_patch.bat.
   3. Confirmez le dossier d'installation (defaut C:\xampp\htdocs\pharmacare).
   4. Les anciens fichiers sont sauvegardes dans pharmacare\_patch_backup\<horodatage>.
   5. Les migrations BDD (index) sont executees automatiquement si php CLI est trouve.

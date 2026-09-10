@@ -71,7 +71,7 @@ if (IS_PROD) {
 // ── Constantes partagées ───────────────────────────────────
 define('DB_CHARSET', 'utf8mb4');
 define('APP_NAME', 'PharmaCare');
-define('APP_VERSION', '1.4.4');
+define('APP_VERSION', '1.4.5');
 define('SESSION_NAME', 'pharmacare_session');
 
 // ── Gestionnaire d'erreurs fatales + buffer de sortie (bootstrap) ──

@@ -97,6 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type']) && $_P
            ->execute([$sessionId, 'Fermeture forcée admin : ' . $motifForce]);
     }
 
+    $estForce = (int)$session['caissier_id'] !== currentUser()['id'];
+
     $soldeAttendu = soldeSession($db, $sessionId);
     $ecart = round($soldeReel - $soldeAttendu, 2);
 

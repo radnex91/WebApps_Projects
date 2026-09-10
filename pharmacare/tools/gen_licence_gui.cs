@@ -19,9 +19,9 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("PharmaCare Licence Manager")]
 [assembly: AssemblyProduct("PharmaCare Licence Manager")]
 [assembly: AssemblyCompany("RADNEX")]
-[assembly: AssemblyVersion("1.3.1.0")]
-[assembly: AssemblyFileVersion("1.3.1.0")]
-[assembly: AssemblyInformationalVersion("1.3.1.0 — portable (runtime PHP embarqué)")]
+[assembly: AssemblyVersion("1.3.2.0")]
+[assembly: AssemblyFileVersion("1.3.2.0")]
+[assembly: AssemblyInformationalVersion("1.3.2.0 — portable (runtime PHP embarqué, statut auto-rafraîchi)")]
 
 namespace PharmaCareLicence
 {
@@ -56,6 +56,10 @@ namespace PharmaCareLicence
         private DataGridView _grid;
         private Label _status;
         private string _php;
+        private Timer _refresh;
+        private bool _loaded;
+        private DateTime _lastRefresh = DateTime.MinValue;
+        private bool? _lastPrivOk;
 
         public MainForm()
         {
@@ -105,6 +109,20 @@ namespace PharmaCareLicence
             BuildLedgerCard();
 
             _fmtShort.CheckedChanged += (s, e) => _expire.Enabled = !_fmtShort.Checked;
+
+            // ── Rafraîchissement auto du statut ──
+            // Le statut (clé privée, ledger, palier gratuit) était figé à
+            // l'ouverture : un message d'erreur obsolète restait affiché même
+            // après restauration de la clé. On relance --op=status quand la
+            // fenêtre reprend le focus et périodiquement (10 s).
+            _refresh = new Timer { Interval = 10000 };
+            _refresh.Tick += (s, e) => RefreshStatus();
+            // Activated se déclenche aussi au premier affichage (après Init) :
+            // garde-fou temporel pour ne pas tout relancer deux fois.
+            Activated += (s, e) =>
+            {
+                if (_loaded && (DateTime.Now - _lastRefresh).TotalSeconds >= 2) RefreshStatus();
+            };
             Load += (s, e) => Init();
         }
 
@@ -324,13 +342,43 @@ namespace PharmaCareLicence
         {
             _php = ResolvePhp();
             if (_php == null) { Status("PHP introuvable : ni php\\php.exe (portable), ni C:\\xampp\\php\\php.exe, ni PATH.", true); return; }
-            Status("Chargement…");
+            RefreshStatus();
+            _loaded = true;
+            _refresh.Start();
+            StretchCards();
+        }
+
+        // Relit le statut (clé privée, ledger, palier gratuit) et met à jour la
+        // fenêtre. Appelé à l'ouverture, quand la fenêtre reprend le focus et
+        // toutes les 10 s : un message obsolète (« Clé privée introuvable »)
+        // disparaît dès que la clé est restaurée, sans rouvrir le GUI.
+        private void RefreshStatus()
+        {
+            if (_instance.DroppedDown) return;   // ne pas refermer la liste déroulante ouverte
             var res = RunPhp("--json --op=status");
             if (res == null) return;
             ApplyLedger(res);
-            object ok; res.TryGetValue("ok", out ok);
-            if (ok is bool && (bool)ok) Status("Prêt — " + _grid.Rows.Count + " client(s) dans le ledger.");
-            StretchCards();
+
+            object pok;
+            bool privOk = res.TryGetValue("priv_ok", out pok) && pok is bool && (bool)pok;
+            if (!privOk)
+            {
+                // Message contextuel fourni par gen_licence.php : restauration
+                // si une clé publique existe déjà (régénérer invaliderait tous
+                // les codes émis), création normale sinon.
+                object hint;
+                string privHint = res.TryGetValue("priv_hint", out hint) && hint is string ? (string)hint : null;
+                Status(privHint ?? "⚠ Clé privée introuvable — restaurez licence_privatekey.php depuis votre sauvegarde (NE PAS régénérer la paire si des codes ont déjà été émis).", true);
+            }
+            else if (_lastPrivOk != true)
+            {
+                // Première lecture, ou retour à la normale après une clé absente :
+                // rafraîchit le bandeau. Sinon on ne touche pas au bandeau pour
+                // préserver les messages transitoires (« code copié », etc.).
+                Status("Prêt — " + _grid.Rows.Count + " client(s) dans le ledger.");
+            }
+            _lastPrivOk = privOk;
+            _lastRefresh = DateTime.Now;
         }
 
         // Adapte la largeur des cartes à la largeur disponible (fenêtre redimensionnable).
@@ -451,19 +499,8 @@ namespace PharmaCareLicence
             }
 
             object fc;
-            if (res.TryGetValue("free_cap", out fc)) _freeCap.Value = Math.Max(1, ToIntObj(fc));
-
-            object pok;
-            bool privOk = res.TryGetValue("priv_ok", out pok) && pok is bool && (bool)pok;
-            if (!privOk)
-            {
-                // Message contextuel fourni par gen_licence.php (status) : restauration
-                // si une clé publique existe déjà (régénérer invaliderait tous les
-                // codes émis), création normale sinon.
-                object hint;
-                string privHint = res.TryGetValue("priv_hint", out hint) && hint is string ? (string)hint : null;
-                Status(privHint ?? "⚠ Clé privée introuvable — restaurez licence_privatekey.php depuis votre sauvegarde (NE PAS régénérer la paire si des codes ont déjà été émis).", true);
-            }
+            // Ne pas écraser une saisie en cours (le timer rafraîchit toutes les 10 s)
+            if (res.TryGetValue("free_cap", out fc) && !_freeCap.Focused) _freeCap.Value = Math.Max(1, ToIntObj(fc));
         }
 
         // ═══ Helpers ══════════════════════════════════════════════════════════
