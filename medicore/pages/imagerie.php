@@ -137,11 +137,11 @@ $urgLabel   = ['normal'=>'','urgent'=>'⚠️ Urgent','tres_urgent'=>'🚨 Tres 
 
 <!-- Modal prescrire -->
 <?php if (can('imagerie.create')): ?>
-<div id="modal-imagerie" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:540px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
+<div id="modal-imagerie" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(540px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>Prescrire un examen d'imagerie</h3>
-      <div onclick="document.getElementById('modal-imagerie').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-imagerie').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="prescrire">
@@ -168,11 +168,11 @@ $urgLabel   = ['normal'=>'','urgent'=>'⚠️ Urgent','tres_urgent'=>'🚨 Tres 
 
 <!-- Modal resultat -->
 <?php if (can('imagerie.update_resultat')): ?>
-<div id="modal-resultat" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:550px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-resultat" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(550px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>Resultat imagerie</h3>
-      <div onclick="document.getElementById('modal-resultat').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-resultat').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="resultat">

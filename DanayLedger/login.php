@@ -36,8 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connexion - DanayLedger</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <link href="<?php echo APP_URL; ?>/assets/css/style.css" rel="stylesheet">
 </head>
 <body class="login-page">
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="login-logo">
                         <i class="bi bi-cash-stack"></i>
                     </div>
-                    <h3 class="text-center fw-bold mb-1">DanayLedger</h3>
+                    <h1 class="text-center fw-bold mb-1">DanayLedger</h1>
                     <p class="text-center text-muted mb-4">Gestion Financière Logistique</p>
 
                     <?php if ($error): ?>
@@ -72,19 +72,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php echo csrfField(); ?>
 
                         <div class="mb-3">
-                            <label class="form-label fw-500">Nom d'utilisateur ou email</label>
+                            <label for="username" class="form-label fw-500">Nom d'utilisateur ou email</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-person"></i></span>
-                                <input type="text" name="username" class="form-control" placeholder="Entrez votre identifiant" required autofocus value="<?php echo e($_POST['username'] ?? ''); ?>">
+                                <input type="text" name="username" id="username" class="form-control" placeholder="Entrez votre identifiant" required autofocus value="<?php echo e($_POST['username'] ?? ''); ?>">
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-500">Mot de passe</label>
+                            <label for="password" class="form-label fw-500">Mot de passe</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-lock"></i></span>
                                 <input type="password" name="password" id="password" class="form-control" placeholder="Entrez votre mot de passe" required>
-                                <button type="button" class="btn btn-outline-secondary" onclick="togglePassword()" title="Afficher/masquer">
+                                <button type="button" class="btn btn-outline-secondary" onclick="togglePassword()" title="Afficher/masquer le mot de passe" aria-label="Afficher ou masquer le mot de passe">
                                     <i class="bi bi-eye" id="toggleIcon"></i>
                                 </button>
                             </div>
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <script>
 function togglePassword() {
     const input = document.getElementById('password');

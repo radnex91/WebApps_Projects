@@ -117,7 +117,7 @@ require_once __DIR__ . '/layout_top.php';
                 <?php endforeach; ?>
             </select>
             <?php if ($filterUserId): ?>
-            <a href="?" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:.72rem">Vue globale</a>
+            <a href="?" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:.72rem"><i class="bi bi-arrows-fullscreen me-1"></i>Vue globale</a>
             <?php endif; ?>
         </form>
     </div>
@@ -194,7 +194,7 @@ require_once __DIR__ . '/layout_top.php';
         <div class="card">
             <div class="card-header-custom">
                 <h6><i class="bi bi-star me-2 text-warning"></i>Top 5 Produits</h6>
-                <a href="<?= BASE_URL ?>/views/reports.php" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem">Voir tout</a>
+                <a href="<?= BASE_URL ?>/views/reports.php" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem">Voir tout<i class="bi bi-arrow-right ms-1"></i></a>
             </div>
             <div class="card-body p-0">
                 <table class="table table-hover mb-0">
@@ -219,7 +219,7 @@ require_once __DIR__ . '/layout_top.php';
                         </tr>
                         <?php endforeach; ?>
                         <?php if (empty($topProducts)): ?>
-                        <tr><td colspan="3" class="text-center text-muted py-3" style="font-size:.85rem">Aucune vente pour l'instant</td></tr>
+                        <tr><td colspan="3" class="text-center text-muted py-3" style="font-size:.85rem"><i class="bi bi-box-seam d-block" style="font-size:2rem;opacity:.2"></i>Aucune vente pour l'instant</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -232,7 +232,7 @@ require_once __DIR__ . '/layout_top.php';
         <div class="card">
             <div class="card-header-custom">
                 <h6><i class="bi bi-exclamation-triangle me-2 text-danger"></i>Alertes Stock Faible</h6>
-                <a href="<?= BASE_URL ?>/views/stock.php" class="btn btn-sm btn-outline-danger" style="font-size:.75rem">Gérer</a>
+                <a href="<?= BASE_URL ?>/views/stock.php" class="btn btn-sm btn-outline-danger" style="font-size:.75rem">Gérer<i class="bi bi-gear ms-1"></i></a>
             </div>
             <div class="card-body p-0">
                 <?php if (empty($lowStock)): ?>
@@ -268,20 +268,20 @@ require_once __DIR__ . '/layout_top.php';
         <div class="card mt-3">
             <div class="card-header-custom">
                 <h6><i class="bi bi-receipt me-2"></i>Ventes Récentes</h6>
-                <a href="<?= BASE_URL ?>/views/sales.php" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem">Voir tout</a>
+                <a href="<?= BASE_URL ?>/views/sales.php" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem">Voir tout<i class="bi bi-arrow-right ms-1"></i></a>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th class="ps-3">Facture</th>
-                                <th>Date</th>
-                                <th>Caissier</th>
-                                <th>Client</th>
-                                <th>Paiement</th>
-                                <th class="text-end">Montant</th>
-                                <th class="text-center pe-3">Statut</th>
+                                <th class="ps-3"><i class="bi bi-file-earmark-text me-1"></i>Facture</th>
+                                <th><i class="bi bi-calendar me-1"></i>Date</th>
+                                <th><i class="bi bi-person me-1"></i>Caissier</th>
+                                <th><i class="bi bi-people me-1"></i>Client</th>
+                                <th><i class="bi bi-credit-card me-1"></i>Paiement</th>
+                                <th class="text-end"><i class="bi bi-currency-dollar me-1"></i>Montant</th>
+                                <th class="text-center pe-3"><i class="bi bi-flag me-1"></i>Statut</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -297,19 +297,27 @@ require_once __DIR__ . '/layout_top.php';
                                 <td style="font-size:.82rem"><?= e($sale['customer_name'] ?? 'Client anonyme') ?></td>
                                 <td>
                                     <span class="badge" style="font-size:.7rem;background:rgba(99,102,241,0.1);color:#6366F1">
-                                        <?= e(ucfirst(str_replace('_', ' ', $sale['payment_method']))) ?>
+                                        <?php
+                                        $pm = $sale['payment_method'];
+                                        $pmIcon = in_array($pm, ['cash','Especes']) ? 'bi-cash' : (in_array($pm, ['mobile_money','orange_money','momo']) ? 'bi-phone' : (in_array($pm, ['credit','card']) ? 'bi-credit-card' : ''));
+                                        if ($pmIcon): ?><i class="bi <?= $pmIcon ?> me-1"></i><?php endif; ?>
+                                        <?= e(ucfirst(str_replace('_', ' ', $pm))) ?>
                                     </span>
                                 </td>
                                 <td class="text-end" style="font-size:.85rem;font-weight:600"><?= formatMoney((float)$sale['total_amount']) ?></td>
                                 <td class="text-center pe-3">
                                     <span class="badge <?= $sale['status'] === 'completed' ? 'bg-success' : 'bg-secondary' ?>" style="font-size:.7rem">
-                                        <?= ucfirst($sale['status']) ?>
+                                        <?php
+                                        $st = $sale['status'];
+                                        $stIcon = $st === 'completed' ? 'bi-check-circle' : ($st === 'pending' ? 'bi-clock' : ($st === 'cancelled' ? 'bi-x-circle' : ($st === 'refunded' ? 'bi-arrow-counterclockwise' : '')));
+                                        if ($stIcon): ?><i class="bi <?= $stIcon ?> me-1"></i><?php endif; ?>
+                                        <?= ucfirst($st) ?>
                                     </span>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
                             <?php if (empty($recentSales)): ?>
-                            <tr><td colspan="7" class="text-center text-muted py-3" style="font-size:.85rem">Aucune vente enregistrée</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-3" style="font-size:.85rem"><i class="bi bi-receipt d-block" style="font-size:2rem;opacity:.2"></i>Aucune vente enregistrée</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>

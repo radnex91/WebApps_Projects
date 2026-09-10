@@ -1,0 +1,33 @@
+# Patch 1.4.1 -> 1.4.2 — Correctif : ventes perdues si un rejeu démarre pendant une panne serveur (5xx)
+#
+# Problème corrigé (découvert en analysant « le serveur est indisponible
+# pourtant le LAN est bien connecté ») : quand Apache répond mais que PHP
+# rend une erreur 5xx (MySQL arrêté/redémarré à cet instant — 503 « Service
+# indisponible »), le REJEU de la file d'attente interprétait la page
+# d'erreur comme un REFUS MÉTIER de la vente : il retirait la vente de la
+# file (dequeue) sans qu'elle soit enregistrée en base. Un rejeu démarré
+# pendant la panne vidait la file entière, vente par vente — ticket
+# provisoire imprimé, argent encaissé, vente jamais enregistrée.
+#
+# 1. Rejeu (syncQueue) : une réponse SANS redirection 302 n'est JAMAIS une
+#    décision métier. 5xx = panne transitoire → la vente RESTE EN FILE,
+#    notification « Serveur indisponible — N vente(s) conservée(s) en file
+#    d'attente ; nouvelle tentative automatique » + retry 30 s ; toast
+#    unique par panne (anti-spam si la panne dure). 403 = session/CSRF
+#    expiré → mode « Reconnectez-vous », file conservée.
+#    Le refus métier authentique (302 + flash : stock insuffisant, code
+#    remise consommé…) déqueue toujours — comportement inchangé.
+#
+# 2. Soumission initiale (submitSale) : même garde — un 403 CSRF (page
+#    « Session expirée » rendue sans redirection) était traité comme un
+#    refus métier → vente retirée sans être enregistrée. Désormais :
+#    session expirée → vente conservée avec la raison « session expirée ».
+#    Le dequeue ne survient plus QUE sur un refus métier confirmé (302).
+#
+# 3. Version applicative 1.4.2 (cache-bust CSS/JS + version affichée).
+#
+# Vérifié par harnais comportemental (10 tests) : file conservée pendant
+# 503, anti-spam, rejeu complet au retour du serveur, refus métier intact.
+#
+includes/layout.php
+config/env.php

@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PharmaCare — Apercu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#09090b;--bg2:#0f0f13;--bg3:#17171c;--card:#0c0c10;
+  --border:rgba(255,255,255,.05);--border2:rgba(255,255,255,.08);
+  --teal:#22d3ee;--teal2:#22d3ee;--teal-dim:rgba(34,211,238,.10);
+  --gold:#f59e0b;--gold-dim:rgba(245,158,11,.10);
+  --red:#ef4444;--red-dim:rgba(239,68,68,.10);
+  --blue:#818cf8;--blue-dim:rgba(129,140,248,.10);
+  --purple:#9b59b6;--purple-dim:rgba(155,89,182,.10);
+  --teal-glow:rgba(34,211,238,.25);--gold-glow:rgba(245,158,11,.25);
+  --red-glow:rgba(239,68,68,.25);--blue-glow:rgba(129,140,248,.25);
+  --text:#e8edf5;--text2:#8b97ab;--text3:#5a6678;
+  --radius:14px;--radius-sm:8px;
+  --shadow:0 8px 32px rgba(0,0,0,.45);--shadow-sm:0 2px 12px rgba(0,0,0,.35);
+  --sidebar:240px;--glass:rgba(255,255,255,.03);
+  --font-body:'Manrope',sans-serif;--font-title:'Manrope',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;font-family:var(--font-body);background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;}
+button{font-family:var(--font-body);}
+
+/* ── SIDEBAR ── */
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;}
+.logo{padding:26px 22px 18px;border-bottom:1px solid var(--border);}
+.logo-mark{font-family:var(--font-title);font-size:21px;font-weight:600;letter-spacing:1px;color:var(--teal2);display:flex;align-items:center;gap:10px;}
+.logo-icon{width:33px;height:33px;background:var(--teal-dim);border:1px solid var(--teal);border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.logo-icon::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,var(--teal-glow));}
+.logo-sub{font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-top:3px;}
+nav{flex:1;padding:14px 10px;overflow-y:auto;}
+nav::-webkit-scrollbar{width:3px;}nav::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px;}
+.nav-section{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);padding:10px 12px 5px;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:7px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:2px;position:relative;}
+.nav-item:hover{background:var(--glass);color:var(--text);}
+.nav-item.active{background:var(--teal-dim);color:var(--teal2);padding-left:10px;}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:2px;height:60%;background:var(--teal2);border-radius:1px;box-shadow:0 0 8px var(--teal-glow);}
+.nav-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden;transition:transform .2s;}
+.nav-item:hover .nav-icon{transform:scale(1.1);}
+.nav-icon svg{position:relative;z-index:2;}
+.nav-icon::before{content:'';position:absolute;inset:0;border-radius:50%;opacity:.18;}
+.i-teal{color:#5eead4;}.i-teal::before{background:radial-gradient(circle,#14b8a6,#0d9488);}
+.i-gold{color:#fcd34d;}.i-gold::before{background:radial-gradient(circle,#f59e0b,#d97706);}
+.i-red{color:#fca5a5;}.i-red::before{background:radial-gradient(circle,#ef4444,#dc2626);}
+.i-blue{color:#a5b4fc;}.i-blue::before{background:radial-gradient(circle,#818cf8,#6366f1);}
+.i-purple{color:#c4b5fd;}.i-purple::before{background:radial-gradient(circle,#a78bfa,#7c3aed);}
+.i-pink{color:#f9a8d4;}.i-pink::before{background:radial-gradient(circle,#f472b6,#db2777);}
+.i-cyan{color:#67e8f9;}.i-cyan::before{background:radial-gradient(circle,#22d3ee,#0891b2);}
+.i-green{color:#6ee7b7;}.i-green::before{background:radial-gradient(circle,#34d399,#059669);}
+.i-orange{color:#fdba74;}.i-orange::before{background:radial-gradient(circle,#fb923c,#ea580c);}
+.i-slate{color:#94a3b8;}.i-slate::before{background:radial-gradient(circle,#64748b,#475569);}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;box-shadow:0 0 8px var(--red-glow);}
+.sidebar-footer{padding:14px;border-top:1px solid var(--border);}
+.user-card{display:flex;align-items:center;gap:10px;padding:9px;border-radius:var(--radius-sm);background:var(--glass);border:1px solid var(--border);margin-bottom:6px;}
+.avatar{width:33px;height:33px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--teal),var(--blue));}
+.user-info .name{font-size:13px;font-weight:500;}.user-info .role{font-size:11px;color:var(--text3);}
+.btn-logout{width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;font-family:var(--font-body);}
+.btn-logout:hover{background:var(--glass);color:var(--text);border-color:var(--teal);}
+
+/* ── MAIN ── */
+#main{margin-left:var(--sidebar);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+#topbar{height:58px;flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 26px;gap:14px;z-index:30;position:relative;}
+.topbar-title{font-family:var(--font-title);font-size:20px;font-weight:600;flex:1;background:linear-gradient(135deg,var(--text),var(--teal2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.topbar-actions{display:flex;align-items:center;gap:10px;}
+#content{flex:1;overflow-y:auto;padding:26px;}
+#content::-webkit-scrollbar{width:4px;}#content::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px;}
+
+/* ── PAGES ── */
+.page{display:none;}.page.active{display:block;}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden;transition:all .25s;}
+.stat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-sm);border-color:var(--border2);}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0;}
+.s-teal::before{background:linear-gradient(90deg,var(--teal),var(--teal-glow));box-shadow:0 0 12px var(--teal-glow);}
+.s-gold::before{background:linear-gradient(90deg,var(--gold),var(--gold-glow));box-shadow:0 0 12px var(--gold-glow);}
+.s-red::before{background:linear-gradient(90deg,var(--red),var(--red-glow));box-shadow:0 0 12px var(--red-glow);}
+.s-blue::before{background:linear-gradient(90deg,var(--blue),var(--blue-glow));box-shadow:0 0 12px var(--blue-glow);}
+.s-purple::before{background:linear-gradient(90deg,var(--purple),rgba(155,89,182,.25));}
+.stat-label{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;}
+.stat-value{font-family:var(--font-title);font-size:28px;font-weight:600;line-height:1;margin-bottom:5px;}
+.stat-sub{font-size:12px;color:var(--text3);}
+.stat-icon{position:absolute;right:16px;top:16px;opacity:.15;}
+.c-teal{color:var(--teal2);}.c-gold{color:var(--gold);}.c-red{color:var(--red);}.c-blue{color:var(--blue);}.c-purple{color:var(--purple);}
+
+/* ── CARD ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;transition:border-color .2s;}
+.card:hover{border-color:var(--border2);}
+.card-header{padding:16px 20px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.card-title{font-family:var(--font-title);font-size:17px;font-weight:600;}
+.card-pad{padding:20px;}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:11px 16px;text-align:left;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border);background:var(--bg2);white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--border);transition:all .15s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--glass);}
+tbody td{padding:12px 16px;font-size:13px;vertical-align:middle;}
+.td-name{font-weight:500;}.td-mono{font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);}
+.fw-mono{font-family:'DM Mono',monospace;}.text-sm{font-size:12px;color:var(--text2);}.text-xs{font-size:11px;color:var(--text3);}
+
+/* ── BADGE ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:500;white-space:nowrap;}
+.badge-green{background:var(--teal-dim);color:var(--teal2);border:1px solid var(--teal-glow);}
+.badge-red{background:var(--red-dim);color:var(--red);border:1px solid var(--red-glow);}
+.badge-gold{background:var(--gold-dim);color:var(--gold);border:1px solid var(--gold-glow);}
+.badge-blue{background:var(--blue-dim);color:var(--blue);border:1px solid var(--blue-glow);}
+.badge-gray{background:var(--glass);color:var(--text2);border:1px solid var(--border);}
+
+/* ── BTN ── */
+.btn{padding:8px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-family:var(--font-body);font-size:13px;font-weight:500;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--teal);color:#000;font-weight:600;box-shadow:0 0 16px var(--teal-glow);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(--teal-glow);}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2);}
+.btn-ghost:hover{background:var(--glass);color:var(--text);border-color:var(--teal);}
+.btn-danger{background:var(--red-dim);color:var(--red);border:1px solid var(--red-glow);}
+.btn-xs{padding:3px 8px;font-size:11px;}
+.btn-sm{padding:5px 11px;font-size:12px;}
+
+/* ── SEARCH ── */
+.search-box{display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:7px 13px;backdrop-filter:blur(8px);transition:border-color .2s;}
+.search-box:focus-within{border-color:var(--teal);box-shadow:0 0 12px var(--teal-glow);}
+.search-box input{background:none;border:none;outline:none;color:var(--text);font-size:13px;width:100%;font-family:var(--font-body);}
+.search-box input::placeholder{color:var(--text3);}
+
+/* ── FORM ── */
+input[type=text],input[type=number],input[type=date],select,textarea{
+  background:var(--glass);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  padding:9px 13px;color:var(--text);font-family:var(--font-body);font-size:13.5px;
+  outline:none;transition:all .2s;width:100%;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 12px var(--teal-glow);}
+select option{background:var(--bg2);}
+label{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px;}
+.form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+
+/* ── GRID ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.flex-between{display:flex;justify-content:space-between;align-items:center;}
+
+/* ── PROGRESS ── */
+.progress-bar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width .4s ease;}
+
+/* ── POS ── */
+.pos-layout{display:grid;grid-template-columns:380px 1fr;height:calc(100vh - 58px - 52px);}
+.cart-panel{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;}
+.cart-items{flex:1;overflow-y:auto;padding:8px;}
+.cart-item{display:grid;grid-template-columns:1.5fr auto 90px auto 24px;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;transition:background .15s;}
+.cart-item:nth-child(even){background:rgba(255,255,255,.015);}
+.cart-item:hover{background:var(--glass);}
+.ci-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ci-price,.ci-sub{font-family:'DM Mono',monospace;color:var(--text2);text-align:right;}
+.ci-sub{font-weight:600;color:var(--teal2);}
+.ci-qty{display:flex;align-items:center;gap:4px;justify-content:center;}
+.qty-btn{width:24px;height:24px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;transition:all .1s;}
+.qty-btn:hover{background:#475569;border-color:#64748b;}
+.qty-val{font-family:'DM Mono',monospace;font-weight:600;min-width:20px;text-align:center;}
+.btn-rm{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;transition:color .15s;}
+.btn-rm:hover{color:var(--red);}
+.cart-footer{background:var(--bg3);padding:16px;border-top:2px solid var(--border2);}
+.totals-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.total-box{padding:8px;border-radius:6px;background:var(--bg);border:1px solid var(--border2);}
+.total-box label{display:block;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.total-box span{font-family:'DM Mono',monospace;font-size:14px;font-weight:600;}
+.total-main{grid-column:span 2;background:#064e3b;border-color:#10b981;padding:10px;text-align:right;}
+.total-main label{color:#a7f3d0;}.total-main span{font-size:20px;color:#34d399;}
+.btn-validate{background:#059669;color:#fff;border:none;padding:14px;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;}
+.btn-validate:hover{background:#047857;transform:translateY(-1px);}
+.btn-validate:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.cart-header-bar{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.cart-count{font-size:12px;color:var(--text3);}
+.catalogue-wrap{display:flex;flex-direction:column;overflow:hidden;}
+.catalogue-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.catalogue-header .search-box{flex:1;border-color:var(--teal);box-shadow:0 0 10px var(--teal-glow);}
+.product-row{cursor:pointer;transition:background .15s;}
+.product-row:hover{background:var(--teal-dim);}
+.product-row.out{opacity:.4;cursor:not-allowed;}
+.p-cat-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:color-mix(in srgb, var(--cat-color) 15%, transparent);color:var(--cat-color);}
+.pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;padding:16px;}
+.pos-tile{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.pos-tile:hover{border-color:var(--teal);transform:translateY(-2px);box-shadow:var(--shadow-sm);}
+.pos-tile.out{opacity:.35;cursor:not-allowed;}
+.pos-tile .pt-cat{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;color:var(--cat-color);}
+.pos-tile .pt-name{font-size:13px;font-weight:600;margin-bottom:8px;line-height:1.3;}
+.pos-tile .pt-bottom{display:flex;justify-content:space-between;align-items:center;}
+.pos-tile .pt-price{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:var(--teal2);}
+.pos-tile .pt-stock{font-size:11px;color:var(--text3);}
+
+/* ── ALERT PANEL ── */
+.alert-btn{background:var(--red-dim);border:1px solid var(--red-glow);color:var(--red);padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;font-family:inherit;transition:all .15s;}
+.alert-dot{width:7px;height:7px;background:var(--red);border-radius:50%;animation:pulse-dot 1.5s infinite;}
+@keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.4;}}
+.alert-panel{display:none;position:absolute;top:54px;right:20px;width:380px;max-height:420px;overflow-y:auto;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow);z-index:300;}
+.alert-panel.open{display:block;}
+.alert-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer;}
+.alert-item:hover{background:var(--glass);}
+.alert-dot-sm{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);width:500px;max-height:80vh;overflow-y:auto;box-shadow:var(--shadow);}
+.modal-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-family:var(--font-title);font-size:18px;font-weight:600;}
+.modal-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;transition:color .15s;}
+.modal-close:hover{color:var(--red);}
+.modal-body{padding:22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;z-index:600;transform:translateY(100px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast-success{background:#065f46;color:#a7f3d0;border:1px solid #10b981;}
+.toast-error{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444;}
+.toast-info{background:#1e3a5f;color:#93c5fd;border:1px solid #3b82f6;}
+
+/* ── EMPTY ── */
+.empty{padding:40px;text-align:center;color:var(--text3);font-size:13px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){.pos-layout{grid-template-columns:300px 1fr;}.stats-grid{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<div id="sidebar">
+  <div class="logo">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--teal)"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+      <span>PharmaCare</span>
+    </div>
+    <div class="logo-sub">Gestion Pharmacie</div>
+  </div>
+  <nav>
+    <div class="nav-section">Principal</div>
+    <div class="nav-item active" data-page="dashboard"><span class="nav-icon i-teal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span>Tableau de bord</span></div>
+    <div class="nav-item" data-page="pos"><span class="nav-icon i-green"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span><span>Point de Vente</span></div>
+    <div class="nav-item" data-page="caisses"><span class="nav-icon i-gold"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="8" width="18" height="13" rx="1"/><rect x="7" y="3" width="10" height="5" rx="1"/><line x1="3" y1="13" x2="21" y2="13"/></svg></span><span>Caisses</span></div>
+
+    <div class="nav-section">Gestion</div>
+    <div class="nav-item" data-page="stock"><span class="nav-icon i-orange"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="12" y1="9" x2="12" y2="15"/></svg></span><span>Stock</span><span class="nav-badge">7</span></div>
+    <div class="nav-item" data-page="medicaments"><span class="nav-icon i-cyan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="9" width="20" height="6" rx="3"/><line x1="12" y1="9" x2="12" y2="15"/></svg></span><span>M&eacute;dicaments</span></div>
+    <div class="nav-item" data-page="fournisseurs"><span class="nav-icon i-blue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/></svg></span><span>Fournisseurs</span></div>
+    <div class="nav-item" data-page="commandes"><span class="nav-icon i-purple"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span>Commandes</span></div>
+    <div class="nav-item" data-page="retours"><span class="nav-icon i-red"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></span><span>Retours caisse</span></div>
+
+    <div class="nav-section">Rapports</div>
+    <div class="nav-item" data-page="historique"><span class="nav-icon i-gold"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg></span><span>Historique ventes</span></div>
+    <div class="nav-item" data-page="rapports"><span class="nav-icon i-pink"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span>Rapports</span></div>
+    <div class="nav-item" data-page="comptabilite"><span class="nav-icon i-teal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><rect x="8" y="5" width="8" height="3" rx="1"/></svg></span><span>Comptabilit&eacute;</span></div>
+
+    <div class="nav-section">Administration</div>
+    <div class="nav-item" data-page="utilisateurs"><span class="nav-icon i-blue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><span>Utilisateurs</span></div>
+    <div class="nav-item" data-page="roles"><span class="nav-icon i-purple"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span>R&ocirc;les</span></div>
+    <div class="nav-item" data-page="categories"><span class="nav-icon i-orange"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span><span>Cat&eacute;gories</span></div>
+    <div class="nav-item" data-page="parametres"><span class="nav-icon i-slate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 1 4.93 19.07 10 10 0 0 1 19.07 4.93"/></svg></span><span>Param&egrave;tres</span></div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card"><div class="avatar">JD</div><div class="user-info"><div class="name">Jean Dupont</div><div class="role">Administrateur</div></div></div>
+    <button class="btn-logout" onclick="showToast('Deconnexion simulee','info')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>D&eacute;connexion</span></button>
+  </div>
+</div>
+
+<!-- ═══════════ MAIN ═══════════ -->
+<div id="main">
+  <div id="topbar">
+    <div class="topbar-title" id="page-title">Tableau de bord</div>
+    <div class="topbar-actions">
+      <button class="alert-btn" onclick="toggleAlertPanel()"><span class="alert-dot"></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> 7 alertes</button>
+      <span class="badge badge-gray" style="font-size:11px;" id="live-clock"></span>
+      <div class="alert-panel" id="alert-panel">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;"><span style="font-family:var(--font-title);font-size:15px;font-weight:600;color:var(--red);">Alertes stock</span><button onclick="toggleAlertPanel()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;">&times;</button></div>
+        <div class="alert-item"><div class="alert-dot-sm" style="background:var(--red);box-shadow:0 0 6px var(--red-glow);"></div><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;">Paracetamol 500mg</div><div style="font-size:11px;color:var(--text3);">MED-001</div></div><div style="text-align:right;"><div style="font-size:14px;font-weight:700;color:var(--red);">0</div><div style="font-size:10px;color:var(--text3);">seuil 20</div></div></div>
+        <div class="alert-item"><div class="alert-dot-sm" style="background:var(--red);box-shadow:0 0 6px var(--red-glow);"></div><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;">Amoxicilline 1g</div><div style="font-size:11px;color:var(--text3);">MED-003</div></div><div style="text-align:right;"><div style="font-size:14px;font-weight:700;color:var(--red);">0</div><div style="font-size:10px;color:var(--text3);">seuil 15</div></div></div>
+        <div class="alert-item"><div class="alert-dot-sm" style="background:var(--gold);box-shadow:0 0 6px var(--gold-glow);"></div><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;">Ibuprofene 400mg</div><div style="font-size:11px;color:var(--text3);">MED-005</div></div><div style="text-align:right;"><div style="font-size:14px;font-weight:700;color:var(--gold);">3</div><div style="font-size:10px;color:var(--text3);">seuil 10</div></div></div>
+        <div class="alert-item"><div class="alert-dot-sm" style="background:var(--gold);box-shadow:0 0 6px var(--gold-glow);"></div><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;">Vitamine C 1g</div><div style="font-size:11px;color:var(--text3);">MED-008</div></div><div style="text-align:right;"><div style="font-size:14px;font-weight:700;color:var(--gold);">8</div><div style="font-size:10px;color:var(--text3);">seuil 25</div></div></div>
+        <div class="alert-item"><div class="alert-dot-sm" style="background:var(--gold);box-shadow:0 0 6px var(--gold-glow);"></div><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;">Metformine 850mg</div><div style="font-size:11px;color:var(--text3);">MED-012</div></div><div style="text-align:right;"><div style="font-size:14px;font-weight:700;color:var(--gold);">5</div><div style="font-size:10px;color:var(--text3);">seuil 12</div></div></div>
+        <div class="alert-item"><div class="alert-dot-sm" style="background:var(--gold);box-shadow:0 0 6px var(--gold-glow);"></div><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;">Amlodipine 5mg</div><div style="font-size:11px;color:var(--text3);">MED-015</div></div><div style="text-align:right;"><div style="font-size:14px;font-weight:700;color:var(--gold);">4</div><div style="font-size:10px;color:var(--text3);">seuil 10</div></div></div>
+        <div class="alert-item"><div class="alert-dot-sm" style="background:var(--gold);box-shadow:0 0 6px var(--gold-glow);"></div><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;">Omeprazole 20mg</div><div style="font-size:11px;color:var(--text3);">MED-018</div></div><div style="text-align:right;"><div style="font-size:14px;font-weight:700;color:var(--gold);">6</div><div style="font-size:10px;color:var(--text3);">seuil 10</div></div></div>
+        <div style="padding:10px 16px;text-align:center;font-size:12px;font-weight:600;color:var(--red);border-top:1px solid var(--border);cursor:pointer;" onclick="navigateTo('stock')">Voir toutes les alertes &rarr;</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="content">
+
+<!-- ═══════════ PAGE: DASHBOARD ═══════════ -->
+<div class="page active" id="page-dashboard">
+  <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);">
+    <div class="stat-card s-teal"><div class="stat-icon" style="color:var(--teal2);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-label">CA du mois</div><div class="stat-value c-teal">2 847 500 FCFA</div><div class="stat-sub">Aujourd'hui : 185 000 FCFA</div></div>
+    <div class="stat-card s-gold"><div class="stat-icon" style="color:var(--gold);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div><div class="stat-label">Medicaments en stock</div><div class="stat-value c-gold">248</div><div class="stat-sub">Valeur marchande : 12 350 000 FCFA</div></div>
+    <div class="stat-card s-red"><div class="stat-icon" style="color:var(--red);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="stat-label">Alertes stock</div><div class="stat-value c-red">7</div><div class="stat-sub">2 en rupture totale</div></div>
+    <div class="stat-card s-blue"><div class="stat-icon" style="color:var(--blue);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg></div><div class="stat-label">Ventes aujourd'hui</div><div class="stat-value c-blue">14</div><div class="stat-sub">transactions effectuees</div></div>
+    <div class="stat-card s-purple"><div class="stat-icon" style="color:var(--purple);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div><div class="stat-label">CA annee en cours</div><div class="stat-value c-purple">34 125 000</div><div class="stat-sub">412 ventes</div></div>
+  </div>
+  <div class="card"><div class="card-header"><div class="card-title">Evolution du CA &mdash; 30 derniers jours</div><div style="display:flex;align-items:center;gap:10px;"><select class="styled-select" style="padding:5px 10px;font-size:12px;border-radius:var(--radius-sm);background:var(--bg);color:var(--text);border:1px solid var(--border2);cursor:pointer;font-family:var(--font-body);"><option>30 derniers jours</option><option>7 derniers jours</option><option>Trimestre</option></select><span class="badge" style="background:var(--teal-dim);color:var(--teal2);">2 847 500 FCFA total</span></div></div><div class="card-pad"><div style="display:flex;align-items:end;gap:3px;height:160px;" id="ca-chart"></div></div></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-header"><div class="card-title">Stock critique</div><button class="btn btn-ghost btn-xs" onclick="navigateTo('stock')">Voir tout</button></div>
+      <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><div><div style="font-size:13px;font-weight:500;">Paracetamol 500mg</div><div class="text-xs">Antalgiques &middot; seuil : 20</div></div><span class="badge badge-red">0 u.</span></div>
+      <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><div><div style="font-size:13px;font-weight:500;">Amoxicilline 1g</div><div class="text-xs">Antibiotiques &middot; seuil : 15</div></div><span class="badge badge-red">0 u.</span></div>
+      <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><div><div style="font-size:13px;font-weight:500;">Ibuprofene 400mg</div><div class="text-xs">Anti-inflammatoires &middot; seuil : 10</div></div><span class="badge badge-gold">3 u.</span></div>
+      <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><div><div style="font-size:13px;font-weight:500;">Vitamine C 1g</div><div class="text-xs">Vitamines &middot; seuil : 25</div></div><span class="badge badge-gold">8 u.</span></div>
+      <div style="padding:9px 14px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-size:13px;font-weight:500;">Metformine 850mg</div><div class="text-xs">Diabetologie &middot; seuil : 12</div></div><span class="badge badge-gold">5 u.</span></div>
+    </div>
+    <div class="card"><div class="card-header"><div class="card-title">Dernieres ventes</div><button class="btn btn-ghost btn-xs" onclick="navigateTo('historique')">Historique</button></div><div class="table-wrap"><table><thead><tr><th>Reference</th><th>Client</th><th>Total</th><th>Caissier</th><th>Heure</th></tr></thead><tbody>
+      <tr><td class="td-mono">VNT-014</td><td>Mme Kouame</td><td class="fw-mono c-teal">12 500</td><td class="text-sm">Marie Ngo</td><td class="text-sm">14:22</td></tr>
+      <tr><td class="td-mono">VNT-013</td><td>&mdash;</td><td class="fw-mono c-teal">7 000</td><td class="text-sm">Paul Atangana</td><td class="text-sm">13:48</td></tr>
+      <tr><td class="td-mono">VNT-012</td><td>M. Mbarga</td><td class="fw-mono c-teal">25 800</td><td class="text-sm">Marie Ngo</td><td class="text-sm">13:15</td></tr>
+      <tr><td class="td-mono">VNT-011</td><td>&mdash;</td><td class="fw-mono c-teal">4 200</td><td class="text-sm">Paul Atangana</td><td class="text-sm">12:40</td></tr>
+      <tr><td class="td-mono">VNT-010</td><td>Mme Fouda</td><td class="fw-mono c-teal">18 300</td><td class="text-sm">Marie Ngo</td><td class="text-sm">11:55</td></tr>
+    </tbody></table></div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-header"><div class="card-title">Top 5 produits (30j)</div></div><div class="card-pad">
+      <div style="margin-bottom:12px;"><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Paracetamol 500mg</span><span class="fw-mono c-teal">142</span></div><div class="progress-bar"><div class="progress-fill" style="width:100%;background:linear-gradient(90deg,var(--teal),var(--blue));"></div></div></div>
+      <div style="margin-bottom:12px;"><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Amoxicilline 1g</span><span class="fw-mono c-teal">98</span></div><div class="progress-bar"><div class="progress-fill" style="width:69%;background:linear-gradient(90deg,var(--teal),var(--blue));"></div></div></div>
+      <div style="margin-bottom:12px;"><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Vitamine C 1g</span><span class="fw-mono c-teal">76</span></div><div class="progress-bar"><div class="progress-fill" style="width:53%;background:linear-gradient(90deg,var(--teal),var(--blue));"></div></div></div>
+      <div style="margin-bottom:12px;"><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Ibuprofene 400mg</span><span class="fw-mono c-teal">61</span></div><div class="progress-bar"><div class="progress-fill" style="width:43%;background:linear-gradient(90deg,var(--teal),var(--blue));"></div></div></div>
+      <div><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Doliprane 1000mg</span><span class="fw-mono c-teal">45</span></div><div class="progress-bar"><div class="progress-fill" style="width:32%;background:linear-gradient(90deg,var(--teal),var(--blue));"></div></div></div>
+    </div></div>
+    <div class="card" style="cursor:pointer;" onclick="navigateTo('commandes')"><div class="card-header"><div class="card-title">Commandes en cours</div><span class="badge badge-blue">3</span></div><div class="card-pad" style="text-align:center;padding:44px 20px;"><div style="color:var(--blue);margin-bottom:12px;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div><div style="font-size:30px;font-weight:700;font-family:var(--font-title);color:var(--blue);">3</div><div class="text-sm" style="margin-top:4px;">commande(s) en attente</div></div></div>
+  </div>
+</div>
+
+<!-- ═══════════ PAGE: POINT DE VENTE ═══════════ -->
+<div class="page" id="page-pos">
+  <div class="pos-layout">
+    <div class="cart-panel">
+      <div class="cart-header-bar"><div style="font-family:var(--font-title);font-size:16px;font-weight:600;">Nouvelle vente</div><div style="display:flex;align-items:center;gap:8px;"><span class="cart-count" id="cart-count">0 article</span><button class="btn btn-ghost btn-xs" onclick="clearCart()">Vider</button></div></div>
+      <div style="padding:6px 16px;background:var(--teal-dim);border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;"><span style="display:flex;align-items:center;gap:4px;">Caisse Principale</span><span style="font-weight:600;color:var(--teal2);">Solde : 485 000 FCFA</span></div>
+      <div class="cart-items" id="cart-items"><div class="empty" id="cart-empty"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.3;"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><div>Panier vide</div></div></div>
+      <div class="cart-footer">
+        <div class="totals-grid">
+          <div class="total-box"><label>Sous-total HT</label><span id="pos-subtotal">0 FCFA</span></div>
+          <div class="total-box"><label>TVA (19.25%)</label><span id="pos-tva">0 FCFA</span></div>
+          <div class="total-box total-main"><label>Total TTC</label><span id="pos-total" class="c-teal">0 FCFA</span></div>
+        </div>
+        <div class="form-group" style="margin-bottom:8px;"><label>Client</label><input type="text" id="pos-client" placeholder="Nom du client *"></div>
+        <div class="form-group" style="margin-bottom:8px;"><label>Montant recu (FCFA)</label><input type="number" id="pos-montant-recu" placeholder="0" step="1" min="0" oninput="calcMonnaie()" style="font-size:15px;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><span style="font-size:13px;color:var(--text2);">Monnaie a rendre</span><span id="pos-monnaie" class="fw-mono c-teal" style="font-size:16px;font-weight:700;">0 FCFA</span></div>
+        <button class="btn-validate" id="btn-valider" disabled onclick="validateSale()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Valider la vente</button>
+      </div>
+    </div>
+    <div class="catalogue-wrap">
+      <div class="catalogue-header">
+        <div class="card-title">Catalogue medicaments</div>
+        <div class="search-box" style="border-color:var(--teal);box-shadow:0 0 10px var(--teal-glow);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--teal2)"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" id="pos-search" placeholder="Rechercher ou scanner un code-barres..." oninput="filterPOS(this.value)"></div>
+        <select id="pos-cat-filter" onchange="filterPOSCat(this.value)" style="padding:6px 12px;font-size:12px;width:auto;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;"><option value="">Toutes categories</option><option>Antalgiques</option><option>Antibiotiques</option><option>Anti-inflammatoires</option><option>Vitamines</option><option>Cardiologie</option><option>Diabetologie</option><option>Respiratoire</option><option>Gastro-entérologie</option></select>
+      </div>
+      <div style="overflow-y:auto;flex:1;" id="pos-products"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ PAGE: STOCK ═══════════ -->
+<div class="page" id="page-stock">
+  <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+    <div class="stat-card s-blue"><div class="stat-icon" style="color:var(--blue);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div><div class="stat-label">Total references</div><div class="stat-value c-blue">248</div></div>
+    <div class="stat-card s-teal"><div class="stat-icon" style="color:var(--teal2);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-label">Valeur d'achat du stock</div><div class="stat-value c-teal" style="font-size:20px;">12 350 000 FCFA</div></div>
+    <div class="stat-card s-gold"><div class="stat-icon" style="color:var(--gold);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="stat-label">Stock bas</div><div class="stat-value c-gold">5</div></div>
+    <div class="stat-card s-red"><div class="stat-icon" style="color:var(--red);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="stat-label">Ruptures</div><div class="stat-value c-red">2</div></div>
+  </div>
+  <div class="card"><div class="card-header"><div class="card-title">Inventaire des medicaments</div><div style="display:flex;gap:8px;flex-wrap:wrap;"><div class="search-box" style="min-width:300px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text3)"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" placeholder="Rechercher..." oninput="filterStock(this.value)"></div>
+    <select onchange="filterStockStatus(this.value)" style="padding:6px 12px;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;"><option value="">Tous</option><option value="rupture">Rupture</option><option value="bas">Stock bas</option><option value="ok">Disponible</option></select>
+    <select style="padding:6px 12px;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;"><option>Toutes categories</option><option>Antalgiques</option><option>Antibiotiques</option><option>Anti-inflammatoires</option><option>Vitamines</option><option>Cardiologie</option></select>
+    <button class="btn btn-primary btn-sm" onclick="showToast('Formulaire d ajout de medicament','info')">+ Medicament</button></div></div>
+  <div class="table-wrap"><table id="stock-table"><thead><tr><th>Medicament</th><th>Ref.</th><th>Categorie</th><th>Stock</th><th>Seuil</th><th>P. Achat</th><th>P. Vente</th><th>Expiration</th><th>Fournisseur</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="stock-tbody"></tbody></table></div></div>
+</div>
+
+<!-- ═══════════ PAGE: MEDICAMENTS ═══════════ -->
+<div class="page" id="page-medicaments">
+  <div class="card"><div class="card-header"><div class="card-title">Liste des medicaments</div><div style="display:flex;gap:8px;"><div class="search-box" style="min-width:300px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text3)"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" placeholder="Rechercher..."></div><button class="btn btn-primary btn-sm" onclick="showToast('Formulaire d ajout de medicament','info')">+ Ajouter</button></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Medicament</th><th>Ref.</th><th>Categorie</th><th>Stock</th><th>P. Achat</th><th>P. Vente</th><th>Expiration</th><th>Fournisseur</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="med-tbody"></tbody></table></div></div>
+</div>
+
+<!-- ═══════════ PAGE: COMMANDES ═══════════ -->
+<div class="page" id="page-commandes">
+  <div class="card"><div class="card-header"><div class="card-title">Commandes fournisseurs</div><button class="btn btn-primary btn-sm" onclick="openModal('modal-cmd')">+ Nouvelle commande</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Reference</th><th>Fournisseur</th><th>Date</th><th>Livraison prev.</th><th>Total</th><th>Statut</th><th>Actions</th></tr></thead><tbody>
+    <tr><td class="td-mono">CMD-2026-001</td><td>PharmCam Distribution</td><td class="text-sm">15/07/2026</td><td class="text-sm">22/07/2026</td><td class="fw-mono c-teal">1 250 000 FCFA</td><td><span class="badge badge-blue">En attente</span></td><td><button class="btn btn-ghost btn-xs" onclick="showToast('Details commande CMD-001','info')">Voir</button></td></tr>
+    <tr><td class="td-mono">CMD-2026-002</td><td>MediSupply SARL</td><td class="text-sm">18/07/2026</td><td class="text-sm">25/07/2026</td><td class="fw-mono c-teal">875 000 FCFA</td><td><span class="badge badge-gold">En cours</span></td><td><button class="btn btn-ghost btn-xs" onclick="showToast('Details commande CMD-002','info')">Voir</button></td></tr>
+    <tr><td class="td-mono">CMD-2026-003</td><td>PharmCam Distribution</td><td class="text-sm">20/07/2026</td><td class="text-sm">28/07/2026</td><td class="fw-mono c-teal">2 100 000 FCFA</td><td><span class="badge badge-blue">En attente</span></td><td><button class="btn btn-ghost btn-xs" onclick="showToast('Details commande CMD-003','info')">Voir</button></td></tr>
+    <tr><td class="td-mono">CMD-2026-004</td><td>AfriPharma Ltd</td><td class="text-sm">10/07/2026</td><td class="text-sm">17/07/2026</td><td class="fw-mono c-teal">560 000 FCFA</td><td><span class="badge badge-green">Livree</span></td><td><button class="btn btn-ghost btn-xs" onclick="showToast('Details commande CMD-004','info')">Voir</button></td></tr>
+    <tr><td class="td-mono">CMD-2026-005</td><td>MediSupply SARL</td><td class="text-sm">05/07/2026</td><td class="text-sm">12/07/2026</td><td class="fw-mono c-teal">430 000 FCFA</td><td><span class="badge badge-green">Livree</span></td><td><button class="btn btn-ghost btn-xs" onclick="showToast('Details commande CMD-005','info')">Voir</button></td></tr>
+  </tbody></table></div></div>
+</div>
+
+<!-- ═══════════ PAGE: CAISSES ═══════════ -->
+<div class="page" id="page-caisses">
+  <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+    <div class="stat-card s-teal"><div class="stat-label">Sessions ouvertes</div><div class="stat-value c-teal">2</div><div class="stat-sub">Caisses actives</div></div>
+    <div class="stat-card s-gold"><div class="stat-label">Total encaisse (jour)</div><div class="stat-value c-gold">185 000 FCFA</div><div class="stat-sub">14 transactions</div></div>
+    <div class="stat-card s-blue"><div class="stat-label">Fond de caisse total</div><div class="stat-value c-blue">200 000 FCFA</div><div class="stat-sub">2 postes</div></div>
+  </div>
+  <div class="card"><div class="card-header"><div class="card-title">Sessions de caisse</div><button class="btn btn-primary btn-sm" onclick="openModal('modal-ouvrir-caisse')">+ Ouvrir une caisse</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Poste</th><th>Caissier</th><th>Fond initial</th><th>Entrees</th><th>Sorties</th><th>Solde</th><th>Ouverture</th><th>Statut</th><th>Actions</th></tr></thead><tbody>
+    <tr><td class="td-name">Caisse Principale</td><td>Marie Ngo</td><td class="fw-mono">100 000</td><td class="fw-mono c-teal">95 000</td><td class="fw-mono c-red">10 000</td><td class="fw-mono c-teal" style="font-weight:700;">185 000</td><td class="text-sm">08:00</td><td><span class="badge badge-green">Ouverte</span></td><td><button class="btn btn-ghost btn-xs" onclick="openModal('modal-cloturer')">Cloturer</button></td></tr>
+    <tr><td class="td-name">Caisse Secondaire</td><td>Paul Atangana</td><td class="fw-mono">100 000</td><td class="fw-mono c-teal">90 000</td><td class="fw-mono c-red">5 000</td><td class="fw-mono c-teal" style="font-weight:700;">185 000</td><td class="text-sm">08:15</td><td><span class="badge badge-green">Ouverte</span></td><td><button class="btn btn-ghost btn-xs" onclick="openModal('modal-cloturer')">Cloturer</button></td></tr>
+    <tr><td class="td-name">Caisse Principale</td><td>Marie Ngo</td><td class="fw-mono">100 000</td><td class="fw-mono c-teal">320 000</td><td class="fw-mono c-red">15 000</td><td class="fw-mono" style="font-weight:700;">405 000</td><td class="text-sm">08:00</td><td><span class="badge badge-gray">Fermee</span></td><td><button class="btn btn-ghost btn-xs" onclick="showToast('Rapport de cloture Z','info')">Rapport Z</button></td></tr>
+  </tbody></table></div></div>
+</div>
+
+<!-- ═══════════ PAGE: HISTORIQUE ═══════════ -->
+<div class="page" id="page-historique">
+  <div class="card"><div class="card-header"><div class="card-title">Historique des ventes</div><div style="display:flex;gap:8px;align-items:center;">
+    <input type="date" value="2026-07-01" style="width:auto;padding:6px 10px;font-size:12px;">
+    <span style="color:var(--text3);">a</span>
+    <input type="date" value="2026-07-21" style="width:auto;padding:6px 10px;font-size:12px;">
+    <select style="padding:6px 12px;font-size:12px;width:auto;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:var(--radius-sm);"><option value="">Tous modes</option><option>Especes</option><option>Carte</option><option>Credit</option></select>
+    <button class="btn btn-primary btn-sm">Filtrer</button>
+    <button class="btn btn-ghost btn-sm" onclick="showToast('Export CSV genere','success')">Export CSV</button>
+  </div></div>
+  <div class="table-wrap"><table><thead><tr><th>Reference</th><th>Date</th><th>Client</th><th>Articles</th><th>Sous-total</th><th>TVA</th><th>Total</th><th>Mode</th><th>Caissier</th></tr></thead><tbody>
+    <tr><td class="td-mono">VNT-20260721-014</td><td class="text-sm">21/07 14:22</td><td>Mme Kouame</td><td>3</td><td class="fw-mono">10 482</td><td class="fw-mono">2 018</td><td class="fw-mono c-teal">12 500</td><td><span class="badge badge-green">Especes</span></td><td>Marie Ngo</td></tr>
+    <tr><td class="td-mono">VNT-20260721-013</td><td class="text-sm">21/07 13:48</td><td>&mdash;</td><td>2</td><td class="fw-mono">5 869</td><td class="fw-mono">1 131</td><td class="fw-mono c-teal">7 000</td><td><span class="badge badge-green">Especes</span></td><td>Paul Atangana</td></tr>
+    <tr><td class="td-mono">VNT-20260721-012</td><td class="text-sm">21/07 13:15</td><td>M. Mbarga</td><td>5</td><td class="fw-mono">21 638</td><td class="fw-mono">4 162</td><td class="fw-mono c-teal">25 800</td><td><span class="badge badge-blue">Carte</span></td><td>Marie Ngo</td></tr>
+    <tr><td class="td-mono">VNT-20260721-011</td><td class="text-sm">21/07 12:40</td><td>&mdash;</td><td>1</td><td class="fw-mono">3 521</td><td class="fw-mono">679</td><td class="fw-mono c-teal">4 200</td><td><span class="badge badge-green">Especes</span></td><td>Paul Atangana</td></tr>
+    <tr><td class="td-mono">VNT-20260721-010</td><td class="text-sm">21/07 11:55</td><td>Mme Fouda</td><td>4</td><td class="fw-mono">15 345</td><td class="fw-mono">2 955</td><td class="fw-mono c-teal">18 300</td><td><span class="badge badge-purple">Credit</span></td><td>Marie Ngo</td></tr>
+  </tbody></table></div></div>
+</div>
+
+<!-- ═══════════ PAGE: RAPPORTS ═══════════ -->
+<div class="page" id="page-rapports">
+  <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+    <div class="stat-card s-teal"><div class="stat-label">CA total (mois)</div><div class="stat-value c-teal">2 847 500</div></div>
+    <div class="stat-card s-blue"><div class="stat-label">Nombre de ventes</div><div class="stat-value c-blue">156</div></div>
+    <div class="stat-card s-gold"><div class="stat-label">Panier moyen</div><div class="stat-value c-gold">18 253</div></div>
+    <div class="stat-card s-purple"><div class="stat-label">Vente max</div><div class="stat-value c-purple">125 000</div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-header"><div class="card-title">Ventes par mode de paiement</div></div><div class="card-pad">
+      <div style="margin-bottom:12px;"><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Especes</span><span class="fw-mono c-teal">68%</span></div><div class="progress-bar"><div class="progress-fill" style="width:68%;background:var(--teal);"></div></div></div>
+      <div style="margin-bottom:12px;"><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Carte bancaire</span><span class="fw-mono c-blue">20%</span></div><div class="progress-bar"><div class="progress-fill" style="width:20%;background:var(--blue);"></div></div></div>
+      <div style="margin-bottom:12px;"><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Credit</span><span class="fw-mono c-purple">8%</span></div><div class="progress-bar"><div class="progress-fill" style="width:8%;background:var(--purple);"></div></div></div>
+      <div><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Assurance</span><span class="fw-mono c-gold">4%</span></div><div class="progress-bar"><div class="progress-fill" style="width:4%;background:var(--gold);"></div></div></div>
+    </div></div>
+    <div class="card"><div class="card-header"><div class="card-title">Top caissiers (mois)</div></div><div class="card-pad">
+      <div style="margin-bottom:12px;"><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Marie Ngo</span><span class="fw-mono c-teal">1 650 000 FCFA</span></div><div class="progress-bar"><div class="progress-fill" style="width:100%;background:linear-gradient(90deg,var(--teal),var(--blue));"></div></div></div>
+      <div><div class="flex-between" style="font-size:13px;margin-bottom:4px;"><span>Paul Atangana</span><span class="fw-mono c-teal">1 197 500 FCFA</span></div><div class="progress-bar"><div class="progress-fill" style="width:72%;background:linear-gradient(90deg,var(--teal),var(--blue));"></div></div></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ═══════════ PAGE: COMPTABILITE ═══════════ -->
+<div class="page" id="page-comptabilite">
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+    <button class="btn btn-ghost" onclick="showToast('Saisie d ecriture comptable','info')">Saisie manuelle</button>
+    <button class="btn btn-ghost" onclick="showToast('Journal general','info')">Journal</button>
+    <button class="btn btn-ghost" onclick="showToast('Balance generale','info')">Balance</button>
+    <button class="btn btn-ghost" onclick="showToast('Compte de resultat','info')">Compte de resultat</button>
+    <button class="btn btn-ghost" onclick="showToast('Bilan','info')">Bilan</button>
+    <button class="btn btn-ghost" onclick="showToast('Grand livre','info')">Grand livre</button>
+    <button class="btn btn-ghost" onclick="showToast('Cloture annuelle','info')">Cloture</button>
+    <button class="btn btn-ghost" onclick="showToast('Plan comptable OHADA','info')">Plan comptable</button>
+  </div>
+  <div class="card"><div class="card-header"><div class="card-title">Journal general</div><div style="display:flex;gap:8px;"><input type="date" value="2026-07-01" style="width:auto;padding:6px 10px;font-size:12px;"><span style="color:var(--text3);">a</span><input type="date" value="2026-07-21" style="width:auto;padding:6px 10px;font-size:12px;"><button class="btn btn-primary btn-sm">Filtrer</button></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Date</th><th>Reference</th><th>Libelle</th><th>Compte</th><th>Debit</th><th>Credit</th></tr></thead><tbody>
+    <tr><td class="text-sm">21/07</td><td class="td-mono">VNT-014</td><td>Vente Especes - VNT-014</td><td class="td-mono">5711</td><td class="fw-mono">12 500</td><td class="fw-mono">—</td></tr>
+    <tr><td class="text-sm">21/07</td><td class="td-mono">VNT-014</td><td>Vente medicaments VNT-014</td><td class="td-mono">7011</td><td class="fw-mono">—</td><td class="fw-mono c-teal">10 482</td></tr>
+    <tr><td class="text-sm">21/07</td><td class="td-mono">VNT-014</td><td>TVA collectee VNT-014</td><td class="td-mono">4411</td><td class="fw-mono">—</td><td class="fw-mono c-teal">2 018</td></tr>
+    <tr><td class="text-sm">21/07</td><td class="td-mono">CMD-001</td><td>Achat CMD-001 - PharmCam</td><td class="td-mono">6011</td><td class="fw-mono">1 050 421</td><td class="fw-mono">—</td></tr>
+    <tr><td class="text-sm">21/07</td><td class="td-mono">CMD-001</td><td>TVA recup. CMD-001</td><td class="td-mono">4451</td><td class="fw-mono">199 579</td><td class="fw-mono">—</td></tr>
+    <tr><td class="text-sm">21/07</td><td class="td-mono">CMD-001</td><td>Fournisseur PharmCam</td><td class="td-mono">4011</td><td class="fw-mono">—</td><td class="fw-mono c-teal">1 250 000</td></tr>
+  </tbody></table></div></div>
+</div>
+
+<!-- ═══════════ PAGES SIMPLES ═══════════ -->
+<div class="page" id="page-fournisseurs"><div class="card"><div class="card-header"><div class="card-title">Fournisseurs</div><button class="btn btn-primary btn-sm" onclick="showToast('Formulaire ajout fournisseur','info')">+ Ajouter</button></div><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Contact</th><th>Telephone</th><th>Email</th><th>Ville</th><th>Statut</th><th>Actions</th></tr></thead><tbody>
+    <tr><td class="td-name">PharmCam Distribution</td><td>Dr. Nkoulou</td><td class="td-mono">+237 699 123 456</td><td>contact@pharmcam.cm</td><td>Douala</td><td><span class="badge badge-green">Actif</span></td><td><button class="btn btn-ghost btn-xs">Modifier</button></td></tr>
+    <tr><td class="td-name">MediSupply SARL</td><td>Mme Fotsing</td><td class="td-mono">+237 677 987 654</td><td>info@medisupply.cm</td><td>Yaounde</td><td><span class="badge badge-green">Actif</span></td><td><button class="btn btn-ghost btn-xs">Modifier</button></td></tr>
+    <tr><td class="td-name">AfriPharma Ltd</td><td>Mr. Kamga</td><td class="td-mono">+237 655 456 789</td><td>sales@afripharma.com</td><td>Bafoussam</td><td><span class="badge badge-green">Actif</span></td><td><button class="btn btn-ghost btn-xs">Modifier</button></td></tr>
+  </tbody></table></div></div></div>
+
+<div class="page" id="page-retours"><div class="card"><div class="card-header"><div class="card-title">Retours caisse</div><button class="btn btn-primary btn-sm" onclick="showToast('Formulaire de retour','info')">+ Nouveau retour</button></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Vente d'origine</th><th>Articles</th><th>Montant</th><th>Motif</th><th>Rembourse</th></tr></thead><tbody>
+    <tr><td class="text-sm">21/07 15:30</td><td class="td-mono">VNT-012</td><td>1</td><td class="fw-mono c-red">-5 200 FCFA</td><td>Produit defectueux</td><td><span class="badge badge-green">Oui</span></td></tr>
+    <tr><td class="text-sm">20/07 10:15</td><td class="td-mono">VNT-008</td><td>2</td><td class="fw-mono c-red">-8 400 FCFA</td><td>Erreur de commande</td><td><span class="badge badge-green">Oui</span></td></tr>
+  </tbody></table></div></div></div>
+
+<div class="page" id="page-utilisateurs"><div class="card"><div class="card-header"><div class="card-title">Utilisateurs</div><button class="btn btn-primary btn-sm" onclick="showToast('Formulaire ajout utilisateur','info')">+ Ajouter</button></div><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Role</th><th>Derniere connexion</th><th>Statut</th><th>Actions</th></tr></thead><tbody>
+    <tr><td class="td-name">Jean Dupont</td><td class="td-mono">admin@pharmacare.cm</td><td><span class="badge badge-blue">Admin</span></td><td class="text-sm">21/07 14:30</td><td><span class="badge badge-green">Actif</span></td><td><button class="btn btn-ghost btn-xs">Modifier</button></td></tr>
+    <tr><td class="td-name">Marie Ngo</td><td class="td-mono">marie@pharmacare.cm</td><td><span class="badge badge-green">Caissier</span></td><td class="text-sm">21/07 08:00</td><td><span class="badge badge-green">Actif</span></td><td><button class="btn btn-ghost btn-xs">Modifier</button></td></tr>
+    <tr><td class="td-name">Paul Atangana</td><td class="td-mono">paul@pharmacare.cm</td><td><span class="badge badge-green">Caissier</span></td><td class="text-sm">21/07 08:15</td><td><span class="badge badge-green">Actif</span></td><td><button class="btn btn-ghost btn-xs">Modifier</button></td></tr>
+    <tr><td class="td-name">Dr. Kamga</td><td class="td-mono">kamga@pharmacare.cm</td><td><span class="badge badge-gold">Pharmacien</span></td><td class="text-sm">20/07 17:45</td><td><span class="badge badge-green">Actif</span></td><td><button class="btn btn-ghost btn-xs">Modifier</button></td></tr>
+  </tbody></table></div></div></div>
+
+<div class="page" id="page-roles"><div class="card"><div class="card-header"><div class="card-title">Roles & Permissions</div></div><div class="card-pad"><div class="grid-2">
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:20px;"><h3 style="font-size:16px;margin-bottom:12px;color:var(--red);">Administrateur</h3><div style="font-size:12px;color:var(--text2);line-height:1.8;">Dashboard, POS, Stock, Medicaments, Fournisseurs, Commandes, Caisses, Retours, Historique, Rapports, Comptabilite, Utilisateurs, Roles, Categories, Parametres</div></div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:20px;"><h3 style="font-size:16px;margin-bottom:12px;color:var(--gold);">Pharmacien</h3><div style="font-size:12px;color:var(--text2);line-height:1.8;">Dashboard, Stock, Medicaments, Fournisseurs, Commandes, Retours, Historique, Rapports, Caisses (supervision)</div></div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:20px;"><h3 style="font-size:16px;margin-bottom:12px;color:var(--teal2);">Caissier</h3><div style="font-size:12px;color:var(--text2);line-height:1.8;">Dashboard, Point de Vente, Caisses (ouverture/fermeture), Historique personnel, Rapports personnels</div></div>
+</div></div></div></div>
+
+<div class="page" id="page-categories"><div class="card"><div class="card-header"><div class="card-title">Categories</div><button class="btn btn-primary btn-sm" onclick="showToast('Formulaire ajout categorie','info')">+ Ajouter</button></div><div class="card-pad"><div style="display:flex;flex-wrap:wrap;gap:8px;">
+    <span style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;background:rgba(0,201,167,.1);color:#00c9a7;border:1px solid rgba(0,201,167,.2);">Antalgiques</span>
+    <span style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;background:rgba(72,149,239,.1);color:#4895ef;border:1px solid rgba(72,149,239,.2);">Antibiotiques</span>
+    <span style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;background:rgba(240,180,41,.1);color:#f0b429;border:1px solid rgba(240,180,41,.2);">Anti-inflammatoires</span>
+    <span style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;background:rgba(155,89,182,.1);color:#9b59b6;border:1px solid rgba(155,89,182,.2);">Vitamines</span>
+    <span style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.2);">Cardiologie</span>
+    <span style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.2);">Diabetologie</span>
+    <span style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;background:rgba(26,188,156,.1);color:#1abc9c;border:1px solid rgba(26,188,156,.2);">Respiratoire</span>
+    <span style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;background:rgba(52,152,219,.1);color:#3498db;border:1px solid rgba(52,152,219,.2);">Gastro-entérologie</span>
+</div></div></div></div>
+
+<div class="page" id="page-parametres"><div class="card"><div class="card-header"><div class="card-title">Parametres</div></div><div class="card-pad" style="max-width:600px;">
+    <div class="form-group"><label>Nom de l'application</label><input type="text" value="PharmaCare"></div>
+    <div class="form-group"><label>Devise</label><select><option selected>FCFA - Franc CFA BEAC</option><option>Euro</option><option>Dollar US</option></select></div>
+    <div class="form-group"><label>TVA (%)</label><input type="number" value="19.25" step="0.01"></div>
+    <div class="form-group"><label>Adresse pharmacie</label><input type="text" value="Boulevard de la Joie, Douala"></div>
+    <div class="form-group"><label>Telephone</label><input type="text" value="+237 699 000 000"></div>
+    <div class="form-group"><label>NIF</label><input type="text" value="M01234567890"></div>
+    <div class="form-group"><label>Theme</label><select><option selected>Dark Navy</option><option>Dark Rose</option></select></div>
+    <button class="btn btn-primary" onclick="showToast('Parametres enregistres !','success')" style="margin-top:10px;">Enregistrer</button>
+</div></div></div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ═══════════ MODALS ═══════════ -->
+<div class="modal-overlay" id="modal-ouvrir-caisse" onclick="if(event.target===this)closeModal(this.id)">
+  <div class="modal"><div class="modal-header"><div class="modal-title">Ouvrir une caisse</div><button class="modal-close" onclick="closeModal('modal-ouvrir-caisse')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Poste de caisse</label><select><option>Caisse Principale</option><option>Caisse Secondaire</option></select></div>
+      <div class="form-group"><label>Fond initial (FCFA)</label><input type="number" value="100000" step="1000"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-ouvrir-caisse')">Annuler</button><button class="btn btn-primary" onclick="closeModal('modal-ouvrir-caisse');showToast('Caisse ouverte avec fond de 100 000 FCFA','success')">Ouvrir</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-cloturer" onclick="if(event.target===this)closeModal(this.id)">
+  <div class="modal"><div class="modal-header"><div class="modal-title">Cloturer la caisse</div><button class="modal-close" onclick="closeModal('modal-cloturer')">&times;</button></div>
+    <div class="modal-body">
+      <div style="background:var(--teal-dim);border:1px solid var(--teal-glow);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:4px;">Solde attendu</div>
+        <div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:var(--teal2);">185 000 FCFA</div>
+      </div>
+      <div class="form-group"><label>Solde reel compte (FCFA)</label><input type="number" value="185000" step="1000" id="solde-reel"></div>
+      <div style="font-size:13px;color:var(--text2);">Ecart : <strong id="ecart-display" style="color:var(--teal2);">0 FCFA</strong></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-cloturer')">Annuler</button><button class="btn btn-primary" onclick="closeModal('modal-cloturer');showToast('Caisse cloturee. Ecart : 0 FCFA','success')">Cloturer</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-cmd" onclick="if(event.target===this)closeModal(this.id)">
+  <div class="modal" style="width:600px;"><div class="modal-header"><div class="modal-title">Nouvelle commande</div><button class="modal-close" onclick="closeModal('modal-cmd')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Fournisseur</label><select><option>PharmCam Distribution</option><option>MediSupply SARL</option><option>AfriPharma Ltd</option></select></div>
+      <div class="form-group"><label>Date de commande</label><input type="date" value="2026-07-21"></div>
+      <div class="form-group"><label>Date de livraison prevue</label><input type="date" value="2026-07-28"></div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Lignes de commande</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px;font-size:11px;color:var(--text3);text-transform:uppercase;"><span>Designation</span><span>Qte</span><span>Prix unitaire</span></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px;"><input type="text" placeholder="Paracetamol 500mg"><input type="number" value="100"><input type="number" value="800"></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px;"><input type="text" placeholder="Amoxicilline 1g"><input type="number" value="50"><input type="number" value="2500"></div>
+      <button class="btn btn-ghost btn-xs" onclick="showToast('Ligne ajoutee','info')" style="margin-top:4px;">+ Ajouter une ligne</button>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-cmd')">Annuler</button><button class="btn btn-primary" onclick="closeModal('modal-cmd');showToast('Commande creee avec succes','success')">Creer la commande</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════ JS ═══════════ -->
+<script>
+// ── DATA ──
+var products = [
+  {id:1,ref:'MED-001',nom:'Paracetamol 500mg',cat:'Antalgiques',prix:1500,stock:0,seuil:20,achat:800,fourn:'PharmCam',exp:'12/2027',color:'#00c9a7'},
+  {id:2,ref:'MED-002',nom:'Doliprane 1000mg',cat:'Antalgiques',prix:2200,stock:45,seuil:15,achat:1200,fourn:'PharmCam',exp:'06/2027',color:'#00c9a7'},
+  {id:3,ref:'MED-003',nom:'Amoxicilline 1g',cat:'Antibiotiques',prix:3500,stock:0,seuil:15,achat:1800,fourn:'MediSupply',exp:'03/2027',color:'#4895ef'},
+  {id:4,ref:'MED-004',nom:'Azithromycine 500mg',cat:'Antibiotiques',prix:4200,stock:28,seuil:10,achat:2100,fourn:'MediSupply',exp:'09/2027',color:'#4895ef'},
+  {id:5,ref:'MED-005',nom:'Ibuprofene 400mg',cat:'Anti-inflammatoires',prix:1800,stock:3,seuil:10,achat:900,fourn:'PharmCam',exp:'11/2027',color:'#f0b429'},
+  {id:6,ref:'MED-006',nom:'Diclofenac 50mg',cat:'Anti-inflammatoires',prix:2000,stock:32,seuil:12,achat:1000,fourn:'AfriPharma',exp:'08/2027',color:'#f0b429'},
+  {id:7,ref:'MED-007',nom:'Artemether-Lumefantrine',cat:'Antipaludiques',prix:5500,stock:18,seuil:20,achat:3000,fourn:'MediSupply',exp:'05/2027',color:'#ef4444'},
+  {id:8,ref:'MED-008',nom:'Vitamine C 1g',cat:'Vitamines',prix:2000,stock:8,seuil:25,achat:600,fourn:'PharmCam',exp:'12/2027',color:'#9b59b6'},
+  {id:9,ref:'MED-009',nom:'Metformine 850mg',cat:'Diabetologie',prix:3000,stock:5,seuil:12,achat:1500,fourn:'AfriPharma',exp:'07/2027',color:'#e67e22'},
+  {id:10,ref:'MED-010',nom:'Amlodipine 5mg',cat:'Cardiologie',prix:4200,stock:4,seuil:10,achat:2000,fourn:'MediSupply',exp:'10/2027',color:'#e74c3c'},
+  {id:11,ref:'MED-011',nom:'Omeprazole 20mg',cat:'Gastro-entérologie',prix:3200,stock:6,seuil:10,achat:1600,fourn:'PharmCam',exp:'04/2027',color:'#3498db'},
+  {id:12,ref:'MED-012',nom:'Salbutamol Inhalateur',cat:'Respiratoire',prix:6500,stock:22,seuil:8,achat:3500,fourn:'AfriPharma',exp:'02/2028',color:'#1abc9c'},
+];
+
+var cart = [];
+
+// ── NAVIGATION ──
+var pageTitles = {dashboard:'Tableau de bord',pos:'Point de Vente',stock:'Gestion du stock',medicaments:'Medicaments',fournisseurs:'Fournisseurs',commandes:'Commandes',retours:'Retours caisse',caisses:'Caisses',historique:'Historique des ventes',rapports:'Rapports',comptabilite:'Comptabilite',utilisateurs:'Utilisateurs',roles:'Roles & Permissions',categories:'Categories',parametres:'Parametres'};
+
+function navigateTo(page) {
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  var el = document.getElementById('page-'+page);
+  if(el) el.classList.add('active');
+  var nav = document.querySelector('[data-page="'+page+'"]');
+  if(nav) nav.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[page]||page;
+  document.getElementById('alert-panel').classList.remove('open');
+  if(page==='stock') renderStockTable();
+  if(page==='medicaments') renderMedTable();
+  if(page==='pos') renderPOSProducts();
+}
+
+document.querySelectorAll('.nav-item[data-page]').forEach(function(item){
+  item.addEventListener('click',function(){ navigateTo(this.dataset.page); });
+});
+
+// ── CLOCK ──
+function updateClock(){var d=new Date(),p=function(n){return n<10?'0'+n:n;};document.getElementById('live-clock').textContent=p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());}
+updateClock();setInterval(updateClock,30000);
+
+// ── ALERT PANEL ──
+function toggleAlertPanel(){document.getElementById('alert-panel').classList.toggle('open');}
+document.addEventListener('click',function(e){var p=document.getElementById('alert-panel'),b=document.querySelector('.alert-btn');if(p.classList.contains('open')&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');});
+
+// ── TOAST ──
+function showToast(msg,type){
+  var t=document.getElementById('toast');
+  t.className='toast toast-'+(type||'info')+' show';
+  t.innerHTML=(type==='success'?'&#10003; ':type==='error'?'&#10007; ':'&#9432; ')+msg;
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(function(){t.classList.remove('show');},3000);
+}
+
+// ── MODAL ──
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ── DASHBOARD CHART ──
+(function(){var c=document.getElementById('ca-chart');if(!c)return;var vals=[45,62,38,71,55,82,40,95,68,50,75,60,85,42,70,58,88,48,65,78,52,72,44,90,56,80,35,64,100,47];vals.forEach(function(v){var b=document.createElement('div');b.style.cssText='flex:1;border-radius:3px 3px 0 0;background:linear-gradient(180deg,var(--teal),rgba(34,211,238,.3));height:'+v+'%;min-width:0;transition:all .3s;cursor:pointer;';b.title=v+'%';b.onmouseover=function(){this.style.opacity='.7';};b.onmouseout=function(){this.style.opacity='1';};c.appendChild(b);});})();
+
+// ── STOCK TABLE ──
+function renderStockTable(filter,statusFilter){
+  var tb=document.getElementById('stock-tbody');if(!tb)return;
+  tb.innerHTML='';
+  products.forEach(function(p){
+    if(filter&&p.nom.toLowerCase().indexOf(filter.toLowerCase())===-1&&p.ref.toLowerCase().indexOf(filter.toLowerCase())===-1)return;
+    var st=p.stock===0?'rupture':p.stock<=p.seuil?'bas':'ok';
+    if(statusFilter&&st!==statusFilter)return;
+    var badge=p.stock===0?'badge-red':p.stock<=p.seuil?'badge-gold':'badge-green';
+    var txt=p.stock===0?'Rupture':p.stock<=p.seuil?'Stock bas':'Disponible';
+    var exp=p.exp||'—';
+    tb.innerHTML+='<tr><td class="td-name">'+p.nom+'</td><td class="td-mono">'+p.ref+'</td><td><span class="badge badge-gray">'+p.cat+'</span></td><td><strong>'+p.stock+'</strong></td><td class="text-sm">'+p.seuil+'</td><td class="fw-mono text-sm">'+fmt(p.achat)+'</td><td class="fw-mono c-teal">'+fmt(p.prix)+'</td><td class="text-sm">'+exp+'</td><td class="text-sm">'+p.fourn+'</td><td><span class="badge '+badge+'">'+txt+'</span></td><td><div style="display:flex;gap:6px;"><button class="btn btn-ghost btn-xs" onclick="showToast(\'Edition de '+p.nom.replace(/'/g,"\\'")+'\',\'info\')">Modifier</button><button class="btn btn-ghost btn-xs" onclick="showToast(\'Ajustement de stock pour '+p.nom.replace(/'/g,"\\'")+'\',\'info\')">Ajuster</button></div></td></tr>';
+  });
+}
+function filterStock(q){renderStockTable(q,document.querySelector('#page-stock select')?document.querySelector('#page-stock select').value:'');}
+function filterStockStatus(s){renderStockTable(document.querySelector('#page-stock .search-box input')?document.querySelector('#page-stock .search-box input').value:'',s);}
+
+// ── MED TABLE ──
+function renderMedTable(){
+  var tb=document.getElementById('med-tbody');if(!tb)return;
+  tb.innerHTML='';
+  products.forEach(function(p){
+    var badge=p.stock===0?'badge-red':p.stock<=p.seuil?'badge-gold':'badge-green';
+    var txt=p.stock===0?'Rupture':p.stock<=p.seuil?'Stock bas':'Disponible';
+    tb.innerHTML+='<tr><td class="td-name">'+p.nom+'</td><td class="td-mono">'+p.ref+'</td><td><span class="badge badge-gray">'+p.cat+'</span></td><td><strong>'+p.stock+'</strong></td><td class="fw-mono" style="color:var(--text3);">'+fmt(p.achat)+'</td><td class="fw-mono c-teal">'+fmt(p.prix)+'</td><td class="text-sm">'+p.exp+'</td><td class="text-sm">'+p.fourn+'</td><td><span class="badge '+badge+'">'+txt+'</span></td><td><div style="display:flex;gap:6px;"><button class="btn btn-ghost btn-xs" onclick="showToast(\'Edition de '+p.nom.replace(/'/g,"\\'")+'\',\'info\')">Modifier</button><button class="btn btn-danger btn-xs" onclick="showToast(\'Archiver '+p.nom.replace(/'/g,"\\'")+' ?\',\'error\')">Archiver</button></div></td></tr>';
+  });
+}
+
+// ── POS PRODUCTS ──
+function renderPOSProducts(){
+  var c=document.getElementById('pos-products');if(!c)return;
+  c.innerHTML='<div class="pos-grid" id="pos-grid"></div>';
+  var g=document.getElementById('pos-grid');
+  products.forEach(function(p){
+    var out=p.stock===0;
+    var d=document.createElement('div');
+    d.className='pos-tile'+(out?' out':'');
+    d.dataset.id=p.id;
+    d.innerHTML='<div class="pt-cat" style="--cat-color:'+p.color+'">'+p.cat+'</div><div class="pt-name">'+p.nom+'</div><div class="pt-bottom"><span class="pt-price">'+fmt(p.prix)+'</span><span class="pt-stock">'+(out?'<span class="badge badge-red" style="font-size:9px;">Rupture</span>':'Stk <strong>'+p.stock+'</strong>')+'</span></div>';
+    if(!out) d.onclick=function(){addToCart(p.id);};
+    g.appendChild(d);
+  });
+}
+function filterPOS(q){
+  q=(q||'').toLowerCase();
+  document.querySelectorAll('.pos-tile').forEach(function(el){
+    var p=products.find(function(x){return x.id==el.dataset.id;});
+    if(p) el.style.display=(p.nom.toLowerCase().indexOf(q)>-1||p.ref.toLowerCase().indexOf(q)>-1||p.cat.toLowerCase().indexOf(q)>-1)?'':'none';
+  });
+}
+function filterPOSCat(cat){
+  document.querySelectorAll('.pos-tile').forEach(function(el){
+    var p=products.find(function(x){return x.id==el.dataset.id;});
+    if(p) el.style.display=(!cat||p.cat===cat)?'':'none';
+  });
+}
+
+// ── CART ──
+function addToCart(id){
+  var p=products.find(function(x){return x.id===id;});if(!p||p.stock===0)return;
+  var existing=cart.find(function(x){return x.id===id;});
+  if(existing){if(existing.qty>=p.stock){showToast('Stock insuffisant !','error');return;}existing.qty++;}
+  else{cart.push({id:p.id,nom:p.nom,prix:p.prix,qty:1,stock:p.stock});}
+  renderCart();
+}
+function removeFromCart(id){cart=cart.filter(function(x){return x.id!==id;});renderCart();}
+function changeQty(id,delta){
+  var item=cart.find(function(x){return x.id===id;});if(!item)return;
+  item.qty+=delta;
+  if(item.qty<=0){removeFromCart(id);return;}
+  if(item.qty>item.stock){item.qty=item.stock;showToast('Stock max atteint','error');}
+  renderCart();
+}
+function clearCart(){cart=[];renderCart();}
+function renderCart(){
+  var c=document.getElementById('cart-items');
+  var e=document.getElementById('cart-empty');
+  var cnt=document.getElementById('cart-count');
+  var btn=document.getElementById('btn-valider');
+  if(!c)return;
+  c.innerHTML='';
+  if(cart.length===0){c.appendChild(e);e.style.display='';btn.disabled=true;btn.style.opacity='.5';cnt.textContent='0 article';updateTotals();return;}
+  e.style.display='none';btn.disabled=false;btn.style.opacity='1';
+  var totalItems=0;
+  cart.forEach(function(item){
+    totalItems+=item.qty;
+    var sub=item.prix*item.qty;
+    var d=document.createElement('div');d.className='cart-item';
+    d.innerHTML='<div class="ci-name">'+item.nom+'</div><div class="ci-price">'+fmt(item.prix)+'</div><div class="ci-qty"><button class="qty-btn" onclick="changeQty('+item.id+',-1)">&minus;</button><span class="qty-val">'+item.qty+'</span><button class="qty-btn" onclick="changeQty('+item.id+',1)">+</button></div><div class="ci-sub">'+fmt(sub)+'</div><button class="btn-rm" onclick="removeFromCart('+item.id+')">&times;</button>';
+    c.appendChild(d);
+  });
+  cnt.textContent=totalItems+' article'+(totalItems>1?'s':'');
+  updateTotals();
+}
+function updateTotals(){
+  var subtotal=0;cart.forEach(function(i){subtotal+=i.prix*i.qty;});
+  var tva=subtotal*0.1925;
+  var total=subtotal+tva;
+  document.getElementById('pos-subtotal').textContent=fmt(subtotal)+' FCFA';
+  document.getElementById('pos-tva').textContent=fmt(Math.round(tva))+' FCFA';
+  document.getElementById('pos-total').textContent=fmt(Math.round(total))+' FCFA';
+  calcMonnaie();
+}
+function calcMonnaie(){
+  var subtotal=0;cart.forEach(function(i){subtotal+=i.prix*i.qty;});
+  var total=Math.round(subtotal*1.1925);
+  var recu=parseFloat(document.getElementById('pos-montant-recu').value)||0;
+  var monnaie=Math.max(0,recu-total);
+  document.getElementById('pos-monnaie').textContent=fmt(Math.round(monnaie))+' FCFA';
+  document.getElementById('pos-monnaie').style.color=recu>=total&&recu>0?'var(--teal2)':'var(--red)';
+}
+function validateSale(){
+  var client=document.getElementById('pos-client').value.trim();
+  if(!client){showToast('Le nom du client est obligatoire','error');return;}
+  if(cart.length===0){showToast('Le panier est vide','error');return;}
+  showToast('Vente VNT-20260721-015 validee avec succes !','success');
+  cart=[];renderCart();
+  document.getElementById('pos-client').value='';
+  document.getElementById('pos-montant-recu').value='';
+  document.getElementById('pos-monnaie').textContent='0 FCFA';
+}
+
+// ── FMT ──
+function fmt(n){return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+
+// ── INIT ──
+renderStockTable();
+renderMedTable();
+renderPOSProducts();
+renderCart();
+</script>
+</body>
+</html>

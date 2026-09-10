@@ -223,7 +223,7 @@ foreach ($lits as $l) { $litsByDept[$l['dept_nom']][] = $l; }
     <thead><tr><th>Lit</th><th>Type</th><th>Statut</th><th>Patient</th><th>Admission</th><th>Priorit</th><th>Changer statut</th></tr></thead>
     <tbody>
     <?php foreach ($deptLits as $l): ?>
-    <tr style="<?= $l['statut']==='occupée'?'background:rgba(239,68,68,.04)':($l['statut']==='libre'?'background:rgba(16,185,129,.03)':'') ?>">
+    <tr style="<?= $l['statut']==='occupée'?'background:rgba(var(--red-rgb),.04)':($l['statut']==='libre'?'background:rgba(var(--green-rgb),.03)':'') ?>">
       <td><strong style="color:<?= $statutColor[$l['statut']]??'var(--text)' ?>"><?= h($l['numero']) ?></strong></td>
       <td style="font-size:12px;color:var(--text2)"><?= ucfirst(str_replace('_',' ',$l['type'])) ?></td>
       <td><span class="badge <?= $statutBadge[$l['statut']]??'badge-gray' ?>"><?= $statutLabel[$l['statut']]??$l['statut'] ?></span></td>
@@ -252,24 +252,24 @@ foreach ($lits as $l) { $litsByDept[$l['dept_nom']][] = $l; }
 <?php endforeach; ?>
 
 <!-- MODAL AJOUTER LIT -->
-<div id="modal-lit" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:460px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-lit" class="modal-overlay" role="dialog" aria-modal="true" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(460px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3> Ajouter un lit</h3>
-      <div onclick="document.getElementById('modal-lit').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)"></div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-lit').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="add_lit"><?= csrf_field() ?>
       <div class="form-grid">
-        <div class="form-group"><label>Numéro de lit *</label><input type="text" name="numero" required maxlength="20" placeholder="ex: 12A"></div>
-        <div class="form-group"><label>Département *</label>
-          <select name="departement_id" required>
+        <div class="form-group"><label for="inp-numero">Numéro de lit *</label><input type="text" name="numero" id="inp-numero" required maxlength="20" placeholder="ex: 12A"></div>
+        <div class="form-group"><label for="inp-departement_id">Département *</label>
+          <select name="departement_id" id="inp-departement_id" required>
             <option value=""> Sélectionner </option>
             <?php foreach ($all_depts as $d): ?><option value="<?= (int)$d['id'] ?>"><?= h($d['nom']) ?></option><?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group form-full"><label>Type de lit</label>
-          <select name="type">
+        <div class="form-group form-full"><label for="inp-lit_type">Type de lit</label>
+          <select name="type" id="inp-lit_type">
             <option value="standard">Standard</option>
             <option value="soins_intensifs">Soins intensifs</option>
             <option value="reanimation">Réanimation</option>
@@ -287,26 +287,26 @@ foreach ($lits as $l) { $litsByDept[$l['dept_nom']][] = $l; }
 
 
 <!-- MODAL NOUVEAU DÉPARTEMENT -->
-<div id="modal-dept" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:480px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-dept" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>🏢 Nouveau département</h3>
-      <button onclick="document.getElementById('modal-dept').style.display='none'" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer">✕</button>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-dept').style.display='none'" aria-label="Fermer">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_dept">
       <?= csrf_field() ?>
       <div class="form-grid">
-        <div class="form-group form-full"><label>Nom du département *</label>
-          <input type="text" name="dept_nom" required maxlength="100" placeholder="ex: Cardiologie"></div>
-        <div class="form-group"><label>Code court *</label>
-          <input type="text" name="dept_code" required maxlength="20" placeholder="ex: CARD" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="form-group"><label>Capacité (lits)</label>
-          <input type="number" name="dept_capacite" value="20" min="1" max="500"></div>
-        <div class="form-group form-full"><label>Étage / Localisation</label>
-          <input type="text" name="dept_etage" maxlength="30" placeholder="ex: Étage 3"></div>
-        <div class="form-group"><label>Couleur d'identification</label>
-          <input type="color" name="dept_couleur" value="#3b82f6" style="width:60px;height:36px;padding:2px;border:1px solid var(--border2);border-radius:7px;cursor:pointer"></div>
+        <div class="form-group form-full"><label for="inp-dept_nom">Nom du département *</label>
+          <input type="text" name="dept_nom" id="inp-dept_nom" required maxlength="100" placeholder="ex: Cardiologie"></div>
+        <div class="form-group"><label for="inp-dept_code">Code court *</label>
+          <input type="text" name="dept_code" id="inp-dept_code" required maxlength="20" placeholder="ex: CARD" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="form-group"><label for="inp-dept_capacite">Capacité (lits)</label>
+          <input type="number" name="dept_capacite" id="inp-dept_capacite" value="20" min="1" max="500"></div>
+        <div class="form-group form-full"><label for="inp-dept_etage">Étage / Localisation</label>
+          <input type="text" name="dept_etage" id="inp-dept_etage" maxlength="30" placeholder="ex: Étage 3"></div>
+        <div class="form-group"><label for="inp-dept_couleur">Couleur d'identification</label>
+          <input type="color" name="dept_couleur" id="inp-dept_couleur" value="#3b82f6" style="width:60px;height:36px;padding:2px;border:1px solid var(--border2);border-radius:7px;cursor:pointer"></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
         <button type="button" onclick="document.getElementById('modal-dept').style.display='none'" class="btn btn-ghost">Annuler</button>
@@ -318,8 +318,8 @@ foreach ($lits as $l) { $litsByDept[$l['dept_nom']][] = $l; }
 
 <!-- MODAL ÉDITION DÉPARTEMENT -->
 <?php if ($editDept && can('lits.create')): ?>
-<div id="modal-edit-dept" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)location.href='lits.php'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:480px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-edit-dept" class="modal-overlay" role="dialog" aria-modal="true" style="display:flex;padding:20px" onclick="if(event.target===this)location.href='lits.php'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>✏️ Modifier — <?= h($editDept['nom']) ?></h3>
       <a href="lits.php" style="color:var(--text2);text-decoration:none;font-size:20px">✕</a>
@@ -333,12 +333,12 @@ foreach ($lits as $l) { $litsByDept[$l['dept_nom']][] = $l; }
           <input type="text" name="dept_nom" value="<?= h($editDept['nom']) ?>" required maxlength="100"></div>
         <div class="form-group"><label>Code *</label>
           <input type="text" name="dept_code" value="<?= h($editDept['code']) ?>" required maxlength="20" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="form-group"><label>Capacité (lits)</label>
-          <input type="number" name="dept_capacite" value="<?= (int)$editDept['capacite_lits'] ?>" min="1"></div>
-        <div class="form-group form-full"><label>Étage / Localisation</label>
-          <input type="text" name="dept_etage" value="<?= h($editDept['etage'] ?? '') ?>" maxlength="30"></div>
+        <div class="form-group"><label for="inp-dept_capacite">Capacité (lits)</label>
+          <input type="number" name="dept_capacite" id="inp-dept_capacite" value="<?= (int)$editDept['capacite_lits'] ?>" min="1"></div>
+        <div class="form-group form-full"><label for="inp-dept_etage">Étage / Localisation</label>
+          <input type="text" name="dept_etage" id="inp-dept_etage" value="<?= h($editDept['etage'] ?? '') ?>" maxlength="30"></div>
         <div class="form-group"><label>Couleur</label>
-          <input type="color" name="dept_couleur" value="<?= h($editDept['couleur'] ?? '#3b82f6') ?>" style="width:60px;height:36px;padding:2px;border:1px solid var(--border2);border-radius:7px;cursor:pointer"></div>
+          <input type="color" name="dept_couleur" id="inp-dept_couleur" value="<?= h($editDept['couleur'] ?? '#3b82f6') ?>" style="width:60px;height:36px;padding:2px;border:1px solid var(--border2);border-radius:7px;cursor:pointer"></div>
       </div>
       <?php $nb_lits_dept = (int)db_scalar("SELECT COUNT(*) FROM lits WHERE departement_id=?", [$editDept['id']]); ?>
       <div style="display:flex;gap:10px;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">

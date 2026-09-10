@@ -11,10 +11,21 @@ document.addEventListener('DOMContentLoaded', function() {
         sidebarToggle.addEventListener('click', function() {
             sidebar.classList.toggle('show');
             overlay.classList.toggle('show');
+            overlay.setAttribute('aria-hidden', sidebar.classList.contains('show') ? 'false' : 'true');
         });
         overlay.addEventListener('click', function() {
             sidebar.classList.remove('show');
             overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+        });
+        // Escape key dismisses sidebar on mobile
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+                overlay.classList.remove('show');
+                overlay.setAttribute('aria-hidden', 'true');
+                sidebarToggle.focus();
+            }
         });
     }
 
@@ -26,14 +37,99 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     });
 
-    // --- Confirm Delete ---
+    // --- Confirm (Modal personnalisé au lieu de confirm() navigateur) ---
+    let confirmCallback = null;
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmBsModal = confirmModal ? new bootstrap.Modal(confirmModal) : null;
+    const confirmTitle = document.getElementById('confirmTitle');
+    const confirmMessage = document.getElementById('confirmMessage');
+    const confirmOk = document.getElementById('confirmOk');
+    const confirmCancel = document.getElementById('confirmCancel');
+    const confirmBody = confirmModal ? confirmModal.querySelector('.confirm-modal-body') : null;
+
+    if (confirmOk) {
+        confirmOk.addEventListener('click', function () {
+            if (confirmCallback) {
+                confirmCallback();
+                confirmCallback = null;
+            }
+            if (confirmBsModal) confirmBsModal.hide();
+        });
+    }
+
+    if (confirmModal) {
+        confirmModal.addEventListener('hidden.bs.modal', function () {
+            confirmCallback = null;
+            if (confirmBody) confirmBody.classList.remove('confirm-warning');
+        });
+    }
+
+    // --- Focus trap for ALL modals ---
+    function createFocusTrap(modalEl) {
+        function trapHandler(e) {
+            if (e.key !== 'Tab') return;
+            var focusable = modalEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (!focusable.length) return;
+            var first = focusable[0];
+            var last = focusable[focusable.length - 1];
+            if (e.shiftKey) {
+                if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+            } else {
+                if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }
+        }
+        return trapHandler;
+    }
+
+    document.querySelectorAll('.modal').forEach(function(modal) {
+        var handler = null;
+        modal.addEventListener('shown.bs.modal', function () {
+            var focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (focusable.length) focusable[0].focus();
+            handler = createFocusTrap(modal);
+            modal.addEventListener('keydown', handler);
+        });
+        modal.addEventListener('hidden.bs.modal', function () {
+            if (handler) {
+                modal.removeEventListener('keydown', handler);
+                handler = null;
+            }
+        });
+    });
+
     document.querySelectorAll('[data-confirm]').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             const message = this.getAttribute('data-confirm') || 'Êtes-vous sûr de vouloir continuer ?';
-            if (!confirm(message)) {
-                e.preventDefault();
-                e.stopPropagation();
+            const isDelete = message.toLowerCase().includes('supprimer') || this.closest('form')?.querySelector('[name="action"][value="delete"]');
+            const isRestore = message.toLowerCase().includes('restauration') || message.toLowerCase().includes('remplacera');
+
+            if (confirmTitle) {
+                confirmTitle.textContent = isDelete ? 'Suppression' : (isRestore ? '⚠️ Attention' : 'Confirmation');
             }
+            if (confirmMessage) confirmMessage.textContent = message;
+            if (confirmBody) {
+                confirmBody.classList.toggle('confirm-warning', isRestore);
+            }
+            if (confirmOk) {
+                confirmOk.textContent = isDelete ? 'Supprimer' : 'Confirmer';
+                confirmOk.classList.toggle('btn-danger', isDelete || isRestore);
+                confirmOk.classList.toggle('btn-warning', isRestore && !isDelete);
+            }
+
+            const form = this.closest('form');
+            confirmCallback = function () {
+                if (form) {
+                    // Nettoyage des champs montant formatés avant soumission
+                    form.querySelectorAll('[data-amount-formatted]').forEach(function(inp) {
+                        inp.value = inp.value.replace(/[\s\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, '');
+                    });
+                    form.submit();
+                }
+            };
+
+            if (confirmBsModal) confirmBsModal.show();
         });
     });
 

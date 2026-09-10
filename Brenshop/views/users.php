@@ -94,13 +94,13 @@ require_once __DIR__ . '/layout_top.php';
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead><tr>
-                    <th class="ps-3">Utilisateur</th>
-                    <th>Rôle</th>
-                    <th>Boutiques</th>
-                    <th>Magasins</th>
-                    <th>Dernière connexion</th>
-                    <th class="text-center">Statut</th>
-                    <th class="text-center pe-3">Actions</th>
+                    <th class="ps-3"><i class="bi bi-person me-1"></i>Utilisateur</th>
+                    <th><i class="bi bi-shield me-1"></i>Rôle</th>
+                    <th><i class="bi bi-shop me-1"></i>Boutiques</th>
+                    <th><i class="bi bi-building me-1"></i>Magasins</th>
+                    <th><i class="bi bi-clock me-1"></i>Dernière connexion</th>
+                    <th class="text-center"><i class="bi bi-toggle-on me-1"></i>Statut</th>
+                    <th class="text-center pe-3"><i class="bi bi-gear me-1"></i>Actions</th>
                 </tr></thead>
                 <tbody>
                     <?php foreach ($users as $u): ?>
@@ -119,7 +119,7 @@ require_once __DIR__ . '/layout_top.php';
                         </td>
                         <td>
                             <span class="badge" style="background:<?= ($roleColors[$u['role']] ?? '#64748B') ?>22;color:<?= $roleColors[$u['role']] ?? '#64748B' ?>;font-size:.72rem">
-                                <?= ucfirst($u['role']) ?>
+                                <?php if ($u['role'] === 'admin'): ?><i class="bi bi-shield-fill me-1"></i><?php elseif ($u['role'] === 'manager'): ?><i class="bi bi-shield me-1"></i><?php else: ?><i class="bi bi-person-check me-1"></i><?php endif; ?><?= ucfirst($u['role']) ?>
                             </span>
                         </td>
                         <td style="font-size:.82rem">
@@ -149,7 +149,7 @@ require_once __DIR__ . '/layout_top.php';
                         <td style="font-size:.78rem;color:var(--text-muted)"><?= $u['last_login'] ? formatDate($u['last_login']) : 'Jamais' ?></td>
                         <td class="text-center">
                             <span class="badge <?= $u['is_active'] ? 'bg-success' : 'bg-secondary' ?>" style="font-size:.7rem">
-                                <?= $u['is_active'] ? 'Actif' : 'Inactif' ?>
+                                <i class="bi bi-<?= $u['is_active'] ? 'check-circle' : 'x-circle' ?> me-1"></i><?= $u['is_active'] ? 'Actif' : 'Inactif' ?>
                             </span>
                         </td>
                         <td class="text-center pe-3">
@@ -181,20 +181,20 @@ require_once __DIR__ . '/layout_top.php';
 <div class="modal fade" id="userModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content" style="border-radius:16px;border:none">
-            <div class="modal-header border-0"><h5 class="modal-title" id="userModalTitle" style="font-family:Syne,sans-serif;font-weight:700">Nouvel Utilisateur</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header border-0"><h5 class="modal-title" id="userModalTitle" style="font-family:Syne,sans-serif;font-weight:700"><i class="bi bi-person-plus me-2"></i>Nouvel Utilisateur</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form method="POST" id="userForm">
                 <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                 <input type="hidden" name="id" id="userId" value="0">
                 <div class="modal-body">
                     <div class="row g-2">
-                        <div class="col-12"><label class="form-label fw-semibold">Nom complet *</label><input type="text" name="name" id="uName" class="form-control" required style="border-radius:8px"></div>
-                        <div class="col-6"><label class="form-label fw-semibold">Email *</label><input type="email" name="email" id="uEmail" class="form-control" required style="border-radius:8px"></div>
-                        <div class="col-6"><label class="form-label fw-semibold">Téléphone</label><input type="text" name="phone" id="uPhone" class="form-control" style="border-radius:8px"></div>
+                        <div class="col-12"><label class="form-label fw-semibold"><i class="bi bi-person me-1"></i>Nom complet *</label><input type="text" name="name" id="uName" class="form-control" required style="border-radius:8px"></div>
+                        <div class="col-6"><label class="form-label fw-semibold"><i class="bi bi-envelope me-1"></i>Email *</label><input type="email" name="email" id="uEmail" class="form-control" required style="border-radius:8px"></div>
+                        <div class="col-6"><label class="form-label fw-semibold"><i class="bi bi-telephone me-1"></i>Téléphone</label><input type="text" name="phone" id="uPhone" class="form-control" style="border-radius:8px"></div>
                         <div class="col-12">
-                            <label class="form-label fw-semibold">Mot de passe <span id="pwdHint" class="text-muted" style="font-size:.75rem">(laisser vide pour ne pas changer)</span></label>
+                            <label class="form-label fw-semibold"><i class="bi bi-lock me-1"></i>Mot de passe <span id="pwdHint" class="text-muted" style="font-size:.75rem">(laisser vide pour ne pas changer)</span></label>
                             <input type="password" name="password" id="uPassword" class="form-control" style="border-radius:8px">
                         </div>
-                        <div class="col-4"><label class="form-label fw-semibold">Rôle *</label>
+                        <div class="col-4"><label class="form-label fw-semibold"><i class="bi bi-shield me-1"></i>Rôle *</label>
                             <select name="role" id="uRole" class="form-select" required style="border-radius:8px">
                                 <option value="cashier">Caissier</option>
                                 <option value="manager">Manager</option>
@@ -202,7 +202,7 @@ require_once __DIR__ . '/layout_top.php';
                             </select>
                         </div>
                         <div class="col-8">
-                            <label class="form-label fw-semibold">Magasin par défaut</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-building me-1"></i>Magasin par défaut</label>
                             <select name="warehouse_id" id="uWhId" class="form-select" style="border-radius:8px">
                                 <option value="">Aucun</option>
                                 <?php foreach ($allWh as $w): ?>
@@ -265,15 +265,15 @@ require_once __DIR__ . '/layout_top.php';
                                 <?php endforeach; ?>
                                 </div>
                                 <div class="d-flex gap-2 mt-2">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:.72rem;border-radius:6px" onclick="document.querySelectorAll('.perm-cb').forEach(cb=>cb.checked=true)">Tout sélectionner</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:.72rem;border-radius:6px" onclick="document.querySelectorAll('.perm-cb').forEach(cb=>cb.checked=false)">Tout désélectionner</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:.72rem;border-radius:6px" onclick="document.querySelectorAll('.perm-cb').forEach(cb=>cb.checked=true)"><i class="bi bi-check-all me-1"></i>Tout sélectionner</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:.72rem;border-radius:6px" onclick="document.querySelectorAll('.perm-cb').forEach(cb=>cb.checked=false)"><i class="bi bi-x-circle me-1"></i>Tout désélectionner</button>
                                 </div>
                             </div>
                         </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px">Enregistrer</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
+                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px"><i class="bi bi-check-lg me-1"></i>Enregistrer</button>
                 </div>
             </form>
         </div>

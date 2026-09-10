@@ -1,12 +1,19 @@
 <?php
 $pageTitle = 'Tableau de bord';
+$loadChart = true;
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/sidebar.php';
 
 $db = getDB();
-$stats = getDashboardStats($db);
+$isAdmin = hasPermission('admin');
+$userId = (int)$_SESSION['user_id'];
+$userPerms = $_SESSION['user_permissions'] ?? [];
+$userRole = $_SESSION['user_role'] ?? '';
 
-// Données graphiques mensuels
+// Stats : admin voit tout, les autres voient leurs propres données
+$stats = getDashboardStats($db, $isAdmin ? null : $userId);
+
+// Données graphiques mensuels (filtrées par utilisateur si non-admin)
 $monthLabels = [];
 $recettesData = [];
 $depensesData = [];
@@ -17,34 +24,81 @@ for ($i = 5; $i >= 0; $i--) {
     $mStart = $date->format('Y-m-01');
     $mEnd = $date->format('Y-m-t');
 
-    $stmt = $db->prepare("SELECT COALESCE(SUM(montantexpedition + montantAccompagnement),0) FROM recette WHERE date BETWEEN ? AND ? AND statut='validee'");
+    $userSql = $isAdmin ? '' : ' AND created_by = ' . $userId;
+
+    $stmt = $db->prepare("SELECT COALESCE(SUM(montantexpedition + montantAccompagnement),0) FROM recette WHERE date BETWEEN ? AND ? AND statut='validee'" . $userSql);
     $stmt->execute([$mStart, $mEnd]);
     $recettesData[] = (float) $stmt->fetchColumn();
 
-    $stmt = $db->prepare("SELECT COALESCE(SUM(montant),0) FROM depenses WHERE date_depense BETWEEN ? AND ? AND statut='validee'");
+    $stmt = $db->prepare("SELECT COALESCE(SUM(montant),0) FROM depenses WHERE date_depense BETWEEN ? AND ? AND statut='validee'" . $userSql);
     $stmt->execute([$mStart, $mEnd]);
     $depensesData[] = (float) $stmt->fetchColumn();
 }
 
-// Dernières transactions
-$recentRecettes = $db->query("SELECT r.*, (r.montantexpedition + r.montantAccompagnement) as montant, a.nomagence FROM recette r LEFT JOIN agence a ON r.agence_id=a.id ORDER BY r.created_at DESC LIMIT 5")->fetchAll();
-$recentDepenses = $db->query("SELECT d.*, a.nomagence, c.nom as cat_nom FROM depenses d LEFT JOIN agence a ON d.agence_id=a.id LEFT JOIN categories c ON d.categorie_id=c.id ORDER BY d.created_at DESC LIMIT 5")->fetchAll();
+// Données supplémentaires pour admin (comparaison globale vs perso)
+$globalStats = null;
+if ($isAdmin) {
+    $globalStats = $stats; // déjà global
+} else {
+    $globalStats = getDashboardStats($db, null); // stats globales pour contexte
+}
 
-// Versements en attente
-$enAttente = $db->query("SELECT 'recette' as type, id, reference, montantexpedition + montantAccompagnement as montant, created_at FROM recette WHERE statut='en_attente' UNION ALL SELECT 'depense', id, reference, montant, created_at FROM depenses WHERE statut='en_attente' UNION ALL SELECT 'recette_camion', id, reference, montant, created_at FROM recettes_camions WHERE statut='en_attente' UNION ALL SELECT 'versement', id, reference, sommeverse as montant, created_at FROM versement WHERE statut='en_attente' ORDER BY created_at DESC LIMIT 10")->fetchAll();
+// Dernières transactions (filtrées selon permissions + utilisateur)
+$canRecettes = in_array('recettes', $userPerms);
+$canDepenses = in_array('depenses', $userPerms);
+$canCamions = in_array('recettes_camions', $userPerms);
+$canVersements = in_array('versements', $userPerms);
+$canValidate = in_array('recettes_validate', $userPerms) || in_array('depenses_validate', $userPerms) || in_array('versements_validate', $userPerms);
+
+// Construire les queries "mes transactions récentes"
+$recentRecettes = [];
+$recentDepenses = [];
+if ($canRecettes) {
+    $sql = "SELECT r.*, (r.montantexpedition + r.montantAccompagnement) as montant, a.nomagence FROM recette r LEFT JOIN agence a ON r.agence_id=a.id";
+    if (!$isAdmin) $sql .= " WHERE r.created_by = " . $userId;
+    $sql .= " ORDER BY r.created_at DESC LIMIT 5";
+    $recentRecettes = $db->query($sql)->fetchAll();
+}
+if ($canDepenses) {
+    $sql = "SELECT d.*, a.nomagence, c.nom as cat_nom FROM depenses d LEFT JOIN agence a ON d.agence_id=a.id LEFT JOIN categories c ON d.categorie_id=c.id";
+    if (!$isAdmin) $sql .= " WHERE d.created_by = " . $userId;
+    $sql .= " ORDER BY d.created_at DESC LIMIT 5";
+    $recentDepenses = $db->query($sql)->fetchAll();
+}
+
+// Transactions en attente (filtrées selon permissions)
+$enAttente = [];
+if ($canValidate) {
+    $userSql = $isAdmin ? '' : ' AND created_by = ' . $userId;
+    $sql = "SELECT 'recette' as type, id, reference, montantexpedition + montantAccompagnement as montant, created_at FROM recette WHERE statut='en_attente'" . ($canRecettes ? $userSql : ' AND 1=0');
+    $sql .= " UNION ALL SELECT 'depense', id, reference, montant, created_at FROM depenses WHERE statut='en_attente'" . ($canDepenses ? $userSql : ' AND 1=0');
+    if ($canCamions) $sql .= " UNION ALL SELECT 'recette_camion', id, reference, montant, created_at FROM recettes_camions WHERE statut='en_attente'" . $userSql;
+    if ($canVersements) $sql .= " UNION ALL SELECT 'versement', id, reference, sommeverse as montant, created_at FROM versement WHERE statut='en_attente'" . $userSql;
+    $sql .= " ORDER BY created_at DESC LIMIT 10";
+    $enAttente = $db->query($sql)->fetchAll();
+}
+
+// Message de bienvenue personnalisé
+$greeting = match(true) {
+    date('H') < 12 => 'Bonjour',
+    date('H') < 18 => 'Bon après-midi',
+    default => 'Bonsoir'
+};
+$userName = $_SESSION['full_name'] ?? 'Utilisateur';
+$roleLabel = $_SESSION['user_role_label'] ?? ($userRole === 'admin' ? 'Administrateur' : 'Agent');
 ?>
 
 <!-- Main Content -->
-<div class="main-content">
+<div class="main-content" id="main-content" role="main">
     <!-- Header -->
-    <header class="main-header">
+    <header class="main-header" role="banner">
         <div class="header-left">
-            <button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button>
-            <h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6>
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button>
+            <span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span>
         </div>
         <div class="header-right">
             <div class="dropdown">
-                <button class="notif-btn" data-bs-toggle="dropdown">
+                <button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown">
                     <i class="bi bi-bell"></i>
                     <?php if ($unreadNotifs > 0): ?>
                     <span class="notif-badge"><?php echo $unreadNotifs; ?></span>
@@ -55,30 +109,18 @@ $enAttente = $db->query("SELECT 'recette' as type, id, reference, montantexpedit
                     <?php
                     $notifs = $db->prepare("SELECT * FROM notifications WHERE (user_id = ? OR user_id IS NULL) ORDER BY created_at DESC LIMIT 10");
                     $notifs->execute([$_SESSION['user_id']]);
-                    foreach ($notifs->fetchAll() as $n): ?>
+                    $notifRows = $notifs->fetchAll();
+                    if (!empty($notifRows)):
+                        foreach ($notifRows as $n): ?>
                     <a class="dropdown-item <?php echo $n['is_read'] ? '' : 'notif-unread'; ?>" href="<?php echo e($n['lien'] ?? '#'); ?>">
                         <div class="fw-600"><?php echo e($n['titre']); ?></div>
                         <div class="small text-muted"><?php echo e($n['message']); ?></div>
                         <div class="notif-time"><?php echo formatDate($n['created_at']); ?></div>
                     </a>
-                    <?php endforeach; ?>
-                    <?php if (empty($notifs)): ?>
+                    <?php endforeach;
+                    else: ?>
                     <div class="dropdown-item text-muted text-center py-3">Aucune notification</div>
                     <?php endif; ?>
-                </div>
-            </div>
-            <div class="dropdown">
-                <div class="header-user" data-bs-toggle="dropdown">
-                    <div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div>
-                    <div class="user-info d-none d-sm-block">
-                        <div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div>
-                        <div class="user-role"><?php echo e($roleLabel ?? ''); ?></div>
-                    </div>
-                </div>
-                <div class="dropdown-menu dropdown-menu-end">
-                    <a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a>
                 </div>
             </div>
         </div>
@@ -88,109 +130,147 @@ $enAttente = $db->query("SELECT 'recette' as type, id, reference, montantexpedit
     <div class="page-content fade-in">
         <?php echo displayFlashMessages(); ?>
 
-        <!-- Stats Cards -->
+        <!-- Stats Cards — adaptatives selon permissions -->
         <div class="row g-3 mb-4">
+            <?php if ($canRecettes): ?>
             <div class="col-sm-6 col-xl-3">
                 <div class="stat-card bg-success-gradient">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Recettes du jour</div>
+                            <div class="stat-label"><i class="bi bi-cash-coin me-1"></i> Recettes du jour</div>
                             <div class="stat-value" data-animate="<?php echo $stats['recettes_jour']; ?>"><?php echo formatMoney($stats['recettes_jour']); ?></div>
                         </div>
                         <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
+
+            <?php if ($canDepenses): ?>
             <div class="col-sm-6 col-xl-3">
                 <div class="stat-card bg-danger-gradient">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Dépenses du jour</div>
+                            <div class="stat-label"><i class="bi bi-receipt me-1"></i> Dépenses du jour</div>
                             <div class="stat-value" data-animate="<?php echo $stats['depenses_jour']; ?>"><?php echo formatMoney($stats['depenses_jour']); ?></div>
                         </div>
-                        <div class="stat-icon"><i class="bi bi-cart-dash"></i></div>
+                        <div class="stat-icon"><i class="bi bi-receipt"></i></div>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
+
+            <?php if ($canCamions): ?>
             <div class="col-sm-6 col-xl-3">
                 <div class="stat-card bg-primary-gradient">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Recettes camions</div>
+                            <div class="stat-label"><i class="bi bi-truck me-1"></i> Recettes camions</div>
                             <div class="stat-value" data-animate="<?php echo $stats['recettes_camions_jour']; ?>"><?php echo formatMoney($stats['recettes_camions_jour']); ?></div>
                         </div>
                         <div class="stat-icon"><i class="bi bi-truck"></i></div>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
+
+            <?php if ($canRecettes || $canDepenses || $canCamions): ?>
             <div class="col-sm-6 col-xl-3">
                 <div class="stat-card bg-info-gradient">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Solde du jour</div>
+                            <div class="stat-label"><i class="bi bi-wallet2 me-1"></i> Solde du jour</div>
                             <div class="stat-value" data-animate="<?php echo $stats['solde_jour']; ?>"><?php echo formatMoney($stats['solde_jour']); ?></div>
                         </div>
                         <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
 
-        <!-- Monthly Stats Row -->
+        <!-- Monthly Stats Row — adaptatives -->
         <div class="row g-3 mb-4">
+            <?php if ($canRecettes): ?>
             <div class="col-sm-6 col-xl-3">
                 <div class="stat-card bg-success-gradient">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Recettes du mois</div>
+                            <div class="stat-label"><i class="bi bi-graph-up-arrow me-1"></i> Recettes du mois</div>
                             <div class="stat-value"><?php echo formatMoney($stats['recettes_mois']); ?></div>
                         </div>
                         <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
+
+            <?php if ($canDepenses): ?>
             <div class="col-sm-6 col-xl-3">
                 <div class="stat-card bg-danger-gradient">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Dépenses du mois</div>
+                            <div class="stat-label"><i class="bi bi-graph-down-arrow me-1"></i> Dépenses du mois</div>
                             <div class="stat-value"><?php echo formatMoney($stats['depenses_mois']); ?></div>
                         </div>
                         <div class="stat-icon"><i class="bi bi-graph-down-arrow"></i></div>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
+
+            <?php if ($canVersements): ?>
             <div class="col-sm-6 col-xl-3">
                 <div class="stat-card bg-primary-gradient">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Versements du mois</div>
+                            <div class="stat-label"><i class="bi bi-bank2 me-1"></i> Versements du mois</div>
                             <div class="stat-value"><?php echo formatMoney($stats['versements_mois']); ?></div>
                         </div>
                         <div class="stat-icon"><i class="bi bi-bank2"></i></div>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
+
+            <?php if ($canRecettes || $canDepenses): ?>
             <div class="col-sm-6 col-xl-3">
                 <div class="stat-card <?php echo $stats['solde_mois'] >= 0 ? 'bg-info-gradient' : 'bg-danger-gradient'; ?>">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Solde du mois</div>
-                            <div class="stat-value"><?php echo formatMoney(abs($stats['solde_mois'])); ?></div>
+                            <div class="stat-label"><i class="bi bi-balanced-scale me-1"></i> Solde du mois</div>
+                            <div class="stat-value"><?php echo formatMoney($stats['solde_mois']); ?></div>
                         </div>
-                        <div class="stat-icon"><i class="bi bi-scale"></i></div>
+                        <div class="stat-icon"><i class="bi bi-balanced-scale"></i></div>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
 
-        <!-- Charts & Tables -->
+        <!-- Si l'utilisateur a très peu de permissions : message adapté -->
+        <?php if (!$canRecettes && !$canDepenses && !$canCamions && !$canVersements): ?>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Votre rôle <strong><?php echo e($roleLabel); ?></strong> n'a pas accès aux modules financiers.
+            <?php if (in_array('users', $userPerms)): ?>
+            Vous pouvez gérer les <a href="<?php echo APP_URL; ?>/users/">utilisateurs</a> et les <a href="<?php echo APP_URL; ?>/settings/roles.php">rôles</a>.
+            <?php elseif (in_array('audit', $userPerms)): ?>
+            Consultez le <a href="<?php echo APP_URL; ?>/audit/">journal d'audit</a> pour suivre les activités.
+            <?php else: ?>
+            Contactez un administrateur pour ajuster vos permissions.
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Charts & En attente -->
         <div class="row g-3 mb-4">
-            <!-- Chart -->
-            <div class="col-lg-8">
+            <!-- Chart (visible si recettes OU depenses) -->
+            <?php if ($canRecettes || $canDepenses): ?>
+            <div class="<?php echo ($canValidate && !empty($enAttente)) ? 'col-lg-8' : 'col-lg-12'; ?>">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-bar-chart me-2"></i>Évolution mensuelle</span>
+                        <span><i class="bi bi-bar-chart-line me-1"></i> Évolution mensuelle<?php echo $isAdmin ? '' : ' — Vos données'; ?></span>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-secondary active" onclick="chartType='bar'; updateChart()">Barres</button>
                             <button class="btn btn-outline-secondary" onclick="chartType='line'; updateChart()">Lignes</button>
@@ -198,23 +278,25 @@ $enAttente = $db->query("SELECT 'recette' as type, id, reference, montantexpedit
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
-                            <canvas id="monthlyChart"></canvas>
+                            <canvas id="monthlyChart" role="img" aria-label="Graphique des recettes et dépenses mensuelles"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
 
-            <!-- En attente -->
-            <div class="col-lg-4">
+            <!-- En attente (visible si permission de validation) -->
+            <?php if ($canValidate): ?>
+            <div class="<?php echo ($canRecettes || $canDepenses) ? 'col-lg-4' : 'col-lg-6'; ?>">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-clock me-2"></i>En attente de validation</span>
+                        <span><i class="bi bi-hourglass-split me-1"></i> En attente de validation</span>
                         <span class="badge bg-warning text-dark"><?php echo $stats['en_attente']; ?></span>
                     </div>
                     <div class="card-body p-0">
                         <?php if (empty($enAttente)): ?>
                         <div class="empty-state py-4">
-                            <i class="bi bi-check-circle"></i>
+                            ✅
                             <p class="mb-0 small">Aucune transaction en attente</p>
                         </div>
                         <?php else: ?>
@@ -233,19 +315,20 @@ $enAttente = $db->query("SELECT 'recette' as type, id, reference, montantexpedit
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
 
-        <!-- Recent Transactions -->
+        <!-- Recent Transactions — adaptatives -->
         <div class="row g-3">
-            <div class="col-lg-6">
+            <?php if ($canRecettes): ?>
+            <div class="col-lg-<?php echo $canDepenses ? '6' : '12'; ?>">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-cash-coin me-2 text-success"></i>Dernières recettes</span>
+                        <span><i class="bi bi-cash-coin me-1"></i> Dernières recettes<?php echo $isAdmin ? '' : ' (mes)'; ?></span>
                         <a href="<?php echo APP_URL; ?>/recettes/" class="btn btn-sm btn-outline-success">Voir tout</a>
                     </div>
                     <div class="table-container">
-                        <table class="table table-sm">
-                            <thead><tr><th>Réf</th><th>Agence</th><th>Montant</th><th>Statut</th></tr></thead>
+                        <table class="table table-sm" aria-label="Dernières recettes en attente">
                             <tbody>
                             <?php foreach ($recentRecettes as $r): ?>
                                 <tr>
@@ -263,14 +346,17 @@ $enAttente = $db->query("SELECT 'recette' as type, id, reference, montantexpedit
                     </div>
                 </div>
             </div>
-            <div class="col-lg-6">
+            <?php endif; ?>
+
+            <?php if ($canDepenses): ?>
+            <div class="col-lg-<?php echo $canRecettes ? '6' : '12'; ?>">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-cart-dash me-2 text-danger"></i>Dernières dépenses</span>
+                        <span><i class="bi bi-receipt me-1"></i> Dernières dépenses<?php echo $isAdmin ? '' : ' (mes)'; ?></span>
                         <a href="<?php echo APP_URL; ?>/depenses/" class="btn btn-sm btn-outline-danger">Voir tout</a>
                     </div>
                     <div class="table-container">
-                        <table class="table table-sm">
+                        <table class="table table-sm" aria-label="Dernières dépenses en attente">
                             <thead><tr><th>Réf</th><th>Catégorie</th><th>Montant</th><th>Statut</th></tr></thead>
                             <tbody>
                             <?php foreach ($recentDepenses as $d): ?>
@@ -289,10 +375,12 @@ $enAttente = $db->query("SELECT 'recette' as type, id, reference, montantexpedit
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
 
+<?php if ($canRecettes || $canDepenses): ?>
 <script>
 const monthLabels = <?php echo json_encode($monthLabels); ?>;
 const recettesData = <?php echo json_encode($recettesData); ?>;
@@ -356,5 +444,6 @@ function updateChart() {
 }
 updateChart();
 </script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

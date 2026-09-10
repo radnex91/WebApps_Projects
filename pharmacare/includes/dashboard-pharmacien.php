@@ -5,6 +5,20 @@
 requireLogin();
 $db = getDB();
 require_once __DIR__ . '/charts.php';
+require_once __DIR__ . '/cache_file.php';
+
+// ── Cache disque 60 s des agrégats ventes (coût constant face à la volumétrie) ──
+function dashPhCachedRows(PDO $db, string $key, string $sql, int $ttl = 60): array {
+    static $memo = [];
+    if (isset($memo[$key])) return $memo[$key];
+    $found = false;
+    $v = cache_get($key, $ttl, $found);
+    if (!$found) {
+        $v = $db->query($sql)->fetchAll();
+        cache_set($key, $v, $ttl);
+    }
+    return $memo[$key] = $v;
+}
 
 // Alertes stock
 $alertes  = $db->query("SELECT COUNT(*) FROM produits WHERE stock <= seuil_alerte AND actif=1")->fetchColumn();
@@ -14,18 +28,18 @@ $ruptures = $db->query("SELECT COUNT(*) FROM produits WHERE stock=0 AND actif=1"
 $cmd_attente = $db->query("SELECT COUNT(*) FROM commandes WHERE statut IN ('en_attente','en_cours')")->fetchColumn();
 
 // Ventes 7j (tendance)
-$ventes7 = $db->query("
+$ventes7 = dashPhCachedRows($db, 'dash.admin.ventes7', "
   SELECT DATE(created_at) AS jour, SUM(total) AS total, COUNT(*) AS nb
   FROM ventes WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-  GROUP BY DATE(created_at) ORDER BY jour
-")->fetchAll();
+  GROUP BY jour ORDER BY jour
+");
 
 // Ventes 30 derniers jours (courbe d'évolution)
-$v30rows = $db->query("
+$v30rows = dashPhCachedRows($db, 'dash.pharmacien.ventes30', "
   SELECT DATE(created_at) AS jour, COUNT(*) AS nb
   FROM ventes WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
-  GROUP BY DATE(created_at) ORDER BY jour
-")->fetchAll();
+  GROUP BY jour ORDER BY jour
+");
 $v30 = [];
 for ($i = 29; $i >= 0; $i--) {
     $d = date('Y-m-d', strtotime("-$i days"));
@@ -46,12 +60,12 @@ $critique = $db->query("
 ")->fetchAll();
 
 // Top 5 produits (30j)
-$top = $db->query("
+$top = dashPhCachedRows($db, 'dash.admin.top5', "
   SELECT vl.produit_nom, SUM(vl.quantite) AS qte
   FROM vente_lignes vl JOIN ventes v ON vl.vente_id=v.id
   WHERE v.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
   GROUP BY vl.produit_nom ORDER BY qte DESC LIMIT 5
-")->fetchAll();
+");
 $maxQ = $top ? max(array_column($top, 'qte')) : 1;
 
 // Prepare les jours pour le mini graphique
@@ -105,6 +119,8 @@ showFlash();
   </div>
 </div>
 
+<?php require __DIR__ . '/dashboard-alertes-pharmacies.php'; ?>
+
 <div class="card" style="margin-bottom:20px;">
   <div class="card-header">
     <div class="card-title">Évolution des ventes — 30 derniers jours</div>
@@ -121,7 +137,7 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title">Stock critique</div>
-      <a href="<?= APP_URL ?>/modules/stock.php" class="btn btn-ghost btn-xs">Voir tout</a>
+      <a href="<?= url('stock') ?>" class="btn btn-ghost btn-xs">Voir tout</a>
     </div>
     <?php if ($critique): foreach ($critique as $p): ?>
     <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">

@@ -17,7 +17,21 @@
       "PowerShell(& 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore -e \"SELECT cle FROM app_settings WHERE cle='api_key'; SHOW COLUMNS FROM hospitalisations LIKE 'statut';\" 2>&1)",
       "PowerShell(& 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore -e \"SHOW TABLES LIKE '%triage%'; SHOW TABLES LIKE '%checklist%'; SHOW TABLES LIKE '%compagnie%'; SHOW TABLES LIKE '%prises_en_charge%'; SHOW TABLES LIKE '%grossesses%'; SHOW TABLES LIKE '%accouchements%'; SHOW TABLES LIKE '%nouveau_nes%'; SHOW TABLES LIKE '%stock_ent%';\" 2>&1)",
       "PowerShell(& 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore -e \"SELECT id, role_key, label FROM roles_config;\" 2>&1)",
-      "PowerShell(Get-Content 'C:\\\\xampp\\\\htdocs\\\\medicore\\\\sql\\\\seed_permissions_v3.sql' | & 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore 2>&1)"
+      "PowerShell(Get-Content 'C:\\\\xampp\\\\htdocs\\\\medicore\\\\sql\\\\seed_permissions_v3.sql' | & 'C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe' -u root medicore 2>&1)",
+      "Bash(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\medicore\" -Filter \"*.php\" -Recurse -Depth 3)",
+      "Bash(Select-Object -First 80 FullName)",
+      "Bash(php *)",
+      "Bash(curl -v \"http://localhost/medicore/analytics.php\")",
+      "Bash(xxd \"C:\\\\xampp\\\\htdocs\\\\medicore\\\\pages\\\\analytics.php\")",
+      "Bash(mysql *)",
+      "Read(//c/xampp/mysql/bin/**)",
+      "Bash(C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe *)",
+      "Bash(curl *)",
+      "Bash(Get-Content \"C:\\\\xampp\\\\apache\\\\logs\\\\error.log\" -Tail 30)",
+      "Bash(C:\\\\xampp\\\\php\\\\php.exe *)",
+      "Bash(node *)",
+      "Bash(powershell *)",
+      "Bash(git *)"
     ]
   }
 }

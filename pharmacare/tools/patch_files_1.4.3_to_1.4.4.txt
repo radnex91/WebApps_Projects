@@ -1,0 +1,35 @@
+# Patch 1.4.3 -> 1.4.4 — Correctif : champs POS non remis apres un ticket hors ligne + retrait errone en file d'attente
+#
+# Deux correctifs decouverts au test du rejeu hors ligne (2026-09-09) :
+#
+# 1. Apres une vente mise en file hors ligne (ticket « PROVISOIRE ») ou un
+#    vidage du panier (« Vider »), les champs du POS gardaient l'etat de la
+#    vente precedente : montant recu reaffiche (reliquat recalcule contre un
+#    panier vide), montant_recu obsolete transmis au POST suivant, nom du
+#    client precedent, et mode paiement reste sur « credit ». Dorenavant
+#    resetPaymentInputs() (app.js) remet la page a l'etat d'une page fraiche
+#    a chaque vidage du panier : montant, remise (code/auteur/taux), client
+#    (retour en « vente libre ») et mode paiement espèces.
+#
+# 2. File d'attente hors ligne : dequeue() retirait TOUJOURS la tete de file
+#    (q.shift()) alors que submitSale empile la vente en FIN de file. Si la
+#    vente soumise etait refusee (refus metier : stock insuffisant...) alors
+#    que d'autres plus anciennes attendaient, c'etait la PLUS ANCIENNE qui
+#    disparaissait — la vente refusee restait en file (rejouee sans fin) et
+#    une vente legitimement encaissee pouvait etre perdue sans trace.
+#    Dorenavant dequeue(client_ref) retire exactement la vente concernee
+#    (aux 4 points d'appel du moteur) ; l'ordre FIFO du rejeu est preserve
+#    et un double retrait devient impossible.
+#
+# 3. Cle du panier localStorage : lecture de PC_USER_ID (deja defini par
+#    includes/layout.php, jamais livre ici car inchange) — le panier devient
+#    propre a chaque caissier au lieu de la cle unique partagee « anon ».
+#    Effet de bord a l'application : un panier en cours non vendu au moment
+#    du patch n'est pas repris (les ventes en file d'attente, elles, sont
+#    conservees).
+#
+# 4. Version applicative 1.4.4 (cache-bust CSS/JS + version affichee).
+#
+includes/layout.php
+assets/js/app.js
+config/env.php

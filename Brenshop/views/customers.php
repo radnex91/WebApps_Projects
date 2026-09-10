@@ -61,8 +61,11 @@ require_once __DIR__ . '/layout_top.php';
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <form method="GET" class="d-flex gap-2">
-        <input type="text" name="search" value="<?= e($search) ?>" class="form-control form-control-sm" placeholder="Nom, téléphone, email..." style="width:240px;border-radius:8px">
-        <button type="submit" class="btn btn-sm btn-outline-primary" style="border-radius:8px">Rechercher</button>
+        <div class="input-group input-group-sm" style="width:240px">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" name="search" value="<?= e($search) ?>" class="form-control" placeholder="Nom, téléphone, email..." style="border-radius:0 8px 8px 0">
+        </div>
+        <button type="submit" class="btn btn-sm btn-outline-primary" style="border-radius:8px"><i class="bi bi-search me-1"></i>Rechercher</button>
     </form>
     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#customerModal" style="border-radius:8px">
         <i class="bi bi-person-plus me-1"></i>Nouveau Client
@@ -80,11 +83,11 @@ require_once __DIR__ . '/layout_top.php';
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th class="ps-3">Nom</th>
-                                <th>Téléphone</th>
-                                <th>Email</th>
-                                <th class="text-end">Total Achats</th>
-                                <th class="text-center pe-3">Actions</th>
+                                <th class="ps-3"><i class="bi bi-person me-1"></i>Nom</th>
+                                <th><i class="bi bi-telephone me-1"></i>Téléphone</th>
+                                <th><i class="bi bi-envelope me-1"></i>Email</th>
+                                <th class="text-end"><i class="bi bi-currency-dollar me-1"></i>Total Achats</th>
+                                <th class="text-center pe-3"><i class="bi bi-gear me-1"></i>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -124,7 +127,7 @@ require_once __DIR__ . '/layout_top.php';
                             </tr>
                             <?php endforeach; ?>
                             <?php if (empty($customers)): ?>
-                            <tr><td colspan="5" class="text-center py-4 text-muted">Aucun client trouvé</td></tr>
+                            <tr><td colspan="5" class="text-center py-4 text-muted"><i class="bi bi-people d-block" style="font-size:2rem;opacity:.2"></i>Aucun client trouvé</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -138,33 +141,33 @@ require_once __DIR__ . '/layout_top.php';
         <div class="card">
             <div class="card-header-custom">
                 <h6><i class="bi bi-person me-2"></i><?= e($viewCustomer['name']) ?> — Historique</h6>
-                <a href="?" class="btn btn-sm btn-outline-secondary" style="font-size:.72rem">Fermer</a>
+                <a href="?" class="btn btn-sm btn-outline-secondary" style="font-size:.72rem"><i class="bi bi-x-lg me-1"></i>Fermer</a>
             </div>
             <div class="card-body py-2 px-3">
                 <div class="row g-2 mb-3">
                     <div class="col-4">
                         <div style="background:var(--body-bg);border-radius:8px;padding:.6rem .8rem;text-align:center">
                             <div style="font-family:Syne,sans-serif;font-weight:700;font-size:1rem;color:var(--accent)"><?= formatMoney((float)$viewCustomer['total_purchases']) ?></div>
-                            <div style="font-size:.7rem;color:var(--text-muted)">Total achats</div>
+                            <div style="font-size:.7rem;color:var(--text-muted)"><i class="bi bi-cash-stack me-1"></i>Total achats</div>
                         </div>
                     </div>
                     <div class="col-4">
                         <div style="background:var(--body-bg);border-radius:8px;padding:.6rem .8rem;text-align:center">
                             <div style="font-family:Syne,sans-serif;font-weight:700;font-size:1rem"><?= count($purchaseHistory) ?></div>
-                            <div style="font-size:.7rem;color:var(--text-muted)">Transactions</div>
+                            <div style="font-size:.7rem;color:var(--text-muted)"><i class="bi bi-receipt me-1"></i>Transactions</div>
                         </div>
                     </div>
                     <div class="col-4">
                         <div style="background:var(--body-bg);border-radius:8px;padding:.6rem .8rem;text-align:center">
                             <div style="font-family:Syne,sans-serif;font-weight:700;font-size:1rem;color:#10B981"><?= $viewCustomer['loyalty_points'] ?></div>
-                            <div style="font-size:.7rem;color:var(--text-muted)">Points fidélité</div>
+                            <div style="font-size:.7rem;color:var(--text-muted)"><i class="bi bi-star me-1"></i>Points fidélité</div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="card-body p-0" style="max-height:400px;overflow-y:auto">
                 <table class="table table-sm mb-0">
-                    <thead><tr><th class="ps-3">Facture</th><th>Date</th><th>Magasin</th><th class="text-end pe-3">Montant</th></tr></thead>
+                    <thead><tr><th class="ps-3"><i class="bi bi-file-earmark-text me-1"></i>Facture</th><th><i class="bi bi-calendar me-1"></i>Date</th><th><i class="bi bi-building me-1"></i>Magasin</th><th class="text-end pe-3"><i class="bi bi-currency-dollar me-1"></i>Montant</th></tr></thead>
                     <tbody>
                         <?php foreach ($purchaseHistory as $h): ?>
                         <tr>
@@ -177,7 +180,7 @@ require_once __DIR__ . '/layout_top.php';
                         </tr>
                         <?php endforeach; ?>
                         <?php if (empty($purchaseHistory)): ?>
-                        <tr><td colspan="4" class="text-center py-3 text-muted" style="font-size:.82rem">Aucun achat enregistré</td></tr>
+                        <tr><td colspan="4" class="text-center py-3 text-muted" style="font-size:.82rem"><i class="bi bi-bag-x d-block" style="font-size:2rem;opacity:.2"></i>Aucun achat enregistré</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -192,7 +195,7 @@ require_once __DIR__ . '/layout_top.php';
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius:16px;border:none">
             <div class="modal-header border-0">
-                <h5 class="modal-title" id="customerModalTitle" style="font-family:Syne,sans-serif;font-weight:700">Nouveau Client</h5>
+                <h5 class="modal-title" id="customerModalTitle" style="font-family:Syne,sans-serif;font-weight:700"><i class="bi bi-person-plus me-2"></i>Nouveau Client</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
@@ -200,31 +203,31 @@ require_once __DIR__ . '/layout_top.php';
                 <input type="hidden" name="id" id="customerId" value="0">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Nom complet <span class="text-danger">*</span></label>
+                        <label class="form-label fw-semibold"><i class="bi bi-person me-1"></i>Nom complet <span class="text-danger">*</span></label>
                         <input type="text" name="name" id="cName" class="form-control" required style="border-radius:8px">
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label fw-semibold">Téléphone</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-telephone me-1"></i>Téléphone</label>
                             <input type="tel" name="phone" id="cPhone" class="form-control" style="border-radius:8px" placeholder="+221 77 000 0000">
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-semibold">Email</label>
+                            <label class="form-label fw-semibold"><i class="bi bi-envelope me-1"></i>Email</label>
                             <input type="email" name="email" id="cEmail" class="form-control" style="border-radius:8px">
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Adresse</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-geo-alt me-1"></i>Adresse</label>
                         <input type="text" name="address" id="cAddress" class="form-control" style="border-radius:8px">
                     </div>
                     <div>
-                        <label class="form-label fw-semibold">Notes</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-chat-left-text me-1"></i>Notes</label>
                         <textarea name="notes" id="cNotes" class="form-control" rows="2" style="border-radius:8px;resize:none"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px">Enregistrer</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
+                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px"><i class="bi bi-check-lg me-1"></i>Enregistrer</button>
                 </div>
             </form>
         </div>

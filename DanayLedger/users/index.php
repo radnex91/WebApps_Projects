@@ -83,15 +83,15 @@ if (!empty($queryParams)) {
 ?>
 
 <!-- Main Content -->
-<div class="main-content">
-    <header class="main-header">
+<div class="main-content" id="main-content" role="main">
+    <header class="main-header" role="banner">
         <div class="header-left">
-            <button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button>
-            <h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6>
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button>
+            <span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span>
         </div>
         <div class="header-right">
             <div class="dropdown">
-                <button class="notif-btn" data-bs-toggle="dropdown">
+                <button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown">
                     <i class="bi bi-bell"></i>
                     <?php if ($unreadNotifs > 0): ?>
                     <span class="notif-badge"><?php echo $unreadNotifs; ?></span>
@@ -115,7 +115,7 @@ if (!empty($queryParams)) {
                 </div>
             </div>
             <div class="dropdown">
-                <div class="header-user" data-bs-toggle="dropdown">
+                <div class="header-user" role="button" tabindex="0" aria-label="Menu utilisateur" data-bs-toggle="dropdown">
                     <div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div>
                     <div class="user-info d-none d-sm-block">
                         <div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div>

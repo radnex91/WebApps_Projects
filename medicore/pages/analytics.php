@@ -145,7 +145,7 @@ $facLabel   = ['en_attente'=>'En attente','reglee'=>'Réglée','impayee'=>'Impay
         ?>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
           <span style="font-size:11px;font-weight:600;color:var(--text2)"><?= $a['nb'] ?></span>
-          <div style="width:100%;background:<?= $isToday2?'var(--accent)':'rgba(59,130,246,.3)' ?>;border-radius:4px 4px 0 0;height:<?= max(4,$h) ?>%;transition:height .3s" title="<?= $a['jour'] ?>: <?= $a['nb'] ?>"></div>
+          <div style="width:100%;background:<?= $isToday2?'var(--accent)':'rgba(var(--accent-rgb),.3)' ?>;border-radius:4px 4px 0 0;height:<?= max(4,$h) ?>%;transition:height .3s" title="<?= $a['jour'] ?>: <?= $a['nb'] ?>"></div>
           <span style="font-size:10px;color:var(--text3)"><?= $dn2 ?></span>
         </div>
         <?php endforeach; ?>
@@ -300,7 +300,7 @@ $facLabel   = ['en_attente'=>'En attente','reglee'=>'Réglée','impayee'=>'Impay
       ?>
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
         <span style="font-size:10px;color:var(--text2)"><?= $a['nb'] ?></span>
-        <div style="width:100%;border-radius:3px 3px 0 0;height:<?= max(4,$h2) ?>%;background:<?= $isCurrentMonth?'var(--accent)':'rgba(59,130,246,.35)' ?>"></div>
+        <div style="width:100%;border-radius:3px 3px 0 0;height:<?= max(4,$h2) ?>%;background:<?= $isCurrentMonth?'var(--accent)':'rgba(var(--accent-rgb),.35)' ?>"></div>
         <span style="font-size:9px;color:var(--text3)"><?= ($moisAbrev[$mo]??$mo).' '.substr($yr,2) ?></span>
       </div>
       <?php endforeach; ?>

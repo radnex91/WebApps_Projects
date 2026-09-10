@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS entreprises (
     numero_contribuable VARCHAR(100),
     logo VARCHAR(255),
     theme VARCHAR(20) DEFAULT 'default',
-    police VARCHAR(100) DEFAULT 'Segoe UI',
+    police VARCHAR(100) DEFAULT 'Manrope',
     devise VARCHAR(10) DEFAULT 'FCFA',
     exercice_courant YEAR,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS utilisateurs (
     agence_id INT,
     service_id INT,
     role_id INT NOT NULL,
+    username VARCHAR(50) NOT NULL UNIQUE,
     nom VARCHAR(100) NOT NULL,
     prenom VARCHAR(100) NOT NULL,
     matricule VARCHAR(30) UNIQUE,
@@ -642,7 +643,7 @@ INSERT INTO plan_comptable (compte, libelle, classe, type_compte, sens_normal) V
 
 -- Entreprise par défaut
 INSERT INTO entreprises (nom, sigle, devise, exercice_courant) VALUES
-('Mon Entreprise', 'ME', 'FCFA', YEAR(CURDATE()));
+('BrenFinance Suite Pro', 'BFSP', 'FCFA', YEAR(CURDATE()));
 
 -- Agence par défaut
 INSERT INTO agences (entreprise_id, code, nom) VALUES (1, 'SIE', 'Siège Social');

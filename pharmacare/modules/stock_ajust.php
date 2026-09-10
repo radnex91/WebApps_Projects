@@ -16,13 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['barcode_lookup'])) {
         $stmtLookup->execute([$ref]);
         $found = $stmtLookup->fetch();
         if ($found) {
-            header('Location: ' . APP_URL . '/modules/stock_ajust.php?id=' . (int)$found['id']); exit;
+            header('Location: ' . url('stock_ajust', ['id'=>(int)$found['id']])); exit;
         } else {
             flash('Aucun produit trouvé avec la référence : ' . e($ref), 'error');
-            header('Location: ' . APP_URL . '/modules/stock_ajust.php'); exit;
+            header('Location: ' . url('stock_ajust')); exit;
         }
     }
-    header('Location: ' . APP_URL . '/modules/stock_ajust.php'); exit;
+    header('Location: ' . url('stock_ajust')); exit;
 }
 
 // ── Si aucun produit sélectionné, afficher le formulaire de recherche ──
@@ -33,7 +33,7 @@ if (!$id) {
     <div class="card" style="max-width:520px;margin:40px auto;">
       <div class="card-header">
         <div class="card-title">Recherche par code-barres</div>
-        <a href="<?= APP_URL ?>/modules/stock.php" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+        <a href="<?= url('stock') ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
       </div>
       <div class="card-pad">
         <form method="POST">
@@ -51,7 +51,7 @@ if (!$id) {
         </form>
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
           <div class="text-sm" style="color:var(--text3);margin-bottom:8px;">Ou chercher par nom :</div>
-          <form method="GET" action="<?= APP_URL ?>/modules/stock.php" style="display:flex;gap:8px;">
+          <form method="GET" action="<?= url('stock') ?>" style="display:flex;gap:8px;">
             <input type="text" name="q" placeholder="Nom du médicament..." style="flex:1;">
             <button type="submit" class="btn btn-ghost"><?= icon('search',14) ?></button>
           </form>
@@ -64,7 +64,7 @@ if (!$id) {
 $stmt = $db->prepare("SELECT p.*, c.nom AS cat FROM produits p LEFT JOIN categories c ON p.categorie_id=c.id WHERE p.id=?");
 $stmt->execute([$id]);
 $produit = $stmt->fetch();
-if (!$produit) { flash('Produit introuvable.','error'); header('Location: ' . APP_URL . '/modules/stock.php'); exit; }
+if (!$produit) { flash('Produit introuvable.','error'); header('Location: ' . url('stock')); exit; }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
@@ -72,31 +72,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $qte   = (int)($_POST['quantite'] ?? 0);
     $motif = trim($_POST['motif'] ?? '');
 
-    if ($qte <= 0) {
-        flash('La quantité doit être supérieure à 0.', 'error');
+    $erreur = '';
+    if ($type === 'ajustement') {
+        if ($qte < 0) $erreur = 'La quantité ne peut pas être négative.';
     } else {
-        switch ($type) {
-            case 'entrée':     $newStock = $produit['stock'] + $qte;         break;
-            case 'sortie':     $newStock = max(0, $produit['stock'] - $qte); break;
-            case 'ajustement': $newStock = $qte;                              break;
-            default:           $newStock = $produit['stock'];
-        }
+        if ($qte <= 0) $erreur = 'La quantité doit être supérieure à 0.';
+        if ($type === 'sortie' && $qte > $produit['stock']) $erreur = 'Stock insuffisant (disponible : ' . $produit['stock'] . ').';
+    }
+
+    if ($erreur) {
+        flash($erreur, 'error');
+    } else {
         try {
             $db->beginTransaction();
+
+            // ── Concurrence : même ordre de verrous que vente.php (pp → produits) ──
+            // vente.php décrémente produit_pharmacie (pharmacie 1) puis resynchronise
+            // produits.stock. On prend les verrous dans ce même ordre pour éviter
+            // tout interblocage entre une vente et cet ajustement.
+            // 1) Verrou sur la ligne produit_pharmacie de la pharmacie principale
+            //    (si elle existe — sinon le produit n'est pas vendable en pharmacie 1).
+            $stPP = $db->prepare("SELECT stock FROM produit_pharmacie WHERE produit_id=? AND pharmacie_id=1 FOR UPDATE");
+            $stPP->execute([$id]);
+            $ppRow = $stPP->fetch();
+
+            // 2) Lecture fraîche sous verrou exclusif : le snapshot affiché dans le
+            //    formulaire peut être périmé (vente simultanée). Recalculer le
+            //    nouveau stock depuis ce snapshot écraserait le décrément de la
+            //    vente (lost update). FOR UPDATE garantit une lecture à jour et
+            //    sérialise contre les ventes simultanées.
+            $stLock = $db->prepare("SELECT nom, reference, stock, prix_achat FROM produits WHERE id=? FOR UPDATE");
+            $stLock->execute([$id]);
+            $pLock = $stLock->fetch();
+            if (!$pLock) {
+                throw new Exception('Produit introuvable (supprimé entre-temps ?).');
+            }
+            $ancienStock = (int)$pLock['stock'];
+            switch ($type) {
+                case 'entrée':     $newStock = $ancienStock + $qte;         break;
+                case 'sortie':     $newStock = $ancienStock - $qte;         break;
+                case 'ajustement': $newStock = $qte;                         break;
+                default:           $newStock = $ancienStock;
+            }
+            if ($type === 'sortie' && $newStock < 0) {
+                // Contrôle autoritaire sous verrou (le contrôle avant transaction
+                // n'était qu'indicatif, sur le snapshot affiché).
+                $db->rollBack();
+                flash('Stock insuffisant (disponible : ' . $ancienStock . ').', 'error');
+                header('Location: ' . url('stock_ajust', ['id'=>$id])); exit;
+            }
+            $deltaReel = abs($newStock - $ancienStock);
             $db->prepare("UPDATE produits SET stock=? WHERE id=?")->execute([$newStock, $id]);
+            // Miroir pharmacie principale : produit_pharmacie (pharmacie 1) est la
+            // source des ventes (décrémentée par vente.php, puis resynchronisée vers
+            // produits.stock). Sans cette écriture, l'ajustement serait écrasé par
+            // la resync de la prochaine vente. Ligne absente = rien à synchroniser.
+            if ($ppRow !== false) {
+                $db->prepare("UPDATE produit_pharmacie SET stock=? WHERE produit_id=? AND pharmacie_id=1")
+                   ->execute([$newStock, $id]);
+            }
             $db->prepare("INSERT INTO mouvements_stock (produit_id,type,quantite,motif,utilisateur_id) VALUES (?,?,?,?,?)")
-               ->execute([$id, $type, $qte, $motif, currentUser()['id']]);
-            $pa = (float)$produit['prix_achat'];
-            if ($pa > 0 && $qte > 0) {
-                $valeur = round($pa * $qte, 2);
+               ->execute([$id, $type, $deltaReel, $motif, currentUser()['id']]);
+            $pa = (float)$pLock['prix_achat'];
+            if ($pa > 0 && $deltaReel > 0) {
+                $valeur = round($pa * $deltaReel, 2);
                 $compteStock  = compteFindOrCreate($db, '3111', 'Médicaments en stock', 3, 'debit');
                 $compteVarStk = compteFindOrCreate($db, '6031', 'Variation stocks marchandises', 6, 'debit');
-                if ($type === 'entrée' || ($type === 'ajustement' && $newStock > $produit['stock'])) {
-                    $lignes = [[$compteStock, $valeur, 0, 'Entrée stock ' . e($produit['nom'])]];
-                    $lignes[] = [$compteVarStk, 0, $valeur, 'Variation stock ' . e($produit['nom'])];
-                } elseif ($type === 'sortie' || ($type === 'ajustement' && $newStock < $produit['stock'])) {
-                    $lignes = [[$compteVarStk, $valeur, 0, 'Sortie stock ' . e($produit['nom'])]];
-                    $lignes[] = [$compteStock, 0, $valeur, 'Variation stock ' . e($produit['nom'])];
+                if ($type === 'entrée' || ($type === 'ajustement' && $newStock > $ancienStock)) {
+                    $lignes = [[$compteStock, $valeur, 0, 'Entrée stock ' . e($pLock['nom'])]];
+                    $lignes[] = [$compteVarStk, 0, $valeur, 'Variation stock ' . e($pLock['nom'])];
+                } elseif ($type === 'sortie' || ($type === 'ajustement' && $newStock < $ancienStock)) {
+                    $lignes = [[$compteVarStk, $valeur, 0, 'Sortie stock ' . e($pLock['nom'])]];
+                    $lignes[] = [$compteStock, 0, $valeur, 'Variation stock ' . e($pLock['nom'])];
                 } else {
                     $lignes = [];
                 }
@@ -105,12 +152,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             $db->commit();
+            auditLog('stock.adjust', sprintf('%s %s : %d → %d (%s : %s)', ucfirst($type), e($pLock['nom']), $ancienStock, $newStock, $type, $motif ?: '—'), $id, $pLock['reference'] ?? null);
             flash("Stock mis à jour : $newStock unités.");
-            header('Location: ' . APP_URL . '/modules/stock.php'); exit;
+            header('Location: ' . url('stock')); exit;
         } catch (Exception $e) {
             $db->rollBack();
-            flash('Erreur : ' . $e->getMessage(), 'error');
-            header('Location: ' . APP_URL . '/modules/stock_ajust.php?id=' . $id); exit;
+            flashError($e, 'ajustement stock');
+            header('Location: ' . url('stock_ajust', ['id'=>$id])); exit;
         }
     }
 }
@@ -138,7 +186,7 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title">Ajuster le stock</div>
-      <a href="<?= APP_URL ?>/modules/stock.php" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+      <a href="<?= url('stock') ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
     </div>
     <div class="card-pad">
       <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:16px;margin-bottom:18px;">
@@ -178,7 +226,7 @@ showFlash();
           </div>
           <div class="form-group">
             <label>Quantité *</label>
-            <input type="number" name="quantite" min="1" required placeholder="0">
+            <input type="number" name="quantite" min="0" required placeholder="0">
           </div>
           <div class="form-group">
             <label>Motif</label>

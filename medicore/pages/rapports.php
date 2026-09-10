@@ -350,12 +350,12 @@ $typeLabels = [
           $rowStyle = '';
           if ($type === 'pharmacie') {
               $last = end($row);
-              if ($last === 'CRITIQUE') $rowStyle = 'background:rgba(239,68,68,.06)';
-              elseif ($last === 'Bas')  $rowStyle = 'background:rgba(245,158,11,.06)';
+              if ($last === 'CRITIQUE') $rowStyle = 'background:rgba(var(--red-rgb),.06)';
+              elseif ($last === 'Bas')  $rowStyle = 'background:rgba(var(--yellow-rgb),.06)';
           }
           if ($type === 'urgences' && isset($row[5])) {
-              if (strtolower($row[5]) === 'critique') $rowStyle = 'background:rgba(239,68,68,.06)';
-              elseif (strtolower($row[5]) === 'urgent') $rowStyle = 'background:rgba(245,158,11,.04)';
+              if (strtolower($row[5]) === 'critique') $rowStyle = 'background:rgba(var(--red-rgb),.06)';
+              elseif (strtolower($row[5]) === 'urgent') $rowStyle = 'background:rgba(var(--yellow-rgb),.04)';
           }
         ?>
         <tr style="<?= $rowStyle ?>">

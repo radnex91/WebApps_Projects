@@ -1,0 +1,28 @@
+# Patch 1.4.2 -> 1.4.3 — Correctif : champs de connexion sombres à la saisie (thème clair)
+#
+# Problème corrigé (signalé en production) : « les champs de connexion de la
+# page login deviennent sombres à la saisie ».
+#
+# Cause : la page de connexion (index.php) a deux variantes de style — sombre
+# (défaut) et claire (thème light-*, ex. light-brainy actif chez ce client).
+# La variante claire override le fond des champs (.form-input : fond blanc
+# #FCFCFA, texte sombre) mais N'AVAIT PAS de règle :focus → au clic/saisie,
+# c'est le :focus de la variante SOMBRE qui s'appliquait : fond bleu nuit
+# opaque rgba(30,41,59,0.9) sous un texte resté sombre → champ noir et
+# illisible dès la première frappe.
+#
+# 1. Variante claire : règle .form-input:focus ajoutée (fond blanc #FFFFFF
+#    au focus, bordure teal) — mesuré avant rgba(30,41,59,0.9) / après
+#    rgb(255,255,255) dans Chrome headless.
+#
+# 2. Autofill (Chrome/Edge), les DEUX variantes : garde :-webkit-autofill
+#    ajouté — le navigateur injecte son propre fond (proche du noir sur page
+#    sombre) dès que des identifiants sauvegardés se remplissent. Force le
+#    fond attendu (#1E293B sombre / #FCFCFA clair) + couleur de texte et
+#    curseur cohérentes.
+#
+# Aucune autre modification : delta pur de 29 lignes CSS sur index.php.
+# Version applicative 1.4.3 (cache-bust CSS/JS + version affichée).
+#
+index.php
+config/env.php

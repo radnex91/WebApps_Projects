@@ -177,7 +177,7 @@ $dn = ['Mon'=>'Lun','Tue'=>'Mar','Wed'=>'Mer','Thu'=>'Jeu','Fri'=>'Ven','Sat'=>'
     $shortDay = $dn[date('D',strtotime($day))] ?? date('D',strtotime($day));
   ?>
   <div style="background:var(--surface);border:1px solid <?= $isToday?'var(--accent)':'var(--border)' ?>;border-radius:10px;overflow:hidden">
-    <div style="padding:10px;text-align:center;background:<?= $isToday?'rgba(59,130,246,.15)':'var(--surface2)' ?>;border-bottom:1px solid var(--border)">
+    <div style="padding:10px;text-align:center;background:<?= $isToday?'rgba(var(--accent-rgb),.15)':'var(--surface2)' ?>;border-bottom:1px solid var(--border)">
       <div style="font-size:11px;color:var(--text3)"><?= $shortDay ?></div>
       <div style="font-size:18px;font-weight:700;color:<?= $isToday?'var(--accent2)':'var(--text)' ?>"><?= date('d', strtotime($day)) ?></div>
       <div style="font-size:10px;color:var(--text3)"><?= count($dayRdvs) ?> RDV</div>
@@ -301,12 +301,12 @@ $dn = ['Mon'=>'Lun','Tue'=>'Mar','Wed'=>'Mer','Thu'=>'Jeu','Fri'=>'Ven','Sat'=>'
         $isTd = $d === $today;
         $sDay = $jFr[date('D',strtotime($d))] ?? date('D',strtotime($d));
       ?>
-      <a href="?date=<?= $d ?>" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);text-decoration:none;background:<?= $isTd?'rgba(59,130,246,.06)':'' ?>">
+      <a href="?date=<?= $d ?>" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);text-decoration:none;background:<?= $isTd?'rgba(var(--accent-rgb),.06)':'' ?>">
         <span style="font-size:13px;color:<?= $isTd?'var(--accent2)':'var(--text2)' ?>">
           <strong><?= $sDay ?></strong> <?= date('d', strtotime($d)) ?> <?= $moisFr[date('m',strtotime($d))]??'' ?>
           <?php if ($isTd): ?><small style="color:var(--accent2)"> (aujourd'hui)</small><?php endif; ?>
         </span>
-        <span style="background:<?= $nb>0?'rgba(59,130,246,.15)':'var(--surface2)' ?>;color:<?= $nb>0?'var(--accent2)':'var(--text3)' ?>;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600"><?= $nb ?></span>
+        <span style="background:<?= $nb>0?'rgba(var(--accent-rgb),.15)':'var(--surface2)' ?>;color:<?= $nb>0?'var(--accent2)':'var(--text3)' ?>;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600"><?= $nb ?></span>
       </a>
       <?php endfor; ?>
     </div>
@@ -315,43 +315,43 @@ $dn = ['Mon'=>'Lun','Tue'=>'Mar','Wed'=>'Mer','Thu'=>'Jeu','Fri'=>'Ven','Sat'=>'
 <?php endif; ?>
 
 <!-- MODAL CREER RDV -->
-<div id="modal-rdv" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:600px;box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
+<div id="modal-rdv" class="modal-overlay" style="display:none;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(600px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">
       <h3>Nouveau rendez-vous</h3>
-      <div onclick="document.getElementById('modal-rdv').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">X</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-rdv').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">X</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_rdv"><?= csrf_field() ?>
       <div class="form-grid">
-        <div class="form-group form-full"><label>Patient *</label>
-          <select name="patient_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group form-full"><label for="inp-patient_id">Patient *</label>
+          <select name="patient_id" id="inp-patient_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value="">-- Selectionner --</option>
             <?php foreach ($patients as $p): ?><option value="<?= (int)$p['id'] ?>"><?= h($p['nom_complet']) ?> (<?= h($p['numero']) ?>)</option><?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group form-full"><label>Medecin *</label>
-          <select name="medecin_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group form-full"><label for="inp-medecin_id">Medecin *</label>
+          <select name="medecin_id" id="inp-medecin_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value="">-- Selectionner --</option>
             <?php foreach ($médecins as $m): ?><option value="<?= (int)$m['id'] ?>" <?= $medFilter===(int)$m['id']?'selected':'' ?>><?= h($m['nom_complet']) ?><?= $m['specialite']?' - '.h($m['specialite']):'' ?></option><?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>Date *</label><input type="date" name="date_rdv" required value="<?= h($viewDate) ?>" min="<?= $today ?>"></div>
-        <div class="form-group"><label>Heure *</label><input type="time" name="heure" required value="09:00" step="900"></div>
-        <div class="form-group"><label>Durée</label>
-          <select name="duree_minutes" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group"><label for="inp-date_rdv">Date *</label><input type="date" name="date_rdv" id="inp-date_rdv" required value="<?= h($viewDate) ?>" min="<?= $today ?>"></div>
+        <div class="form-group"><label for="inp-heure">Heure *</label><input type="time" name="heure" id="inp-heure" required value="09:00" step="900"></div>
+        <div class="form-group"><label for="inp-duree_minutes">Durée</label>
+          <select name="duree_minutes" id="inp-duree_minutes" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value="15">15 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">1 heure</option><option value="90">1h30</option>
           </select>
         </div>
-        <div class="form-group"><label>Type</label>
-          <select name="type" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group"><label for="inp-type">Type</label>
+          <select name="type" id="inp-type" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value="consultation">Consultation</option><option value="suivi">Suivi</option><option value="urgence">Urgence</option><option value="chirurgie">Chirurgie</option><option value="bilan">Bilan</option>
           </select>
         </div>
-        <div class="form-group form-full"><label>Motif *</label><input type="text" name="motif" required maxlength="255"></div>
-        <div class="form-group"><label>Salle</label><input type="text" name="salle" maxlength="50" placeholder="ex: Salle A3"></div>
-        <div class="form-group"><label>Statut initial</label>
-          <select name="statut" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group form-full"><label for="inp-motif">Motif *</label><input type="text" name="motif" id="inp-motif" required maxlength="255"></div>
+        <div class="form-group"><label for="inp-salle">Salle</label><input type="text" name="salle" id="inp-salle" maxlength="50" placeholder="ex: Salle A3"></div>
+        <div class="form-group"><label for="inp-statut">Statut initial</label>
+          <select name="statut" id="inp-statut" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value="planifie">📅 Planifié</option><option value="confirme">✅ Confirmé</option>
           </select>
         </div>
@@ -367,8 +367,8 @@ $dn = ['Mon'=>'Lun','Tue'=>'Mar','Wed'=>'Mer','Thu'=>'Jeu','Fri'=>'Ven','Sat'=>'
 <?php $__médecins = db_select("SELECT id,CONCAT(prenom,' ',nom) AS nom,specialite FROM utilisateurs WHERE role='medecin' AND statut='actif' ORDER BY nom"); ?>
 <!-- MODAL MODIFIER RDV -->
 <?php if ($editRdv): ?>
-<div id="modal-edit-rdv" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)location.href='appointments.php?date=<?= h($viewDate) ?>'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:580px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-edit-rdv" class="modal-overlay" style="display:flex;z-index:200;align-items:center;justify-content:center;padding:20px" role="dialog" aria-modal="true" onclick="if(event.target===this)location.href='appointments.php?date=<?= h($viewDate) ?>'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(580px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>✏️ Modifier RDV — <?= h($editRdv['patient_nom']) ?></h3>
       <a href="appointments.php?date=<?= h($viewDate) ?>" style="color:var(--text2);text-decoration:none;font-size:18px"></a>
@@ -379,37 +379,37 @@ $dn = ['Mon'=>'Lun','Tue'=>'Mar','Wed'=>'Mer','Thu'=>'Jeu','Fri'=>'Ven','Sat'=>'
       <input type="hidden" name="back_date" value="<?= h($viewDate) ?>">
       <?= csrf_field() ?>
       <div class="form-grid">
-        <div class="form-group"><label>Date *</label>
-          <input type="date" name="date_rdv" value="<?= substr($editRdv['date_heure'],0,10) ?>" required>
+        <div class="form-group"><label for="inp-edit-date_rdv">Date *</label>
+          <input type="date" name="date_rdv" id="inp-edit-date_rdv" value="<?= substr($editRdv['date_heure'],0,10) ?>" required>
         </div>
-        <div class="form-group"><label>Heure *</label>
-          <input type="time" name="heure_rdv" value="<?= substr($editRdv['date_heure'],11,5) ?>" required>
+        <div class="form-group"><label for="inp-edit-heure_rdv">Heure *</label>
+          <input type="time" name="heure_rdv" id="inp-edit-heure_rdv" value="<?= substr($editRdv['date_heure'],11,5) ?>" required>
         </div>
-        <div class="form-group"><label>Durée (min)</label>
-          <input type="number" name="duree" value="<?= (int)$editRdv['duree_minutes'] ?>" min="15" step="15">
+        <div class="form-group"><label for="inp-edit-duree">Durée (min)</label>
+          <input type="number" name="duree" id="inp-edit-duree" value="<?= (int)$editRdv['duree_minutes'] ?>" min="15" step="15">
         </div>
-        <div class="form-group"><label>Type</label>
-          <select name="type" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group"><label for="inp-edit-type">Type</label>
+          <select name="type" id="inp-edit-type" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <?php foreach(['consultation'=>'Consultation','suivi'=>'Suivi','urgence'=>'Urgence','chirurgie'=>'Chirurgie','bilan'=>'Bilan'] as $v=>$l): ?>
             <option value="<?= $v ?>" <?= $editRdv['type']===$v?'selected':'' ?>><?= $l ?></option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>Médecin</label>
-          <select name="medecin_id" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group"><label for="inp-edit-medecin_id">Médecin</label>
+          <select name="medecin_id" id="inp-edit-medecin_id" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <?php foreach($__médecins as $md): ?>
             <option value="<?= (int)$md['id'] ?>" <?= $editRdv['medecin_id']===$md['id']?'selected':'' ?>>Dr. <?= h($md['nom']) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>Salle</label>
-          <input type="text" name="salle" value="<?= h($editRdv['salle']??'') ?>" maxlength="50">
+        <div class="form-group"><label for="inp-edit-salle">Salle</label>
+          <input type="text" name="salle" id="inp-edit-salle" value="<?= h($editRdv['salle']??'') ?>" maxlength="50">
         </div>
-        <div class="form-group form-full"><label>Motif *</label>
-          <input type="text" name="motif" value="<?= h($editRdv['motif']) ?>" required maxlength="200">
+        <div class="form-group form-full"><label for="inp-edit-motif">Motif *</label>
+          <input type="text" name="motif" id="inp-edit-motif" value="<?= h($editRdv['motif']) ?>" required maxlength="200">
         </div>
-        <div class="form-group"><label>Statut</label>
-          <select name="statut" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group"><label for="inp-edit-statut">Statut</label>
+          <select name="statut" id="inp-edit-statut" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <?php foreach(['planifie'=>'Planifi','confirme'=>'Confirm','complete'=>'Complt','annule'=>'Annul','absent'=>'Absent'] as $v=>$l): ?>
             <option value="<?= $v ?>" <?= $editRdv['statut']===$v?'selected':'' ?>><?= $l ?></option>
             <?php endforeach; ?>

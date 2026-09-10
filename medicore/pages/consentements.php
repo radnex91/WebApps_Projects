@@ -133,13 +133,13 @@ if ($search) {
 
 <!-- Modal consentement -->
 <?php if ($patient_id > 0 && can('consentements.create')): ?>
-<div id="modal-consent" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:520px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
+<div id="modal-consent" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(520px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <h3>Enregistrer un consentement</h3><div onclick="document.getElementById('modal-consent').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div></div>
+      <h3>Enregistrer un consentement</h3><button type="button" class="modal-close" onclick="document.getElementById('modal-consent').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button></div>
     <form method="POST" style="padding:24px"><input type="hidden" name="action" value="enregistrer">
     <input type="hidden" name="patient_id" value="<?= $patient_id ?>"><?= csrf_field() ?>
-    <div class="form-group"><label>Type de consentement *</label><select name="type" required>
+    <div class="form-group"><label for="cons-type">Type de consentement *</label><select name="type" id="cons-type" required>
       <option value="">-- Selectionner --</option>
       <?php foreach ($typeLabels as $tk=>$tl): ?><option value="<?= $tk ?>"><?= $typeIcon[$tk] ?> <?= $tl ?></option><?php endforeach; ?></select></div>
     <div class="form-group"><label>Statut *</label><select name="statut">

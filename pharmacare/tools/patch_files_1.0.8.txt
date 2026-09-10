@@ -1,0 +1,8 @@
+# Patch 1.0.7 -> 1.0.8 — fichiers modifies (chemins relatifs a pharmacare/)
+# Fixes: page blanche edition article (FK vide + UNIQUE vide), page blanche edition utilisateur (login/email UNIQUE),
+#        pagination 20/page (modale commande + recap commande + validation livraison), CSS pager.
+config/env.php
+assets/css/style.css
+modules/commandes.php
+modules/produits.php
+modules/utilisateurs.php

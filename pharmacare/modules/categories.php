@@ -7,10 +7,23 @@ $db = getDB();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
+    // ── Suppression (POST + CSRF) ──
+    if (($_POST['action'] ?? '') === 'delete') {
+        $did = (int)($_POST['id'] ?? 0);
+        $nb  = $db->prepare("SELECT COUNT(*) FROM produits WHERE categorie_id=? AND actif=1");
+        $nb->execute([$did]); $nb = $nb->fetchColumn();
+        if ($nb > 0) {
+            flash("Impossible : $nb produit(s) utilisent cette catégorie.", 'error');
+        } else {
+            $db->prepare("DELETE FROM categories WHERE id=?")->execute([$did]);
+            flash('Catégorie supprimée.');
+        }
+        header('Location: ' . url('categories')); exit;
+    }
     $nom     = trim($_POST['nom'] ?? '');
     $couleur = preg_match('/^#[0-9a-f]{6}$/i', $_POST['couleur']??'') ? $_POST['couleur'] : '#00c9a7';
     $cid     = (int)($_POST['id'] ?? 0);
-    if ($nom === '') { flash('Le nom est requis.','error'); header('Location: ' . APP_URL . '/modules/categories.php'); exit; }
+    if ($nom === '') { flash('Le nom est requis.','error'); header('Location: ' . url('categories')); exit; }
     if ($cid) {
         $db->prepare("UPDATE categories SET nom=?,couleur=? WHERE id=?")->execute([$nom,$couleur,$cid]);
         flash('Catégorie mise à jour.');
@@ -18,20 +31,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->prepare("INSERT INTO categories (nom,couleur) VALUES (?,?)")->execute([$nom,$couleur]);
         flash('Catégorie ajoutée.');
     }
-    header('Location: ' . APP_URL . '/modules/categories.php'); exit;
+    header('Location: ' . url('categories')); exit;
 }
 
-if (isset($_GET['delete'])) {
-    $did = (int)$_GET['delete'];
-    $nb  = $db->prepare("SELECT COUNT(*) FROM produits WHERE categorie_id=? AND actif=1");
-    $nb->execute([$did]); $nb = $nb->fetchColumn();
-    if ($nb > 0) {
-        flash("Impossible : $nb produit(s) utilisent cette catégorie.", 'error');
-    } else {
-        $db->prepare("DELETE FROM categories WHERE id=?")->execute([$did]);
-        flash('Catégorie supprimée.');
+// ── Export Excel ─────────────────────────────────────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $rowsX = [];
+    foreach ($db->query("
+        SELECT c.nom, c.couleur, COUNT(p.id) AS nb
+        FROM categories c
+        LEFT JOIN produits p ON p.categorie_id=c.id AND p.actif=1
+        GROUP BY c.id ORDER BY c.nom
+    ")->fetchAll() as $c) {
+        $rowsX[] = [$c['nom'], $c['couleur'], (int)$c['nb']];
     }
-    header('Location: ' . APP_URL . '/modules/categories.php'); exit;
+    export_xlsx_send('categories_' . date('Y-m-d'), 'Catégories',
+        ['Nom', 'Couleur', 'Nb produits actifs'], $rowsX);
 }
 
 $categories = $db->query("
@@ -47,7 +63,8 @@ showFlash();
 <div class="grid-2">
   <!-- Liste -->
   <div class="card">
-    <div class="card-header"><div class="card-title">Catégories existantes</div></div>
+    <div class="card-header"><div class="card-title">Catégories existantes</div>
+    <a href="<?= url('categories', ['export'=>'1']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a></div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Couleur</th><th>Nom</th><th>Produits</th><th>Actions</th></tr></thead>
@@ -65,7 +82,7 @@ showFlash();
                 </button>
                 <?php if ($c['nb'] == 0): ?>
                 <button class="btn btn-danger btn-xs"
-                  onclick="confirmDelete('?delete=<?= $c['id'] ?>','Supprimer cette catégorie ?')">
+                  onclick="confirmDeletePost('delete','<?= (int)$c['id'] ?>','Supprimer cette catégorie ?')">
                   <?= icon('trash',13) ?>
                 </button>
                 <?php endif; ?>

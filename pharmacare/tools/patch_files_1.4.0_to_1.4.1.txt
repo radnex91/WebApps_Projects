@@ -1,0 +1,54 @@
+# Patch 1.4.0 -> 1.4.1 — Correctif : faux « hors ligne » sur les tickets alors que le serveur est en ligne
+#
+# Problème corrigé (signalé en production) : « le serveur est online mais le
+# ticket imprimé dit que le serveur est offline ».
+#
+# 1. La vente était mise en file SANS même tenter l'envoi dès que la pastille
+#    de statut disait « injoignable / BDD indisponible / session expirée ».
+#    Or un seul échec de sondage (micro-coupure LAN) ou une session expirée
+#    (rafaîchie juste après par le heartbeat) suffisait → ticket « provisoire
+#    hors ligne » alors que la vente aurait parfaitement passé.
+#    → on TENTE TOUJOURS l'envoi ; timeout court (6 s) uniquement si le mode
+#    est suspect ; circuit breaker 30 s après un échec réseau confirmé.
+#
+# 2. Sondage de statut : 2 échecs CONSÉCUTIFS requis avant de basculer la
+#    pastille en « Serveur injoignable / BDD indisponible » (anti scintillement
+#    et anti faux positifs).
+#
+# 3. Raison de mise en file enregistrée avec chaque vente (server / auth /
+#    caisse) → le ticket hors ligne porte désormais un message EXACT :
+#      - « Ticket provisoire — vente transmise automatiquement dès le retour
+#        du serveur » (vraie panne) ;
+#      - « Ticket provisoire — session expirée, vente transmise à la
+#        reconnexion » (le serveur est en ligne !) ;
+#      - « Ticket provisoire — vente transmise à l'ouverture de la caisse ».
+#    L'en-tête « HORS-LIGNE · … » devient « PROVISOIRE · … » (ne prétend plus
+#    que le serveur est hors ligne quand il ne l'est pas).
+#
+# 4. File d'attente (pastille « Serveur ») : la raison de chaque vente en
+#    attente est affichée (serveur injoignable / session expirée / caisse
+#    fermée) pour un diagnostic immédiat.
+#
+# 5. Fin de rejeu : « N vente(s) transmise(s) ✓ — tickets définitifs dans
+#    l'historique » (le caissier sait où réimprimer le ticket définitif).
+#
+# 6. Solde de caisse EN DIRECT au POS (modules/vente.php + hooks du moteur
+#    hors ligne) : le solde affiché en tête du panier était rendu par PHP au
+#    chargement de la page → il RESTAIT À 0 pendant les ventes hors ligne
+#    (aucun mouvement de caisse tant que les ventes sont en file). Désormais :
+#      affiché = solde serveur (chargement) + ventes espèces transmises
+#                depuis le chargement + ventes espèces en file (hors ligne,
+#                cash déjà encaissé) ;
+#      mention « (dont X hors ligne) » tant que la file n'est pas vide,
+#      sans double comptage au rejeu (bascule file → transmis).
+#    Seules les ventes ESPÈCES comptent (conforme à mouvements_caisse).
+#
+# 7. Ceinture de sécurité : includes/bootstrap_errors.php est livré (2 Ko)
+#    car config/env.php livré l'exige (require). Il est normalement déjà
+#    présent sur toute install 1.4.0 fonctionnelle — on élimine ainsi tout
+#    risque d'écran blanc fatal.
+#
+config/env.php
+includes/layout.php
+includes/bootstrap_errors.php
+modules/vente.php

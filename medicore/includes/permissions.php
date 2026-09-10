@@ -10,13 +10,15 @@ define('ROLE_LABELS', [
     'infirmier'  => 'Infirmier(ère)',
     'pharmacien' => 'Pharmacien',
     'comptable'  => 'Comptable',
+    'caissier'   => 'Caissier(ère)',
 ]);
 
 define('ALL_PAGES', [
     'dashboard'    => ['label'=>"Vue d'ensemble",      'icon'=>'dashboard',   'section'=>'Tableau de bord'],
-    'analytics'    => ['label'=>'Analytiques',          'icon'=>'analytics',   'section'=>''],
+    'accueil'      => ['label'=>'Accueil',               'icon'=>'accueil',     'section'=>'Clinique'],
     'patients'     => ['label'=>'Patients',             'icon'=>'patients',    'section'=>''],
     'appointments' => ['label'=>'Rendez-vous',          'icon'=>'appointments','section'=>''],
+    'consultations' => ['label'=>'Consultations',  'icon'=>'consultations','section'=>''],
     'urgences'     => ['label'=>'Urgences',             'icon'=>'urgences',    'section'=>''],
     'dossiers'     => ['label'=>'Dossiers médicaux',    'icon'=>'dossiers',    'section'=>''],
     'medecins'     => ['label'=>'Personnel médical',    'icon'=>'medecins',    'section'=>'Ressources'],
@@ -25,12 +27,10 @@ define('ALL_PAGES', [
     'caisse'       => ['label'=>'Caisse & Tickets',     'icon'=>'caisse',      'section'=>''],
     'laboratoire'  => ['label'=>'Laboratoire',          'icon'=>'laboratoire', 'section'=>''],
     'facturation'  => ['label'=>'Facturation',          'icon'=>'facturation', 'section'=>'Administration'],
+    'comptabilite' => ['label'=>'Comptabilité',         'icon'=>'comptabilite','section'=>'Administration'],
     'rh'           => ['label'=>'Ressources humaines',  'icon'=>'rh',          'section'=>''],
     'stocks'       => ['label'=>'Stocks & Matériel',    'icon'=>'stocks',      'section'=>''],
     'rapports'     => ['label'=>'Rapports',             'icon'=>'rapports',    'section'=>''],
-    'utilisateurs' => ['label'=>'Utilisateurs',         'icon'=>'utilisateurs','section'=>'Système'],
-    'parametres'   => ['label'=>'Paramètres',           'icon'=>'parametres',  'section'=>''],
-    'roles'        => ['label'=>'Roles & Permissions',     'icon'=>'roles',       'section'=>''],
     'observations' => ['label'=>'Signes vitaux',         'icon'=>'observations','section'=>'Clinique'],
     'mar'          => ['label'=>'Admin. médicaments',    'icon'=>'mar',         'section'=>''],
     'notes'        => ['label'=>'Notes cliniques',       'icon'=>'notes',       'section'=>''],
@@ -43,15 +43,26 @@ define('ALL_PAGES', [
     'notifications'=> ['label'=>'Notifications',         'icon'=>'notifications','section'=>''],
     'consentements'=> ['label'=>'Consentements',         'icon'=>'consentements','section'=>''],
     'audit'        => ['label'=>'Audit d\'accès',        'icon'=>'audit',       'section'=>''],
+    'utilisateurs' => ['label'=>'Utilisateurs',         'icon'=>'utilisateurs','section'=>'Système'],
+    'parametres'   => ['label'=>'Paramètres',           'icon'=>'parametres',  'section'=>''],
+    'roles'        => ['label'=>'Roles & Permissions',     'icon'=>'roles',       'section'=>''],
 ]);
 
 define('ALL_ACTIONS', [
     'patients.create'          => ['label'=>'Créer un patient',          'module'=>'Patients'],
     'patients.edit'            => ['label'=>'Modifier un patient',        'module'=>'Patients'],
     'patients.delete'          => ['label'=>'Supprimer un patient',       'module'=>'Patients'],
+    'patients.portail'         => ['label'=>'Gérer le compte portail patient', 'module'=>'Patients'],
+    'accueil.checkin'          => ['label'=>'Enregistrer / check-in patient à l\'accueil', 'module'=>'Accueil'],
+    'accueil.vitals'           => ['label'=>'Prendre les constantes d\'arrivée',           'module'=>'Accueil'],
+    'accueil.orienter'         => ['label'=>'Orienter un patient vers un médecin',         'module'=>'Accueil'],
     'appointments.create'      => ['label'=>'Créer un RDV',               'module'=>'Rendez-vous'],
     'appointments.edit_statut' => ['label'=>'Modifier statut RDV',        'module'=>'Rendez-vous'],
     'appointments.delete'      => ['label'=>'Supprimer un RDV',           'module'=>'Rendez-vous'],
+    'consultations.prescrire'  => ['label'=>'Prescrire une ordonnance depuis une consultation', 'module'=>'Consultations'],
+    'consultations.reorienter' => ['label'=>'Réorienter un patient vers un confrère',           'module'=>'Consultations'],
+    'consultations.terminer'   => ['label'=>'Terminer une consultation',                        'module'=>'Consultations'],
+    'consultations.resultat'   => ['label'=>'Saisir le résultat d\'une consultation',            'module'=>'Consultations'],
     'hospitalisations.create'  => ['label'=>'Admettre un patient',        'module'=>'Urgences'],
     'hospitalisations.update'  => ['label'=>'Modifier hospitalisation',   'module'=>'Urgences'],
     'hospitalisations.sortie'  => ['label'=>'Valider sortie patient',     'module'=>'Urgences'],
@@ -64,6 +75,9 @@ define('ALL_ACTIONS', [
     'ordonnances.encaisser'    => ['label'=>'Encaisser une ordonnance',   'module'=>'Pharmacie'],
     'caisse.create_vente'      => ['label'=>'Créer une vente caisse',     'module'=>'Caisse'],
     'caisse.annuler'           => ['label'=>'Annuler un ticket caisse',   'module'=>'Caisse'],
+    'caisse.session_ouvrir'   => ['label'=>'Ouvrir une session de caisse', 'module'=>'Caisse'],
+    'caisse.session_fermer'   => ['label'=>'Fermer une session de caisse', 'module'=>'Caisse'],
+    'caisse.ticket_service'   => ['label'=>'Émettre un ticket de service (dossier/consultation)', 'module'=>'Caisse'],
     'stocks.create'            => ['label'=>'Ajouter article au stock',   'module'=>'Stocks'],
     'stocks.update_qte'        => ['label'=>'Modifier quantité stock',    'module'=>'Stocks'],
     'stocks.entry'             => ['label'=>'Enregistrer une entrée stock','module'=>'Stocks'],
@@ -93,6 +107,10 @@ define('ALL_ACTIONS', [
     'consentements.view'        => ['label'=>'Consulter les consentements','module'=>'Consentements'],
     'audit.view'                => ['label'=>'Consulter l\'audit',         'module'=>'Audit'],
     'api.access'                => ['label'=>'Acceder a l\'API REST',      'module'=>'API'],
+    'compta.consulter'          => ['label'=>'Consulter la comptabilité',   'module'=>'Comptabilité'],
+    'compta.saisir'             => ['label'=>'Saisir une écriture manuelle','module'=>'Comptabilité'],
+    'compta.cloturer'           => ['label'=>'Clôturer un exercice',        'module'=>'Comptabilité'],
+    'compta.param_comptes'      => ['label'=>'Paramétrer le plan comptable','module'=>'Comptabilité'],
 ]);
 
 //  Charger depuis BDD (cache session par role) 
@@ -109,7 +127,7 @@ function _load_permissions(): void {
         $_SESSION['_perm_actions'] = $am;
         $_SESSION['_perm_loaded']  = true;
     } catch (Exception $e) {
-        _log_error('PERMISSIONS', 'Echec chargement permissions BDD', __FILE__, __LINE__, $e);
+        _log_error('PERMISSIONS', 'Échec chargement permissions BDD', __FILE__, __LINE__, $e);
         $_SESSION['_perm_pages'] = $_SESSION['_perm_actions'] = [];
         $_SESSION['_perm_loaded'] = true;
     }
@@ -165,7 +183,7 @@ function getAccessibleNav(): array {
         if ($nb_crit > 0) $badges['urgences']    = $nb_crit;
         if ($nb_labo > 0) $badges['laboratoire'] = $nb_labo;
         if ($nb_ord  > 0) $badges['pharmacie']   = $nb_ord;
-    } catch (Exception $e) { _log_error('NAV_BADGES', 'Echec compteurs badges nav', __FILE__, __LINE__, $e); }
+    } catch (Exception $e) { _log_error('NAV_BADGES', 'Échec compteurs badges nav', __FILE__, __LINE__, $e); }
 
     $nav = [];
     foreach (ALL_PAGES as $page => $info) {
@@ -183,7 +201,7 @@ function getAccessibleNav(): array {
 
 function getRolesConfig(): array {
     try { return db_select("SELECT * FROM roles_config WHERE actif=1 ORDER BY id ASC"); }
-    catch (Exception $e) { _log_error('ROLES', 'Echec lecture roles_config', __FILE__, __LINE__, $e); return []; }
+    catch (Exception $e) { _log_error('ROLES', 'Échec lecture roles_config', __FILE__, __LINE__, $e); return []; }
 }
 
 function getFullPermissionsMatrix(): array {
@@ -195,5 +213,5 @@ function getFullPermissionsMatrix(): array {
         foreach ($pages   as $p) $m['pages'][$p['role']][$p['page']]     = (bool)$p['allowed'];
         foreach ($actions as $a) $m['actions'][$a['role']][$a['action']] = (bool)$a['allowed'];
         return $m;
-    } catch (Exception $e) { _log_error('PERMISSIONS', 'Echec lecture matrice permissions', __FILE__, __LINE__, $e); return ['pages'=>[], 'actions'=>[]]; }
+    } catch (Exception $e) { _log_error('PERMISSIONS', 'Échec lecture matrice permissions', __FILE__, __LINE__, $e); return ['pages'=>[], 'actions'=>[]]; }
 }

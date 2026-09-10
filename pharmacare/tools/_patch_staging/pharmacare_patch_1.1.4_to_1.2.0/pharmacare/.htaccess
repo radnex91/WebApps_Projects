@@ -1,0 +1,175 @@
+# ── PharmaCare — protection production ──────────────────────
+Options -Indexes
+ServerSignature Off
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Blocage d'accès direct aux dossiers techniques (relatif au dossier pharmacare).
+    # On réécrit vers 403.php (cible relative → fonctionne en sous-dossier dev ET
+    # en racine prod) plutôt que [F] : la page 403 brandée est servie au lieu du
+    # 403 brut d'Apache. Même statut 403, même protection.
+    RewriteRule ^config/                403.php [L]
+    RewriteRule ^sql/                   403.php [L]
+    RewriteRule ^_archive/              403.php [L]
+    RewriteRule ^\.git                  403.php [L]
+    RewriteRule ^config/\.rate_limit/    403.php [L]
+    # Outils développeur (licence) — JAMAIS servi via Apache. Le développeur les
+    # lance via le serveur PHP local (tools/licence_gui.bat). Bloque aussi la clé
+    # privée et le ledger en accès web.
+    RewriteRule ^tools/                 403.php [L]
+    # Sauvegardes BDD — jamais servies directement (téléchargement via PHP).
+    RewriteRule ^backups/               403.php [L]
+
+    # ── Clean URLs : /<segment> → modules/<file>.php?<query> ──
+    # Cibles relatives (pas de / initial) : fonctionne en sous-dossier (dev) et racine (prod).
+    # Slug décoratif optionnel (?:-[^/]+)?  — seul l'ID est capturé.
+    # QSA préserve les paramètres résiduels (csrf, q, page, debut, fin, mode…).
+
+    # Pages sans query
+    RewriteRule ^dashboard/?$          dashboard.php [L,QSA]
+    RewriteRule ^logout/?$             logout.php [L,QSA]
+    RewriteRule ^vente/?$              modules/vente.php [L,QSA]
+    RewriteRule ^caisse/?$             modules/caisse.php [L,QSA]
+    RewriteRule ^stock/?$               modules/stock.php [L,QSA]
+    RewriteRule ^stock-ajust/(\d+)/?$   modules/stock_ajust.php?id=$1 [L,QSA]
+    RewriteRule ^stock-ajust/?$         modules/stock_ajust.php [L,QSA]
+    RewriteRule ^fournisseurs/?$        modules/fournisseurs.php [L,QSA]
+    RewriteRule ^commandes/?$          modules/commandes.php [L,QSA]
+    RewriteRule ^retours/?$            modules/retours.php [L,QSA]
+    RewriteRule ^marketing/?$          modules/marketing.php [L,QSA]
+    RewriteRule ^ventes-hist/?$        modules/ventes_hist.php [L,QSA]
+    RewriteRule ^rapports/?$           modules/rapports.php [L,QSA]
+    RewriteRule ^rapports-caissier/?$   modules/rapports_caissier.php [L,QSA]
+    RewriteRule ^utilisateurs/?$       modules/utilisateurs.php [L,QSA]
+    RewriteRule ^remise-approbateurs/?$ modules/remise_approbateurs.php [L,QSA]
+    RewriteRule ^remise-codes/?$       modules/remise_codes.php [L,QSA]
+    RewriteRule ^roles/?$               modules/roles.php [L,QSA]
+    RewriteRule ^categories/?$         modules/categories.php [L,QSA]
+    RewriteRule ^parametres/?$         modules/parametres.php [L,QSA]
+    RewriteRule ^pharmacies/?$            modules/pharmacies.php [L,QSA]
+    RewriteRule ^pharmacies/stock/?$      modules/pharmacies.php?action=stock [L,QSA]
+    RewriteRule ^pharmacies/new/?$        modules/pharmacies.php?action=add [L,QSA]
+    RewriteRule ^pharmacies/(\d+)(?:-[^/]+)?/edit/?$  modules/pharmacies.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^pharmacies/(\d+)(?:-[^/]+)?/stock/?$ modules/pharmacies.php?action=stock&id=$1 [L,QSA]
+    RewriteRule ^pharmacies/(\d+)(?:-[^/]+)?/?$       modules/pharmacies.php [L,QSA]
+
+    # Menus (activation/désactivation des entrées du sidebar)
+    RewriteRule ^menus/?$                            modules/menus.php [L,QSA]
+
+    # Sauvegarde / restauration BDD (admin)
+    RewriteRule ^sauvegarde/?$                       modules/sauvegarde.php [L,QSA]
+
+    # Assistant intégré (déterministe, sans serveur IA)
+    RewriteRule ^assistant/?$                        modules/assistant.php [L,QSA]
+
+    # Produits (id-slug + action)
+    RewriteRule ^produits/importer/modele/?$            modules/produits.php?action=import_template [L,QSA]
+    RewriteRule ^produits/importer/?$                   modules/produits.php?action=import [L,QSA]
+    RewriteRule ^produits/new/?$                       modules/produits.php?action=add [L,QSA]
+    RewriteRule ^produits/(\d+)(?:-[^/]+)?/edit/?$      modules/produits.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^produits/?$                            modules/produits.php [L,QSA]
+
+    # Fournisseurs (id-slug + action)
+    RewriteRule ^fournisseurs/new/?$                    modules/fournisseurs.php?action=add [L,QSA]
+    RewriteRule ^fournisseurs/(\d+)(?:-[^/]+)?/delete/?$ modules/fournisseurs.php?action=delete&id=$1 [L,QSA]
+    RewriteRule ^fournisseurs/(\d+)(?:-[^/]+)?/edit/?$  modules/fournisseurs.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^fournisseurs/?$                       modules/fournisseurs.php [L,QSA]
+
+    # Clients (id-slug + action ; detail sans suffixe)
+    RewriteRule ^clients/new/?$                        modules/clients.php?action=add [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/edit/?$       modules/clients.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/reglement/?$ modules/clients.php?action=reglement&id=$1 [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/disable/?$   modules/clients.php?action=disable&id=$1 [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/enable/?$    modules/clients.php?action=enable&id=$1 [L,QSA]
+    RewriteRule ^clients/(\d+)(?:-[^/]+)?/?$          modules/clients.php?action=detail&id=$1 [L,QSA]
+    RewriteRule ^clients/?$                            modules/clients.php [L,QSA]
+
+    # Utilisateurs (id-slug + action)
+    RewriteRule ^utilisateurs/new/?$                   modules/utilisateurs.php?action=add [L,QSA]
+    RewriteRule ^utilisateurs/(\d+)(?:-[^/]+)?/edit/?$ modules/utilisateurs.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^utilisateurs/(\d+)(?:-[^/]+)?/?$       modules/utilisateurs.php [L,QSA]
+
+    # Commandes (id + action, pas de slug)
+    RewriteRule ^commandes/new/?$                      modules/commandes.php?action=add [L,QSA]
+    RewriteRule ^commandes/(\d+)/bon/?$                modules/commandes.php?action=bon&id=$1 [L,QSA]
+    RewriteRule ^commandes/(\d+)/livrer/?$             modules/commandes.php?action=livrer_form&id=$1 [L,QSA]
+    RewriteRule ^commandes/(\d+)/edit/?$               modules/commandes.php?action=edit&id=$1 [L,QSA]
+    RewriteRule ^commandes/(\d+)/?$                    modules/commandes.php [L,QSA]
+
+    # Retours (id + action)
+    RewriteRule ^retours/new/?$                       modules/retours.php?action=new [L,QSA]
+    RewriteRule ^retours/(\d+)/detail/?$               modules/retours.php?action=detail&id=$1 [L,QSA]
+    RewriteRule ^retours/?$                            modules/retours.php [L,QSA]
+
+    # Caisse (action + id)
+    RewriteRule ^caisse/ouvrir/?$                      modules/caisse.php?action=ouvrir [L,QSA]
+    RewriteRule ^caisse/(historique|mouvement)/?$      modules/caisse.php?action=$1 [L,QSA]
+    RewriteRule ^caisse/(\d+)/(x|z|rapport_session)/?$ modules/caisse.php?action=$2&id=$1 [L,QSA]
+
+    # Magasin (onglet=)
+    RewriteRule ^magasin/(stock|reception|historique|etat-date)/?$ modules/magasin.php?onglet=$1 [L,QSA]
+    RewriteRule ^magasin/?$                            modules/magasin.php [L,QSA]
+
+    # Marketing (action + id)
+    RewriteRule ^marketing/new/?$                      modules/marketing.php?action=add-promo [L,QSA]
+    RewriteRule ^marketing/(\d+)/edit/?$               modules/marketing.php?action=edit-promo&id=$1 [L,QSA]
+    RewriteRule ^marketing/fidelite/?$                  modules/marketing.php?action=fidelite [L,QSA]
+    RewriteRule ^marketing/add-points/?$               modules/marketing.php?action=add-points [L,QSA]
+    RewriteRule ^marketing/?$                          modules/marketing.php [L,QSA]
+
+    # Remise-codes (action + id)
+    RewriteRule ^remise-codes/(\d+)/show/?$            modules/remise_codes.php?action=show&id=$1 [L,QSA]
+    RewriteRule ^remise-codes/generer/?$               modules/remise_codes.php?action=generer [L,QSA]
+    RewriteRule ^remise-codes/?$                       modules/remise_codes.php [L,QSA]
+
+    # Comptabilité (action=) — plan_edit avec id avant le générique
+    RewriteRule ^comptabilite/plan/(\d+)/?$            modules/comptabilite.php?action=plan_edit&id=$1 [L,QSA]
+    RewriteRule ^comptabilite/plan_edit/?$             modules/comptabilite.php?action=plan_edit [L,QSA]
+    RewriteRule ^comptabilite/(saisie|journal|balance|resultat|bilan|grand-livre|cloture|plan)/?$ modules/comptabilite.php?action=$1 [L,QSA]
+    RewriteRule ^comptabilite/?$                        modules/comptabilite.php [L,QSA]
+
+    # Catch-all 404 : toute URL non déjà routée ci-dessus et qui n'est ni un
+    # fichier ni un répertoire existant → page 404 brandée (cible relative,
+    # donc env-agnostic : sous-dossier dev / racine prod).
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ 404.php [L]
+
+    # Redirection HTTP → HTTPS (décommenter après activation TLS)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# ── Pages d'erreur personnalisées (ErrorDocument) ───────────
+# Uniquement en prod (hors localhost) : en dev l'app est en sous-dossier
+# /pharmacare, donc un chemin docroot absolu (/500.php) serait introuvable et
+# dégraderait l'erreur. Les 404 et 403 des dossiers protégés sont déjà brandés
+# via RewriteRule (cible relative, env-agnostic) ci-dessus ; ces ErrorDocument
+# couvrent les 403 générés par le core Apache (FilesMatch) et les 500 fatals PHP.
+<If "%{HTTP_HOST} !~ /localhost/i">
+    ErrorDocument 403 /403.php
+    ErrorDocument 500 /500.php
+</If>
+
+# ── Headers de sécurité ─────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "DENY"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    # HSTS uniquement en HTTPS (décommenter après activation TLS)
+    # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    # CSP stricte : tout en self, polices self-hostées (pas de Google Fonts en prod)
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+</IfModule>
+
+# ── Fichiers sensibles à la racine : accès interdit ──────────
+<FilesMatch "\.(sql|log|md|bak|env|ini)$">
+    Require all denied
+</FilesMatch>
+
+# Scripts de migration/tests à la racine (au cas où ils réapparaîtraient)
+<FilesMatch "^(alter_db|_mvt_check)\.(php|js)$">
+    Require all denied
+</FilesMatch>

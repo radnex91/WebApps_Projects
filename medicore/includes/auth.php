@@ -39,10 +39,10 @@ function requireLogin(): void {
 }
 
 //  Connexion utilisateur
-function login(string $email, string $password): array {
+function login(string $username, string $password): array {
     $db = getDB();
-    $stmt = $db->prepare("SELECT * FROM utilisateurs WHERE email = ? AND statut = 'actif' LIMIT 1");
-    $stmt->execute([$email]);
+    $stmt = $db->prepare("SELECT * FROM utilisateurs WHERE username = ? AND statut = 'actif' LIMIT 1");
+    $stmt->execute([$username]);
     $user = $stmt->fetch();
 
     // Mot de passe: bcrypt uniquement
@@ -54,7 +54,7 @@ function login(string $email, string $password): array {
     }
 
     if (!$valid) {
-        return ['success' => false, 'message' => 'Email ou mot de passe incorrect.'];
+        return ['success' => false, 'message' => 'Nom d\'utilisateur ou mot de passe incorrect.'];
     }
 
     // Mise à jour dernière connexion
@@ -64,6 +64,7 @@ function login(string $email, string $password): array {
     $_SESSION['user_id']       = $user['id'];
     $_SESSION['user_nom']      = $user['nom'];
     $_SESSION['user_prenom']   = $user['prenom'];
+    $_SESSION['user_username'] = $user['username'];
     $_SESSION['user_email']    = $user['email'];
     $_SESSION['user_role']     = $user['role'];
     $_SESSION['user_initiales']= $user['avatar_initiales'] ?? strtoupper(substr($user['prenom'], 0, 1) . substr($user['nom'], 0, 1));
@@ -93,6 +94,7 @@ function currentUser(): array {
         'id'        => $_SESSION['user_id'] ?? null,
         'nom'       => $_SESSION['user_nom'] ?? '',
         'prenom'    => $_SESSION['user_prenom'] ?? '',
+        'username'  => $_SESSION['user_username'] ?? '',
         'email'     => $_SESSION['user_email'] ?? '',
         'role'      => $_SESSION['user_role'] ?? '',
         'initiales' => $_SESSION['user_initiales'] ?? 'US',
@@ -113,13 +115,13 @@ function logActivity(string $action, string $couleur = 'blue', string $entite = 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'login') {
     rate_limit_login(); // Anti-brute force: 5 tentatives/minute par IP
     csrf_verify();      //  Vérifie le token CSRF anti-falsification
-    $email    = trim(filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL) ?? '');
+    $username = post_username('username');
     $password = $_POST['password'] ?? '';
-    if (!$email) {
-        header('Location: ' . APP_URL . '/login?error=' . urlencode('Email invalide.'));
+    if (!$username) {
+        header('Location: ' . APP_URL . '/login?error=' . urlencode('Nom d\'utilisateur invalide.'));
         exit;
     }
-    $result = login($email, $password);
+    $result = login($username, $password);
     if ($result['success']) {
         session_regenerate_id(true); // Prévient la fixation de session
         header('Location: ' . APP_URL . '/dashboard.php');

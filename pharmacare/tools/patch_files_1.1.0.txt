@@ -1,0 +1,10 @@
+config/env.php
+config/settings.php
+includes/layout.php
+index.php
+modules/parametres.php
+modules/vente.php
+modules/commandes.php
+modules/produits.php
+modules/utilisateurs.php
+assets/css/style.css

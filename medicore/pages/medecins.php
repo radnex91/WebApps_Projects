@@ -9,18 +9,19 @@ if (can('medecins.create') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str(
     csrf_verify();
     $v = (new Validator())
         ->required('prenom', 'Prénom')->required('nom', 'Nom')
+        ->username('username', 'Identifiant')
         ->email('email', 'Email')
         ->whitelist('role', get_all_roles(), 'Rôle')
         ->whitelist('statut', ['actif','inactif','conge'], 'Statut');
     if (!$v->passes()) { $flash = ['red', $v->first_error()]; }
     else {
-        $exists = db_scalar("SELECT COUNT(*) FROM utilisateurs WHERE email=?", [$v->get('email')]);
-        if ($exists) { $flash = ['red', 'Cet email est déjà utilisé.']; }
+        $exists = db_scalar("SELECT COUNT(*) FROM utilisateurs WHERE username=?", [$v->get('username')]);
+        if ($exists) { $flash = ['red', 'Cet identifiant est déjà utilisé.']; }
         else {
             $hash = password_hash('medicore2026', PASSWORD_BCRYPT, ['cost'=>12]);
             $init = strtoupper(mb_substr($v->get('prenom'),0,1).mb_substr($v->get('nom'),0,1));
-            db_exec("INSERT INTO utilisateurs (nom,prenom,email,mot_de_passe,role,specialite,telephone,extension,statut,planning,avatar_initiales) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                [$v->get('nom'),$v->get('prenom'),$v->get('email'),$hash,$v->get('role'),
+            db_exec("INSERT INTO utilisateurs (nom,prenom,username,email,mot_de_passe,role,specialite,telephone,extension,statut,planning,avatar_initiales) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                [$v->get('nom'),$v->get('prenom'),$v->get('username'),$v->get('email'),$hash,$v->get('role'),
                  post_str('specialite'),post_str('telephone'),post_str('extension'),
                  $v->get('statut'),post_str('planning'),$init]);
             logActivity('Nouveau personnel: '.$v->get('prenom').' '.$v->get('nom'), 'green', 'utilisateur');
@@ -33,7 +34,7 @@ if (can('medecins.create') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str(
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'update_medecin' && can('medecins.create')) {
     csrf_verify();
     $id = post_int('medecin_id');
-    $v  = (new Validator())->required('prenom','Prénom')->required('nom','Nom')->email('email','Email');
+    $v  = (new Validator())->required('prenom','Prénom')->required('nom','Nom')->username('username','Identifiant')->email('email','Email');
     if (!$v->passes()) { $flash = ['red', $v->first_error()]; }
     else {
         $roleM  = post_str('role');
@@ -42,8 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && post_str('action') === 'update_mede
         else {
             $roleM = $roleOk ? $roleM : db_scalar("SELECT role FROM utilisateurs WHERE id=?", [$id]);
             db_exec(
-                "UPDATE utilisateurs SET prenom=?,nom=?,email=?,role=?,specialite=?,telephone=?,planning=?,statut=? WHERE id=?",
-                [$v->get('prenom'),$v->get('nom'),post_email('email')??'',$roleM,
+                "UPDATE utilisateurs SET prenom=?,nom=?,username=?,email=?,role=?,specialite=?,telephone=?,planning=?,statut=? WHERE id=?",
+                [$v->get('prenom'),$v->get('nom'),$v->get('username'),post_email('email')??'',$roleM,
                  post_str('specialite'),post_str('telephone'),post_str('planning'),
                  in_whitelist(post_str('statut'),['actif','inactif','conge'],'actif'),$id]
             );
@@ -77,7 +78,7 @@ $search = get_str('search');
 $params = [];
 $where  = 'WHERE 1=1';
 if ($filtre) { $where .= ' AND u.role=?'; $params[] = $filtre; }
-if ($search) { $where .= ' AND (CONCAT(u.prenom," ",u.nom) LIKE ? OR u.specialite LIKE ? OR u.email LIKE ?)'; $like="%$search%"; $params=array_merge($params,[$like,$like,$like]); }
+if ($search) { $where .= ' AND (CONCAT(u.prenom," ",u.nom) LIKE ? OR u.specialite LIKE ? OR u.username LIKE ? OR u.email LIKE ?)'; $like="%$search%"; $params=array_merge($params,[$like,$like,$like,$like]); }
 
 $staff = db_select("SELECT u.*,
     (SELECT COUNT(*) FROM rendez_vous r WHERE r.medecin_id=u.id AND DATE(r.date_heure)=CURDATE()) AS rdv_today,
@@ -120,7 +121,7 @@ $plannings   = ['Matin (07h-15h)','Journe (08h-18h)','Après-midi (15h-23h)','Nu
 <!-- Filtres -->
 <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
   <form method="GET" style="display:flex;gap:8px;flex:1">
-    <input type="text" name="search" value="<?= h($search) ?>" placeholder=" Nom, spécialité, email..."
+    <input type="text" name="search" value="<?= h($search) ?>" placeholder=" Nom, identifiant, spécialité..."
       style="flex:1;padding:9px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
     <?php
   $filterOptions = ['' => 'Tous roles'];
@@ -149,7 +150,7 @@ $plannings   = ['Matin (07h-15h)','Journe (08h-18h)','Après-midi (15h-23h)','Nu
       <td>
         <div style="display:flex;align-items:center;gap:10px">
           <div class="user-avatar" style="width:36px;height:36px;font-size:12px"><?= $init ?></div>
-          <div><strong><?= h($u['prenom'].' '.$u['nom']) ?></strong><br><span class="text-xs text3"><?= h($u['email']) ?></span></div>
+          <div><strong><?= h($u['prenom'].' '.$u['nom']) ?></strong><br><span class="text-xs text3">@<?= h($u['username']) ?></span></div>
         </div>
       </td>
       <td><span class="badge <?= $rBadge ?>"><?= $rLabel ?></span></td>
@@ -175,23 +176,24 @@ $plannings   = ['Matin (07h-15h)','Journe (08h-18h)','Après-midi (15h-23h)','Nu
 </div>
 
 <!-- MODAL AJOUT -->
-<div id="modal-staff" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:580px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-staff" class="modal-overlay" role="dialog" aria-modal="true" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(580px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface)">
       <h3> Ajouter un membre du personnel</h3>
-      <div onclick="document.getElementById('modal-staff').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)"></div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-staff').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_staff"><?= csrf_field() ?>
-      <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--text2)">
+      <div style="background:rgba(var(--accent-rgb),.08);border:1px solid rgba(var(--accent-rgb),.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--text2)">
          Mot de passe par défaut : <strong style="color:var(--accent2)">medicore2026</strong> — à changer après la première connexion.
       </div>
       <div class="form-grid">
-        <div class="form-group"><label>Prénom *</label><input type="text" name="prenom" required maxlength="100"></div>
-        <div class="form-group"><label>Nom *</label><input type="text" name="nom" required maxlength="100"></div>
-        <div class="form-group"><label>Email *</label><input type="email" name="email" required maxlength="150"></div>
-        <div class="form-group"><label>Rôle *</label>
-          <select name="role" required>
+        <div class="form-group"><label for="med-new-prenom">Prénom *</label><input type="text" name="prenom" id="med-new-prenom" required maxlength="100"></div>
+        <div class="form-group"><label for="med-new-nom">Nom *</label><input type="text" name="nom" id="med-new-nom" required maxlength="100"></div>
+        <div class="form-group"><label for="med-new-username">Identifiant *</label><input type="text" name="username" id="med-new-username" required maxlength="50" pattern="[a-z0-9_\.]{3,50}" placeholder="ex: j.durand"></div>
+        <div class="form-group"><label for="med-new-email">Email</label><input type="email" name="email" id="med-new-email" maxlength="150"></div>
+        <div class="form-group"><label for="med-new-role">Rôle *</label>
+          <select name="role" id="med-new-role" required>
             <?php
             try {
                 $__mRows = getDB()->query("SELECT role,label FROM roles_config WHERE actif=1 ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -209,16 +211,16 @@ $plannings   = ['Matin (07h-15h)','Journe (08h-18h)','Après-midi (15h-23h)','Nu
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>Spécialité</label><input type="text" name="specialite" maxlength="100"></div>
-        <div class="form-group"><label>Téléphone</label><input type="tel" name="telephone" maxlength="20"></div>
-        <div class="form-group"><label>Extension interne</label><input type="text" name="extension" maxlength="10" placeholder="ex: 2201"></div>
-        <div class="form-group"><label>Planning</label>
-          <select name="planning">
+        <div class="form-group"><label for="med-new-specialite">Spécialité</label><input type="text" name="specialite" id="med-new-specialite" maxlength="100"></div>
+        <div class="form-group"><label for="med-new-telephone">Téléphone</label><input type="tel" name="telephone" id="med-new-telephone" maxlength="20"></div>
+        <div class="form-group"><label for="med-new-extension">Extension interne</label><input type="text" name="extension" id="med-new-extension" maxlength="10" placeholder="ex: 2201"></div>
+        <div class="form-group"><label for="med-new-planning">Planning</label>
+          <select name="planning" id="med-new-planning">
             <?php foreach ($plannings as $p): ?><option><?= h($p) ?></option><?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>Statut</label>
-          <select name="statut"><option value="actif"> Actif</option><option value="inactif">🚫 Inactif</option></select>
+        <div class="form-group"><label for="med-new-statut">Statut</label>
+          <select name="statut" id="med-new-statut"><option value="actif"> Actif</option><option value="inactif">🚫 Inactif</option></select>
         </div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
@@ -232,8 +234,8 @@ $plannings   = ['Matin (07h-15h)','Journe (08h-18h)','Après-midi (15h-23h)','Nu
 
 <!-- MODAL MODIFIER PERSONNEL -->
 <?php if ($editMedecin && can('medecins.create')): ?>
-<div id="modal-edit-med" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:580px;margin:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-edit-med" class="modal-overlay" role="dialog" aria-modal="true" style="display:flex;align-items:flex-start;padding:20px;overflow-y:auto">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(580px,95vw);margin:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>✏️ Modifier — <?= h($editMedecin['prenom'].' '.$editMedecin['nom']) ?></h3>
       <a href="medecins.php" style="color:var(--text2);text-decoration:none;font-size:18px"></a>
@@ -245,6 +247,7 @@ $plannings   = ['Matin (07h-15h)','Journe (08h-18h)','Après-midi (15h-23h)','Nu
       <div class="form-grid">
         <div class="form-group"><label>Prénom *</label><input type="text" name="prenom" value="<?= h($editMedecin['prenom']) ?>" required maxlength="100"></div>
         <div class="form-group"><label>Nom *</label><input type="text" name="nom" value="<?= h($editMedecin['nom']) ?>" required maxlength="100"></div>
+        <div class="form-group"><label>Identifiant *</label><input type="text" name="username" value="<?= h($editMedecin['username']) ?>" required maxlength="50" pattern="[a-z0-9_\.]{3,50}"></div>
         <div class="form-group"><label>Email</label><input type="email" name="email" value="<?= h($editMedecin['email']) ?>" maxlength="150"></div>
         <div class="form-group"><label>Rôle</label>
           <select name="role" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">

@@ -93,8 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 $sauvegardes = $db->query("SELECT s.*, u.full_name as created_by_name FROM sauvegardes s LEFT JOIN users u ON s.created_by=u.id ORDER BY s.created_at DESC")->fetchAll();
 ?>
-<div class="main-content">
-    <header class="main-header"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button><h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6></div><div class="header-right"><div class="dropdown"><button class="notif-btn" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
+<div class="main-content" id="main-content" role="main">
+    <header class="main-header" role="banner"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button><span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span></div><div class="header-right"><div class="dropdown"><button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" role="button" tabindex="0" aria-label="Menu utilisateur" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
     <div class="page-content fade-in">
         <?php echo displayFlashMessages(); ?>
         <div class="page-header"><div><h1 class="page-title"><i class="bi bi-cloud-arrow-down-fill me-2"></i>Sauvegarde & Restauration</h1></div>
@@ -102,7 +102,7 @@ $sauvegardes = $db->query("SELECT s.*, u.full_name as created_by_name FROM sauve
         </div>
 
         <div class="card"><div class="card-header"><i class="bi bi-clock-history me-2"></i>Historique des sauvegardes</div><div class="table-container">
-            <table class="table">
+            <table class="table" aria-label="Sauvegardes">
                 <thead><tr><th>Date</th><th>Fichier</th><th>Taille</th><th>Type</th><th>Créé par</th><th>Actions</th></tr></thead>
                 <tbody>
                 <?php foreach ($sauvegardes as $s): ?>
@@ -117,7 +117,7 @@ $sauvegardes = $db->query("SELECT s.*, u.full_name as created_by_name FROM sauve
                         <?php if (hasPermission('sauvegarde_restore')): ?>
                         <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="action" value="restore"><input type="hidden" name="id" value="<?php echo $s['id']; ?>"><button type="submit" class="btn btn-sm btn-outline-warning" data-confirm="ATTENTION: La restauration remplacera toutes les données actuelles. Continuer ?"><i class="bi bi-arrow-counterclockwise"></i></button></form>
                         <?php endif; ?>
-                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?php echo $s['id']; ?>"><button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Supprimer cette sauvegarde ?"><i class="bi bi-trash"></i></button></form>
+                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?php echo $s['id']; ?>"><button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer" data-confirm="Supprimer cette sauvegarde ?"><i class="bi bi-trash"></i></button></form>
                     </div></td>
                 </tr>
                 <?php endforeach; ?>

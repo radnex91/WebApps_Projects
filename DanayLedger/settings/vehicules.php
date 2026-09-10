@@ -30,15 +30,15 @@ $agences = getAgences($db);
 $statutLabels = ['actif'=>'Actif','inactif'=>'Inactif','en_maintenance'=>'En maintenance'];
 $statutBadges = ['actif'=>'bg-success','inactif'=>'bg-secondary','en_maintenance'=>'bg-warning text-dark'];
 ?>
-<div class="main-content">
-    <header class="main-header"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button><h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6></div><div class="header-right"><div class="dropdown"><button class="notif-btn" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
+<div class="main-content" id="main-content" role="main">
+    <header class="main-header" role="banner"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button><span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span></div><div class="header-right"><div class="dropdown"><button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" role="button" tabindex="0" aria-label="Menu utilisateur" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
     <div class="page-content fade-in">
         <?php echo displayFlashMessages(); ?>
         <div class="page-header"><div><h1 class="page-title"><i class="bi bi-truck me-2"></i>Véhicules</h1></div>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal"><i class="bi bi-plus-lg me-1"></i>Nouveau véhicule</button>
         </div>
         <div class="card"><div class="table-container">
-            <table class="table">
+            <table class="table" aria-label="Liste des véhicules">
                 <thead><tr><th>Immatriculation</th><th>Marque/Modèle</th><th>Année</th><th>Type</th><th>Agence</th><th>Statut</th><th>Actions</th></tr></thead>
                 <tbody>
                 <?php foreach ($vehicules as $v): ?>
@@ -51,7 +51,7 @@ $statutBadges = ['actif'=>'bg-success','inactif'=>'bg-secondary','en_maintenance
                     <td><span class="badge <?php echo $statutBadges[$v['statut']]??'bg-secondary'; ?>"><?php echo e($statutLabels[$v['statut']]??$v['statut']); ?></span></td>
                     <td><div class="action-btns">
                         <button class="btn btn-sm btn-outline-warning" onclick='editVeh(<?php echo htmlspecialchars(json_encode($v)); ?>)'><i class="bi bi-pencil"></i></button>
-                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="form_action" value="delete"><input type="hidden" name="id" value="<?php echo $v['id']; ?>"><button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Supprimer ?"><i class="bi bi-trash"></i></button></form>
+                        <form method="POST" style="display:inline"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="form_action" value="delete"><input type="hidden" name="id" value="<?php echo $v['id']; ?>"><button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer" data-confirm="Supprimer ?"><i class="bi bi-trash"></i></button></form>
                     </div></td>
                 </tr>
                 <?php endforeach; ?>
@@ -62,33 +62,33 @@ $statutBadges = ['actif'=>'bg-success','inactif'=>'bg-secondary','en_maintenance
 </div>
 
 <!-- Add Modal -->
-<div class="modal fade" id="addModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Nouveau véhicule</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="addModalLabel">Nouveau véhicule</h5><button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="modal"></button></div>
     <form method="POST"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="form_action" value="create">
     <div class="modal-body">
-        <div class="mb-3"><label class="form-label">Immatriculation *</label><input type="text" name="immatriculation" class="form-control" required></div>
-        <div class="mb-3"><label class="form-label">Marque</label><input type="text" name="marque" class="form-control"></div>
-        <div class="mb-3"><label class="form-label">Modèle</label><input type="text" name="modele" class="form-control"></div>
-        <div class="mb-3"><label class="form-label">Année</label><input type="number" name="annee" class="form-control" min="1990" max="2030"></div>
-        <div class="mb-3"><label class="form-label">Type</label><input type="text" name="type_vehicule" class="form-control" placeholder="Camion, Fourgon..."></div>
-        <div class="mb-3"><label class="form-label">Agence</label><select name="agence_id" class="form-select"><option value="">-- Aucune --</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>"><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
+        <div class="mb-3"><label for="immatriculation" class="form-label">Immatriculation *</label><input type="text" name="immatriculation" id="immatriculation" class="form-control" required></div>
+        <div class="mb-3"><label for="marque" class="form-label">Marque</label><input type="text" name="marque" id="marque" class="form-control"></div>
+        <div class="mb-3"><label for="modele" class="form-label">Modèle</label><input type="text" name="modele" id="modele" class="form-control"></div>
+        <div class="mb-3"><label for="annee" class="form-label">Année</label><input type="number" name="annee" id="annee" class="form-control" min="1990" max="2030"></div>
+        <div class="mb-3"><label for="type_vehicule" class="form-label">Type</label><input type="text" name="type_vehicule" id="type_vehicule" class="form-control" placeholder="Camion, Fourgon..."></div>
+        <div class="mb-3"><label for="veh_agence_id" class="form-label">Agence</label><select name="agence_id" id="veh_agence_id" class="form-select"><option value="">-- Aucune --</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>"><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
     </div>
     <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
     </form>
 </div></div></div>
 
 <!-- Edit Modal -->
-<div class="modal fade" id="editModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Modifier véhicule</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="editModalLabel">Modifier véhicule</h5><button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="modal"></button></div>
     <form method="POST"><input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>"><input type="hidden" name="form_action" value="update"><input type="hidden" name="id" id="edit_id">
     <div class="modal-body">
-        <div class="mb-3"><label class="form-label">Immatriculation *</label><input type="text" name="immatriculation" id="edit_imm" class="form-control" required></div>
-        <div class="mb-3"><label class="form-label">Marque</label><input type="text" name="marque" id="edit_marque" class="form-control"></div>
-        <div class="mb-3"><label class="form-label">Modèle</label><input type="text" name="modele" id="edit_modele" class="form-control"></div>
-        <div class="mb-3"><label class="form-label">Année</label><input type="number" name="annee" id="edit_annee" class="form-control" min="1990" max="2030"></div>
-        <div class="mb-3"><label class="form-label">Type</label><input type="text" name="type_vehicule" id="edit_type_v" class="form-control"></div>
-        <div class="mb-3"><label class="form-label">Agence</label><select name="agence_id" id="edit_agence" class="form-select"><option value="">-- Aucune --</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>"><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
-        <div class="mb-3"><label class="form-label">Statut</label><select name="statut" id="edit_statut" class="form-select"><option value="actif">Actif</option><option value="inactif">Inactif</option><option value="en_maintenance">En maintenance</option></select></div>
+        <div class="mb-3"><label for="edit_imm" class="form-label">Immatriculation *</label><input type="text" name="immatriculation" id="edit_imm" class="form-control" required></div>
+        <div class="mb-3"><label for="edit_marque" class="form-label">Marque</label><input type="text" name="marque" id="edit_marque" class="form-control"></div>
+        <div class="mb-3"><label for="edit_modele" class="form-label">Modèle</label><input type="text" name="modele" id="edit_modele" class="form-control"></div>
+        <div class="mb-3"><label for="edit_annee" class="form-label">Année</label><input type="number" name="annee" id="edit_annee" class="form-control" min="1990" max="2030"></div>
+        <div class="mb-3"><label for="type_vehicule" class="form-label">Type</label><input type="text" name="type_vehicule" id="type_vehicule" id="edit_type_v" class="form-control"></div>
+        <div class="mb-3"><label for="veh_agence_id" class="form-label">Agence</label><select name="agence_id" id="veh_agence_id" id="edit_agence" class="form-select"><option value="">-- Aucune --</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>"><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select></div>
+        <div class="mb-3"><label for="edit_statut" class="form-label">Statut</label><select name="statut" id="edit_statut" class="form-select"><option value="actif">Actif</option><option value="inactif">Inactif</option><option value="en_maintenance">En maintenance</option></select></div>
     </div>
     <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Modifier</button></div>
     </form>

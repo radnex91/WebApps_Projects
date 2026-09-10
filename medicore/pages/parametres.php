@@ -270,8 +270,58 @@ $THEMES_ACCENT = [
       </div>
     </div>
   </div>
+</form>
 
-  <!-- 2. THÈME & COULEURS -->
+  <!-- 2. LOGO & EN-TÊTE -->
+  <div class="card mb-24">
+    <div class="card-header"><h3>Logo &amp; En-tête</h3></div>
+    <div style="padding:24px">
+      <label style="font-size:13px;font-weight:600;margin-bottom:10px;display:block">Logo de l'établissement</label>
+      <?php if (!empty($cur['logo_base64'])): ?>
+      <div style="display:flex;align-items:center;gap:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;margin-bottom:12px">
+        <img src="<?= h($cur['logo_base64']) ?>" alt="Logo" style="max-height:56px;max-width:180px;object-fit:contain;border-radius:4px">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600"><?= h($cur['logo_nom']) ?></div>
+          <div style="font-size:11px;color:var(--text3)">Logo actuel — affiché sur les rapports et documents</div>
+        </div>
+        <form method="POST" style="margin:0" onsubmit="return confirm('Supprimer le logo ?')">
+          <input type="hidden" name="action" value="delete_logo"><?= csrf_field() ?>
+          <button type="submit" class="btn btn-sm btn-red">Supprimer</button>
+        </form>
+      </div>
+      <?php endif; ?>
+      <form method="POST" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="hidden" name="action" value="upload_logo"><?= csrf_field() ?>
+        <input type="file" name="logo" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" required
+          style="padding:7px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12px;flex:1;min-width:200px;outline:none">
+        <button type="submit" class="btn btn-blue btn-sm">Importer</button>
+      </form>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">JPG, PNG, SVG — Max 2 Mo</div>
+
+      <div style="border-top:1px solid var(--border);margin:24px 0 20px"></div>
+
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">En-tête des rapports imprimables</label>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Texte affiché sous le logo sur chaque document imprimé</div>
+      <form method="POST" style="display:flex;flex-direction:column;gap:10px">
+        <input type="hidden" name="action" value="save_entete"><?= csrf_field() ?>
+        <textarea name="entete_rapport" rows="3" maxlength="500"
+          style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical;box-sizing:border-box"
+          placeholder="Ex: Service de Médecine Interne — Dr. Martin&#10;Tél: +237 6XX XXX XXX"><?= h($cur['entete_rapport'] ?? '') ?></textarea>
+        <div><button type="submit" class="btn btn-blue btn-sm">Sauvegarder l'en-tête</button></div>
+      </form>
+    </div>
+  </div>
+
+<form method="POST" id="settings-form-main">
+  <input type="hidden" name="action" value="save_settings">
+  <?= csrf_field() ?>
+  <input type="hidden" name="theme_preset" id="theme_preset_id" value="<?= h($cur['theme_preset']) ?>">
+  <input type="hidden" name="theme_primary" id="theme_primary_hex" value="<?= h($cur['theme_primary']) ?>">
+  <input type="hidden" name="theme_accent" id="theme_accent_hex" value="<?= h($cur['theme_accent']) ?>">
+  <input type="hidden" name="theme_bg" id="theme_bg_hex" value="<?= h($cur['theme_bg']) ?>">
+  <input type="hidden" name="theme_surface" id="theme_surface_hex" value="<?= h($cur['theme_surface']) ?>">
+
+  <!-- 3. THÈME & COULEURS -->
   <div class="card mb-24">
     <div class="card-header"><h3>Thème &amp; Couleurs</h3></div>
     <div style="padding:24px">
@@ -307,7 +357,7 @@ $THEMES_ACCENT = [
         <?php endforeach; ?>
       </div>
 
-      <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 14px;margin-top:4px;font-size:12px;color:var(--text2)">
+      <div style="background:rgba(var(--accent-rgb),.08);border:1px solid rgba(var(--accent-rgb),.2);border-radius:8px;padding:10px 14px;margin-top:4px;font-size:12px;color:var(--text2)">
         Ces paramètres servent de <strong>valeurs par défaut</strong> pour tous les utilisateurs. Chaque utilisateur peut personnaliser son propre thème via son profil dans la barre latérale.
       </div>
 
@@ -320,14 +370,14 @@ $THEMES_ACCENT = [
         <div id="prev-body" style="background:#<?= h($cur['theme_bg']) ?>;padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap">
           <div id="prev-btn" style="background:#<?= h($cur['theme_accent']) ?>;color:#fff;padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600">+ Nouveau patient</div>
           <div style="background:#<?= h($cur['theme_surface']) ?>;border:1px solid var(--border2);padding:7px 14px;border-radius:7px;font-size:13px;color:var(--text2)">Exporter</div>
-          <span style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:rgba(16,185,129,.15);color:var(--green)">Actif</span>
-          <span style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:rgba(239,68,68,.15);color:var(--red)">Critique</span>
+          <span style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:rgba(var(--green-rgb),.15);color:var(--green)">Actif</span>
+          <span style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:rgba(var(--red-rgb),.15);color:var(--red)">Critique</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 3. POLICES -->
+  <!-- 4. POLICES -->
   <div class="card mb-24">
     <div class="card-header"><h3>Polices</h3></div>
     <div style="padding:24px">
@@ -379,7 +429,7 @@ $THEMES_ACCENT = [
     </div>
   </div>
 
-  <!-- 4. MONNAIE & FORMATS -->
+  <!-- 5. MONNAIE & FORMATS -->
   <div class="card mb-24">
     <div class="card-header">
       <h3>Monnaie &amp; Formats</h3>
@@ -477,47 +527,21 @@ $THEMES_ACCENT = [
 
 </form>
 
-<!-- 5. LOGO (formulaire indépendant, en dehors du formulaire principal) -->
-<div class="card mb-24">
-  <div class="card-header"><h3>Logo &amp; En-tête</h3></div>
-  <div style="padding:24px">
-    <label style="font-size:13px;font-weight:600;margin-bottom:10px;display:block">Logo de l'établissement</label>
-    <?php if (!empty($cur['logo_base64'])): ?>
-    <div style="display:flex;align-items:center;gap:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;margin-bottom:12px">
-      <img src="<?= h($cur['logo_base64']) ?>" alt="Logo" style="max-height:56px;max-width:180px;object-fit:contain;border-radius:4px">
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:600"><?= h($cur['logo_nom']) ?></div>
-        <div style="font-size:11px;color:var(--text3)">Logo actuel — affiché sur les rapports et documents</div>
-      </div>
-      <form method="POST" style="margin:0" onsubmit="return confirm('Supprimer le logo ?')">
-        <input type="hidden" name="action" value="delete_logo"><?= csrf_field() ?>
-        <button type="submit" class="btn btn-sm btn-red">Supprimer</button>
-      </form>
-    </div>
-    <?php endif; ?>
-    <form method="POST" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <input type="hidden" name="action" value="upload_logo"><?= csrf_field() ?>
-      <input type="file" name="logo" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" required
-        style="padding:7px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12px;flex:1;min-width:200px;outline:none">
-      <button type="submit" class="btn btn-blue btn-sm">Importer</button>
-    </form>
-    <div style="font-size:11px;color:var(--text3);margin-top:6px">JPG, PNG, SVG — Max 2 Mo</div>
-
-    <div style="border-top:1px solid var(--border);margin:24px 0 20px"></div>
-
-    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">En-tête des rapports imprimables</label>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Texte affiché sous le logo sur chaque document imprimé</div>
-    <form method="POST" style="display:flex;flex-direction:column;gap:10px">
-      <input type="hidden" name="action" value="save_entete"><?= csrf_field() ?>
-      <textarea name="entete_rapport" rows="3" maxlength="500"
-        style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical;box-sizing:border-box"
-        placeholder="Ex: Service de Médecine Interne — Dr. Martin&#10;Tél: +237 6XX XXX XXX"><?= h($cur['entete_rapport'] ?? '') ?></textarea>
-      <div><button type="submit" class="btn btn-blue btn-sm">Sauvegarder l'en-tête</button></div>
-    </form>
-  </div>
-</div>
-
 <script>
+// Fusionner les champs Établissement (form1) dans le formulaire principal (form2) au submit
+document.getElementById('settings-form-main').addEventListener('submit', function() {
+  var f1 = document.getElementById('settings-form');
+  if (!f1) return;
+  [].forEach.call(f1.querySelectorAll('input[name], textarea[name], select[name]'), function(el) {
+    if (el.name === 'action' || el.name.startsWith('csrf')) return;
+    var h = document.createElement('input');
+    h.type = 'hidden';
+    h.name = el.name;
+    h.value = el.value;
+    this.appendChild(h);
+  }, this);
+});
+
 // Polices Google Fonts
 const GF = {
   'DM Sans':'DM+Sans:wght@300;400;500;600;700','Inter':'Inter:wght@300;400;500;600;700',

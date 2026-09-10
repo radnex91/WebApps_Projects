@@ -7,13 +7,13 @@ $db = getDB();
 require_once __DIR__ . '/charts.php';
 $userId = (int)$_SESSION['user_id'];
 
-// Ventes aujourd'hui (compteur)
-$ventes_j = $db->prepare("SELECT COUNT(*) FROM ventes WHERE DATE(created_at)=CURDATE() AND caissier_id=?");
+// Ventes aujourd'hui (compteur) — sargable
+$ventes_j = $db->prepare("SELECT COUNT(*) FROM ventes WHERE created_at >= CURDATE() AND caissier_id=?");
 $ventes_j->execute([$userId]);
 $ventes_j = $ventes_j->fetchColumn();
 
 // Mon CA du jour
-$ca_jour = $db->prepare("SELECT COALESCE(SUM(total),0) FROM ventes WHERE DATE(created_at)=CURDATE() AND caissier_id=?");
+$ca_jour = $db->prepare("SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= CURDATE() AND caissier_id=?");
 $ca_jour->execute([$userId]);
 $ca_jour = $ca_jour->fetchColumn();
 
@@ -21,7 +21,7 @@ $ca_jour = $ca_jour->fetchColumn();
 $ca14stmt = $db->prepare("
   SELECT DATE(created_at) AS jour, COALESCE(SUM(total),0) AS total
   FROM ventes WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 13 DAY) AND caissier_id=?
-  GROUP BY DATE(created_at) ORDER BY jour
+  GROUP BY jour ORDER BY jour
 ");
 $ca14stmt->execute([$userId]);
 $ca14rows = $ca14stmt->fetchAll();
@@ -58,7 +58,7 @@ showFlash();
     <div class="stat-value c-gold"><?= fmtMoney($ca_jour) ?></div>
     <div class="stat-sub">CA personnel</div>
   </div>
-  <a href="<?= APP_URL ?>/modules/vente.php" class="stat-card s-blue" style="display:block;text-decoration:none;cursor:pointer;">
+  <a href="<?= url('vente') ?>" class="stat-card s-blue" style="display:block;text-decoration:none;cursor:pointer;">
     <div class="stat-icon" style="color:var(--blue);opacity:.25;"><?= icon('cart',28) ?></div>
     <div class="stat-label">Point de Vente</div>
     <div class="stat-value c-blue" style="font-size:20px;">Nouvelle vente</div>

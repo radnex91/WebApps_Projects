@@ -47,7 +47,7 @@ require_once __DIR__ . '/layout_top.php';
     <div class="card-header-custom"><h6><i class="bi bi-building me-2"></i>Magasins (<?= count($warehouses) ?>)</h6></div>
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
-            <thead><tr><th class="ps-3">Nom</th><th>Boutique</th><th>Adresse</th><th>Téléphone</th><th class="text-center">Défaut</th><th class="text-center pe-3">Actions</th></tr></thead>
+            <thead><tr><th class="ps-3"><i class="bi bi-building me-1"></i>Nom</th><th><i class="bi bi-shop me-1"></i>Boutique</th><th><i class="bi bi-geo-alt me-1"></i>Adresse</th><th><i class="bi bi-telephone me-1"></i>Téléphone</th><th class="text-center"><i class="bi bi-check-circle me-1"></i>Défaut</th><th class="text-center pe-3"><i class="bi bi-gear me-1"></i>Actions</th></tr></thead>
             <tbody>
                 <?php foreach ($warehouses as $wh): ?>
                 <tr>
@@ -80,33 +80,33 @@ require_once __DIR__ . '/layout_top.php';
 <div class="modal fade" id="whModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius:16px;border:none">
-            <div class="modal-header border-0"><h5 class="modal-title" id="whModalTitle" style="font-family:Syne,sans-serif;font-weight:700">Nouveau Magasin</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header border-0"><h5 class="modal-title" id="whModalTitle" style="font-family:Syne,sans-serif;font-weight:700"><i class="bi bi-plus-circle me-2"></i>Nouveau Magasin</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                 <input type="hidden" name="id" id="whId" value="0">
                 <div class="modal-body">
                     <div class="row g-2">
-                        <div class="col-12"><label class="form-label fw-semibold">Boutique *</label>
+                        <div class="col-12"><label class="form-label fw-semibold"><i class="bi bi-shop me-1"></i>Boutique *</label>
                             <select name="store_id" id="whStoreId" class="form-select" required style="border-radius:8px">
                                 <?php foreach ($stores as $s): ?>
                                 <option value="<?= $s['id'] ?>" <?= $s['id'] == $storeId ? 'selected' : '' ?>><?= e($s['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-12"><label class="form-label fw-semibold">Nom *</label><input type="text" name="name" id="whName" class="form-control" required style="border-radius:8px"></div>
-                        <div class="col-12"><label class="form-label fw-semibold">Adresse</label><input type="text" name="address" id="whAddr" class="form-control" style="border-radius:8px"></div>
-                        <div class="col-6"><label class="form-label fw-semibold">Téléphone</label><input type="text" name="phone" id="whPhone" class="form-control" style="border-radius:8px"></div>
+                        <div class="col-12"><label class="form-label fw-semibold"><i class="bi bi-type me-1"></i>Nom *</label><input type="text" name="name" id="whName" class="form-control" required style="border-radius:8px"></div>
+                        <div class="col-12"><label class="form-label fw-semibold"><i class="bi bi-geo-alt me-1"></i>Adresse</label><input type="text" name="address" id="whAddr" class="form-control" style="border-radius:8px"></div>
+                        <div class="col-6"><label class="form-label fw-semibold"><i class="bi bi-telephone me-1"></i>Téléphone</label><input type="text" name="phone" id="whPhone" class="form-control" style="border-radius:8px"></div>
                         <div class="col-6 d-flex align-items-end">
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" name="is_default" id="whDefault" value="1">
-                                <label class="form-check-label" for="whDefault" style="font-size:.875rem">Magasin par défaut</label>
+                                <label class="form-check-label" for="whDefault" style="font-size:.875rem"><i class="bi bi-star me-1"></i>Magasin par défaut</label>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px">Enregistrer</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
+                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px"><i class="bi bi-check-lg me-1"></i>Enregistrer</button>
                 </div>
             </form>
         </div>

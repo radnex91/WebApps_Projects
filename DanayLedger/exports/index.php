@@ -80,8 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCSRFToken($_POST['csrf_token'
 
 $agences = getAgences($db);
 ?>
-<div class="main-content">
-    <header class="main-header"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button><h6 class="mb-0 fw-bold"><?php echo e($pageTitle); ?></h6></div><div class="header-right"><div class="dropdown"><button class="notif-btn" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
+<div class="main-content" id="main-content" role="main">
+    <header class="main-header" role="banner"><div class="header-left"><button class="sidebar-toggle" id="sidebarToggle" aria-label="Ouvrir le menu"><i class="bi bi-list"></i></button><span class="mb-0 fw-bold"><?php echo e($pageTitle); ?></span></div><div class="header-right"><div class="dropdown"><button class="notif-btn" aria-label="Notifications" data-bs-toggle="dropdown"><i class="bi bi-bell"></i></button><div class="dropdown-menu dropdown-menu-end notif-dropdown"><h6 class="dropdown-header">Notifications</h6><div class="dropdown-item text-muted text-center py-3">Aucune notification</div></div></div><div class="dropdown"><div class="header-user" role="button" tabindex="0" aria-label="Menu utilisateur" data-bs-toggle="dropdown"><div class="avatar"><?php echo e($userInitials ?? 'U'); ?></div><div class="user-info d-none d-sm-block"><div class="user-name"><?php echo e($_SESSION['full_name'] ?? ''); ?></div><div class="user-role"><?php echo e(getRoleLabel($_SESSION['user_role'] ?? '')); ?></div></div></div><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="<?php echo APP_URL; ?>/users/profile.php"><i class="bi bi-person me-2"></i>Mon profil</a><div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="<?php echo APP_URL; ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></div></div></div></header>
     <div class="page-content fade-in">
         <div class="page-header"><div><h1 class="page-title"><i class="bi bi-download me-2"></i>Exportation des Données</h1></div></div>
 
@@ -91,8 +91,8 @@ $agences = getAgences($db);
                     <form method="POST">
                         <?php echo csrfField(); ?>
                         <div class="row g-3">
-                            <div class="col-md-6"><label class="form-label">Type de données <span class="text-danger">*</span></label>
-                                <select name="export_type" class="form-select" required>
+                            <div class="col-md-6"><label for="export_type" class="form-label">Type de données <span class="text-danger">*</span></label>
+                                <select name="export_type" id="export_type" class="form-select" required>
                                     <option value="">-- Sélectionner --</option>
                                     <option value="recettes">Recettes journalières</option>
                                     <option value="depenses">Dépenses</option>
@@ -101,15 +101,15 @@ $agences = getAgences($db);
                                     <option value="rapport">Rapport complet</option>
                                 </select>
                             </div>
-                            <div class="col-md-6"><label class="form-label">Format</label>
-                                <select name="format" class="form-select">
+                            <div class="col-md-6"><label for="format" class="form-label">Format</label>
+                                <select name="format" id="format" class="form-select">
                                     <option value="csv">CSV (Excel)</option>
                                 </select>
                             </div>
-                            <div class="col-md-4"><label class="form-label">Date début</label><input type="date" name="date_from" value="<?php echo date('Y-m-01'); ?>" class="form-control"></div>
-                            <div class="col-md-4"><label class="form-label">Date fin</label><input type="date" name="date_to" value="<?php echo date('Y-m-t'); ?>" class="form-control"></div>
-                            <div class="col-md-4"><label class="form-label">Agence</label>
-                                <select name="agence_id" class="form-select"><option value="">Toutes</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>"><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select>
+                            <div class="col-md-4"><label for="date_from" class="form-label">Date début</label><input type="date" name="date_from" id="date_from" value="<?php echo date('Y-m-01'); ?>" class="form-control"></div>
+                            <div class="col-md-4"><label for="date_to" class="form-label">Date fin</label><input type="date" name="date_to" id="date_to" value="<?php echo date('Y-m-t'); ?>" class="form-control"></div>
+                            <div class="col-md-4"><label for="filter_agence_id" class="form-label">Agence</label>
+                                <select name="agence_id" id="filter_agence_id" class="form-select"><option value="">Toutes</option><?php foreach($agences as $a): ?><option value="<?php echo $a['id']; ?>"><?php echo e($a['nomagence']); ?></option><?php endforeach; ?></select>
                             </div>
                             <div class="col-12"><button type="submit" class="btn btn-primary"><i class="bi bi-download me-1"></i>Exporter</button></div>
                         </div>

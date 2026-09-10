@@ -5,62 +5,145 @@
 requireLogin();
 $db = getDB();
 require_once __DIR__ . '/charts.php';
+require_once __DIR__ . '/cache_file.php';
 
-// CA du mois
-$ca_mois  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW())")->fetchColumn();
+// ── Cache disque 60 s des agrégats ventes (coût constant face à la volumétrie) ──
+function dashCachedScalar(PDO $db, string $key, string $sql, int $ttl = 60) {
+    $found = false;
+    $v = cache_get($key, $ttl, $found);
+    if (!$found) {
+        $v = $db->query($sql)->fetchColumn();
+        cache_set($key, $v, $ttl);
+    }
+    return $v;
+}
+function dashCachedRows(PDO $db, string $key, string $sql, int $ttl = 60): array {
+    $found = false;
+    $v = cache_get($key, $ttl, $found);
+    if (!$found) {
+        $v = $db->query($sql)->fetchAll();
+        cache_set($key, $v, $ttl);
+    }
+    return $v;
+}
+
+// CA du mois (sargable : plage [1er du mois courant, 1er du mois suivant[)
+$ca_mois  = dashCachedScalar($db, 'dash.admin.ca_mois', "SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') AND created_at < DATE_FORMAT(NOW() + INTERVAL 1 MONTH, '%Y-%m-01')");
+
+// CA année en cours (sargable : plage [1er jan., 1er jan. année suivante[)
+$ca_annee = dashCachedScalar($db, 'dash.admin.ca_annee', "SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= MAKEDATE(YEAR(NOW()),1) AND created_at < MAKEDATE(YEAR(NOW())+1,1)");
+$nb_ventes_annee = dashCachedScalar($db, 'dash.admin.nb_ventes_annee', "SELECT COUNT(*) FROM ventes WHERE created_at >= MAKEDATE(YEAR(NOW()),1) AND created_at < MAKEDATE(YEAR(NOW())+1,1)");
 
 // Médicaments en stock
 $nb_prods = $db->query("SELECT COUNT(*) FROM produits WHERE actif=1")->fetchColumn();
+$val_stock = $db->query("SELECT COALESCE(SUM(stock * prix_vente),0) FROM produits WHERE actif=1")->fetchColumn();
 
 // Alertes stock
 $alertes  = $db->query("SELECT COUNT(*) FROM produits WHERE stock <= seuil_alerte AND actif=1")->fetchColumn();
 $ruptures = $db->query("SELECT COUNT(*) FROM produits WHERE stock=0 AND actif=1")->fetchColumn();
 
-// Ventes aujourd'hui
-$ventes_j = $db->query("SELECT COUNT(*) FROM ventes WHERE DATE(created_at)=CURDATE()")->fetchColumn();
-$ca_jour  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE DATE(created_at)=CURDATE()")->fetchColumn();
+// Ventes aujourd'hui (sargable : created_at >= aujourd'hui minuit)
+$ventes_j = $db->query("SELECT COUNT(*) FROM ventes WHERE created_at >= CURDATE()")->fetchColumn();
+$ca_jour  = $db->query("SELECT COALESCE(SUM(total),0) FROM ventes WHERE created_at >= CURDATE()")->fetchColumn();
 
 // Ventes 7 derniers jours
-$ventes7 = $db->query("
+$ventes7 = dashCachedRows($db, 'dash.admin.ventes7', "
   SELECT DATE(created_at) AS jour, SUM(total) AS total, COUNT(*) AS nb
   FROM ventes WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
   GROUP BY DATE(created_at) ORDER BY jour
-")->fetchAll();
+");
 
-// CA 30 derniers jours — données OHLC pour chandeliers
-$ohlcRows = $db->query("
-  SELECT DATE(created_at) AS jour,
-         COALESCE(SUM(total),0) AS close_val,
-         COALESCE(MAX(total),0) AS high,
-         COALESCE(MIN(total),0) AS low
-  FROM ventes WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
-  GROUP BY DATE(created_at) ORDER BY jour
-")->fetchAll(PDO::FETCH_ASSOC);
+// ── Évolution du CA — période sélectionnable ───────────────
+$caPeriode = $_GET['ca_periode'] ?? '30j';
+$periodesCa = [
+    '7j'    => ['titre' => '7 derniers jours',            'unit' => 'day'],
+    '30j'   => ['titre' => '30 derniers jours',           'unit' => 'day'],
+    '90j'   => ['titre' => 'Trimestre — 90 derniers jours', 'unit' => 'week'],
+    '12m'   => ['titre' => '12 derniers mois',            'unit' => 'month'],
+    'annee' => ['titre' => 'Année en cours',              'unit' => 'month'],
+];
+if (!isset($periodesCa[$caPeriode])) $caPeriode = '30j';
+$cfgCa = $periodesCa[$caPeriode];
 
-// Indexer par date Y-m-d pour trouver le jour précédent facilement
-$ohlcByDate = [];
-foreach ($ohlcRows as $r) {
-    $ohlcByDate[$r['jour']] = [
-        'close' => (float)$r['close_val'],
-        'high'  => (float)$r['high'],
-        'low'   => (float)$r['low'],
-    ];
+$moisFr = [1=>'janv',2=>'févr',3=>'mars',4=>'avr',5=>'mai',6=>'juin',7=>'juil',8=>'août',9=>'sept',10=>'oct',11=>'nov',12=>'déc'];
+
+// Construction des buckets (un par jour / semaine / mois)
+$caBuckets = [];
+if ($cfgCa['unit'] === 'day') {
+    $n = ($caPeriode === '7j') ? 7 : 30;
+    for ($i = $n - 1; $i >= 0; $i--) {
+        $d = date('Y-m-d', strtotime("-$i days"));
+        $caBuckets[] = ['key' => $d, 'label' => date('j/m', strtotime($d)), 'days' => [$d]];
+    }
+} elseif ($cfgCa['unit'] === 'week') {
+    $mondayThis = date('Y-m-d', strtotime('monday this week'));
+    for ($i = 12; $i >= 0; $i--) {
+        $ws = date('Y-m-d', strtotime("-$i weeks", strtotime($mondayThis)));
+        $days = [];
+        for ($k = 0; $k < 7; $k++) $days[] = date('Y-m-d', strtotime("+$k days", strtotime($ws)));
+        $caBuckets[] = ['key' => $ws, 'label' => date('j/m', strtotime($ws)), 'days' => $days];
+    }
+} else { // month
+    if ($caPeriode === 'annee') {
+        $y = (int)date('Y'); $curM = (int)date('n');
+        for ($m = 1; $m <= $curM; $m++) {
+            $ym = sprintf('%d-%02d', $y, $m);
+            $dim = (int)date('t', strtotime("$ym-01"));
+            $days = [];
+            for ($k = 1; $k <= $dim; $k++) $days[] = sprintf('%s-%02d', $ym, $k);
+            $caBuckets[] = ['key' => $ym, 'label' => $moisFr[$m], 'days' => $days];
+        }
+    } else { // 12m
+        for ($i = 11; $i >= 0; $i--) {
+            $ts = strtotime("-$i months", strtotime(date('Y-m-01')));
+            $ym = date('Y-m', $ts);
+            $y = (int)date('Y', $ts); $m = (int)date('n', $ts);
+            $dim = (int)date('t', $ts);
+            $days = [];
+            for ($k = 1; $k <= $dim; $k++) $days[] = sprintf('%s-%02d', $ym, $k);
+            $caBuckets[] = ['key' => $ym, 'label' => $moisFr[$m] . " '" . substr((string)$y, 2), 'days' => $days];
+        }
+    }
 }
 
+// Totals journaliers sur la plage couverte (cache 60 s, par période)
+$caMinDate = min(array_merge(...array_column($caBuckets, 'days')));
+$caDailyRows = dashCachedRows($db, 'dash.admin.ca_daily.' . $caPeriode, "
+  SELECT DATE(created_at) AS jour, COALESCE(SUM(total),0) AS total, COUNT(*) AS nb
+  FROM ventes WHERE created_at >= " . $db->quote($caMinDate) . "
+  GROUP BY jour
+");
+$caDailyMap = []; $caNbMap = [];
+foreach ($caDailyRows as $r) {
+    $caDailyMap[$r['jour']] = (float)$r['total'];
+    $caNbMap[$r['jour']]    = (int)$r['nb'];
+}
+
+// Agrégation par bucket : CA (close), nb ventes, panier moyen
 $candleData = [];
+$caBars = [];
 $prevClose = 0;
-for ($i = 29; $i >= 0; $i--) {
-    $d = date('Y-m-d', strtotime("-$i days"));
-    $lbl = date('j M', strtotime($d));
-    $close = $ohlcByDate[$d]['close'] ?? 0;
-    $high  = $ohlcByDate[$d]['high']  ?? 0;
-    $low   = $ohlcByDate[$d]['low']   ?? 0;
-    $open  = $prevClose; // open = close du jour précédent
-    $candleData[$lbl] = [
+foreach ($caBuckets as $b) {
+    $close = 0; $nb = 0; $high = 0; $low = PHP_FLOAT_MAX;
+    foreach ($b['days'] as $dd) {
+        $t = $caDailyMap[$dd] ?? 0;
+        $close += $t;
+        $nb    += $caNbMap[$dd] ?? 0;
+        if ($t > $high) $high = $t;
+        if ($t > 0 && $t < $low) $low = $t;
+    }
+    if ($low === PHP_FLOAT_MAX) $low = 0;
+    $open = $prevClose;
+    $candleData[$b['label']] = [
         'open'  => $open,
         'high'  => max($high, $open, $close),
         'low'   => $low > 0 ? $low : min($open, $close),
         'close' => $close,
+    ];
+    $caBars[$b['label']] = [
+        'value' => $close,
+        'nb'    => $nb,
+        'avg'   => $nb > 0 ? $close / $nb : 0,
     ];
     $prevClose = $close;
 }
@@ -81,12 +164,12 @@ $dernieres = $db->query("
 ")->fetchAll();
 
 // Top 5 produits (30j)
-$top = $db->query("
+$top = dashCachedRows($db, 'dash.admin.top5', "
   SELECT vl.produit_nom, SUM(vl.quantite) AS qte
   FROM vente_lignes vl JOIN ventes v ON vl.vente_id=v.id
   WHERE v.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
   GROUP BY vl.produit_nom ORDER BY qte DESC LIMIT 5
-")->fetchAll();
+");
 $maxQ = $top ? max(array_column($top, 'qte')) : 1;
 
 // Activite utilisateurs
@@ -100,11 +183,11 @@ $activite = $db->query("
 $cmd_en_cours = $db->query("SELECT COUNT(*) FROM commandes WHERE statut IN ('en_attente','en_cours')")->fetchColumn();
 
 // Périodes de pointe : ventes par jour de la semaine (30 derniers jours)
-$ventesParJour = $db->query("
+$ventesParJour = dashCachedRows($db, 'dash.admin.pointe', "
     SELECT DAYOFWEEK(created_at) AS dow, SUM(total) AS total, COUNT(*) AS nb
     FROM ventes WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     GROUP BY dow ORDER BY dow
-")->fetchAll();
+");
 $joursSemaine = [1 => 'Dim', 2 => 'Lun', 3 => 'Mar', 4 => 'Mer', 5 => 'Jeu', 6 => 'Ven', 7 => 'Sam'];
 $pointeData = array_fill(1, 7, ['total' => 0, 'nb' => 0]);
 foreach ($ventesParJour as $v) {
@@ -130,7 +213,7 @@ layout_head('Tableau de bord', 'dashboard');
 showFlash();
 ?>
 
-<div class="stats-grid">
+<div class="stats-grid" style="grid-template-columns:repeat(5,1fr);">
   <div class="stat-card s-teal">
     <div class="stat-icon" style="color:var(--teal2);opacity:.25;"><?= icon('money',28) ?></div>
     <div class="stat-label">CA du mois</div>
@@ -141,7 +224,7 @@ showFlash();
     <div class="stat-icon" style="color:var(--gold);opacity:.25;"><?= icon('box',28) ?></div>
     <div class="stat-label">Médicaments en stock</div>
     <div class="stat-value c-gold"><?= fmtInt((int)$nb_prods) ?></div>
-    <div class="stat-sub">références actives</div>
+    <div class="stat-sub">Valeur marchande : <?= fmtMoney($val_stock) ?></div>
   </div>
   <div class="stat-card s-red">
     <div class="stat-icon" style="color:var(--red);opacity:.25;"><?= icon('alert',28) ?></div>
@@ -155,17 +238,49 @@ showFlash();
     <div class="stat-value c-blue"><?= $ventes_j ?></div>
     <div class="stat-sub">transactions effectuées</div>
   </div>
+  <div class="stat-card s-purple">
+    <div class="stat-icon" style="color:var(--purple);opacity:.25;"><?= icon('trending',28) ?></div>
+    <div class="stat-label">CA année en cours</div>
+    <div class="stat-value c-purple"><?= fmtMoney($ca_annee) ?></div>
+    <div class="stat-sub"><?= fmtInt((int)$nb_ventes_annee) ?> ventes</div>
+  </div>
 </div>
+
+<?php require __DIR__ . '/dashboard-alertes-pharmacies.php'; ?>
 
 <div class="card" style="margin-bottom:20px;">
   <div class="card-header">
-    <div class="card-title">Évolution du CA — 30 derniers jours</div>
-    <span class="badge" style="background:var(--teal-dim);color:var(--teal2);">
-      <?= fmtMoney(array_sum(array_column($candleData, 'close'))) ?> total
-    </span>
+    <div class="card-title">Évolution du CA — <?= e($cfgCa['titre']) ?></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <form method="get" style="display:flex;">
+        <select name="ca_periode" onchange="this.form.submit()" style="padding:5px 10px;font-size:12px;border-radius:var(--radius-sm);background:var(--bg);color:var(--text);border:1px solid var(--border2);cursor:pointer;">
+          <?php foreach ($periodesCa as $k => $pc): ?>
+          <option value="<?= $k ?>" <?= $caPeriode === $k ? 'selected' : '' ?>><?= e($pc['titre']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </form>
+      <span class="badge" style="background:var(--teal-dim);color:var(--teal2);">
+        <?= fmtMoney(array_sum(array_column($candleData, 'close'))) ?> total
+      </span>
+    </div>
   </div>
-  <div class="candle-chart-wrap">
-    <?php renderCandleChart($candleData, 'FCFA'); ?>
+  <div class="line-chart-wrap">
+    <?php
+    $caLineData = [];
+    foreach ($caBars as $lbl => $b) $caLineData[$lbl] = $b['value'];
+    renderLineChart($caLineData, 'var(--teal)', '', 'FCFA');
+    ?>
+  </div>
+  <div class="card-pad" style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:22px;flex-wrap:wrap;font-size:12px;color:var(--text3);">
+    <?php
+    $caTotalCa = array_sum(array_column($caBars, 'value'));
+    $caTotalNb = array_sum(array_column($caBars, 'nb'));
+    $caPanier = $caTotalNb > 0 ? $caTotalCa / $caTotalNb : 0;
+    ?>
+    <span><strong style="color:var(--text2);font-family:var(--font-mono,monospace);"><?= fmtMoney($caTotalCa) ?></strong> CA total</span>
+    <span><strong style="color:var(--text2);"><?= fmtInt((int)$caTotalNb) ?></strong> ventes</span>
+    <span><strong style="color:var(--text2);font-family:var(--font-mono,monospace);"><?= fmtMoney($caPanier) ?></strong> panier moyen</span>
+    <span><strong style="color:var(--gold);font-family:var(--font-mono,monospace);"><?= fmtMoney(max(array_column($caBars, 'value'))) ?></strong> meilleur bucket</span>
   </div>
 </div>
 
@@ -219,7 +334,7 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title">Stock critique</div>
-      <a href="<?= APP_URL ?>/modules/stock.php" class="btn btn-ghost btn-xs">Voir tout</a>
+      <a href="<?= url('stock') ?>" class="btn btn-ghost btn-xs">Voir tout</a>
     </div>
     <?php if ($critique): foreach ($critique as $p): ?>
     <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
@@ -240,7 +355,7 @@ showFlash();
   <div class="card">
     <div class="card-header">
       <div class="card-title">Dernières ventes</div>
-      <a href="<?= APP_URL ?>/modules/ventes_hist.php" class="btn btn-ghost btn-xs">Historique</a>
+      <a href="<?= url('ventes_hist') ?>" class="btn btn-ghost btn-xs">Historique</a>
     </div>
     <div class="table-wrap">
       <table>
@@ -281,7 +396,7 @@ showFlash();
     </div>
   </div>
 
-  <a href="<?= APP_URL ?>/modules/commandes.php" class="card" style="display:block;text-decoration:none;color:inherit;">
+  <a href="<?= url('commandes') ?>" class="card" style="display:block;text-decoration:none;color:inherit;">
     <div class="card-header">
       <div class="card-title">Commandes en cours</div>
       <span class="badge badge-blue"><?= $cmd_en_cours ?></span>

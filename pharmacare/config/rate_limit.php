@@ -1,13 +1,37 @@
 <?php
 /**
- * Rate limiting pour les tentatives de connexion.
- * Stockage fichier (pas de dépendance externe).
+ * Rate limiting PharmaCare — stockage fichier (aucune dépendance externe).
+ *
+ * 4 niveaux :
+ *  1. Login        — rateLimitRemaining/Fail/Reset (verrouillage progressif)
+ *  2. Global       — throttle de toutes les requêtes par IP (anti-flood)
+ *  3. Actions POS   — rateLimitConsume('pos.vente:uid', max, window)
+ *  4. Export/print — throttle client-side (JS) — voir modules/*
+ *
+ * Toutes les clés sont préfixées et hachées (md5) dans RATE_LIMIT_DIR.
  */
 
 define('RATE_LIMIT_DIR', __DIR__ . '/.rate_limit');
 define('RATE_LIMIT_MAX_ATTEMPTS', 5);
-define('RATE_LIMIT_WINDOW', 900);     // 15 minutes en secondes
-define('RATE_LIMIT_LOCKOUT', 900);    // 15 minutes de blocage
+define('RATE_LIMIT_WINDOW', 900);     // 15 minutes
+define('RATE_LIMIT_LOCKOUT', 900);    // 15 min de blocage login
+
+// Limiter global (toutes requêtes)
+define('RATE_LIMIT_GLOBAL_MAX', 120);    // requêtes max…
+define('RATE_LIMIT_GLOBAL_WINDOW', 60);  // …par minute par IP
+
+// Proxies de confiance pour X-Forwarded-For (en local XAMPP : loopback).
+// Surchargeable en prod via la variable d'environnement RATE_LIMIT_TRUSTED_PROXIES
+// (liste CSV, ex: "10.0.0.1,10.0.0.2") ou via define() dans env.prod.php.
+if (!defined('RATE_LIMIT_TRUSTED_PROXIES')) {
+    $envProxies = getenv('RATE_LIMIT_TRUSTED_PROXIES');
+    if ($envProxies !== false && $envProxies !== '') {
+        $list = array_values(array_filter(array_map('trim', explode(',', $envProxies))));
+        define('RATE_LIMIT_TRUSTED_PROXIES', $list !== [] ? $list : ['127.0.0.1', '::1']);
+    } else {
+        define('RATE_LIMIT_TRUSTED_PROXIES', ['127.0.0.1', '::1']);
+    }
+}
 
 function _rateLimitInit(): void {
     if (!is_dir(RATE_LIMIT_DIR)) {
@@ -19,36 +43,110 @@ function _rateLimitInit(): void {
     }
 }
 
-function _rateLimitPath(string $ip): string {
-    return RATE_LIMIT_DIR . '/' . md5($ip) . '.json';
+/**
+ * IP du client, avec support X-Forwarded-For / X-Real-IP UNIQUEMENT
+ * si REMOTE_ADDR est un proxy de confiance (sinon on reste sur REMOTE_ADDR
+ * pour éviter le spoofing par le client).
+ */
+function clientIp(): string {
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    $trusted = RATE_LIMIT_TRUSTED_PROXIES;
+    if (in_array($remote, $trusted, true)) {
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            foreach (explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']) as $ip) {
+                $ip = trim($ip);
+                if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+            }
+        }
+        if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+            $ip = trim($_SERVER['HTTP_X_REAL_IP']);
+            if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+        }
+    }
+    return $remote;
 }
 
-function _rateLimitRead(string $ip): array {
-    $path = _rateLimitPath($ip);
+function _rateLimitPath(string $key): string {
+    return RATE_LIMIT_DIR . '/' . md5($key) . '.json';
+}
+
+function _rateLimitReadKey(string $key): array {
+    $path = _rateLimitPath($key);
     if (!file_exists($path)) return ['attempts' => [], 'locked_until' => 0];
-    $raw = file_get_contents($path);
+    // Lecture sous verrou partagé NON bloquant + retry : sur Windows, un
+    // LOCK_EX d'écriture concurrent fait échouer toute lecture sans verrou en
+    // errno=13 (« Permission denied », cf. notices Apache sous charge LAN).
+    // LOCK_NB garantit l'absence de blocage permanent ; au pire (3 échecs)
+    // on retourne un état vide — équivalent à une donnée expirée.
+    $raw = false;
+    for ($i = 0; $i < 3; $i++) {
+        $fh = @fopen($path, 'r');
+        if (is_resource($fh)) {
+            if (@flock($fh, LOCK_SH | LOCK_NB)) {
+                $raw = stream_get_contents($fh);
+                flock($fh, LOCK_UN);
+            }
+            fclose($fh);
+            if ($raw !== false && $raw !== '') break;
+        }
+        $raw = false;
+        usleep(20000); // 20 ms avant nouvelle tentative
+    }
+    if ($raw === false || $raw === '') return ['attempts' => [], 'locked_until' => 0];
     $data = json_decode($raw, true);
-    if (!$data) return ['attempts' => [], 'locked_until' => 0];
-    // Nettoyage des tentatives expirées
-    $cutoff = time() - RATE_LIMIT_WINDOW;
-    $data['attempts'] = array_values(array_filter($data['attempts'], fn($t) => $t > $cutoff));
-    return $data;
+    return is_array($data) ? $data : ['attempts' => [], 'locked_until' => 0];
 }
 
-function _rateLimitWrite(string $ip, array $data): void {
+function _rateLimitWriteKey(string $key, array $data): void {
     _rateLimitInit();
-    file_put_contents(_rateLimitPath($ip), json_encode($data), LOCK_EX);
+    file_put_contents(_rateLimitPath($key), json_encode($data), LOCK_EX);
+}
+
+// ── Compatibilité : l'ancien _rateLimitRead/_rateLimitWrite prenait une IP ──
+function _rateLimitRead(string $ip): array   { return _rateLimitReadKey('login:' . $ip); }
+function _rateLimitWrite(string $ip, array $data): void { _rateLimitWriteKey('login:' . $ip, $data); }
+
+/**
+ * Vérifie (sans consommer) une clé sur une fenêtre glissante.
+ * Retourne ['allowed','count','remaining','retry'].
+ */
+function rateLimitCheck(string $key, int $max, int $window): array {
+    $data = _rateLimitReadKey($key);
+    $cutoff = time() - $window;
+    $attempts = array_values(array_filter($data['attempts'] ?? [], fn($t) => $t > $cutoff));
+    $count = count($attempts);
+    $allowed = $count < $max;
+    return [
+        'allowed'   => $allowed,
+        'count'     => $count,
+        'remaining' => max(0, $max - $count),
+        'retry'     => $count >= $max ? ($attempts[0] + $window - time()) : 0,
+    ];
 }
 
 /**
- * Vérifie si l'IP est bloquée. Retourne les secondes restantes ou 0.
+ * Consomme une tentative sur la clé. Si la limite est atteinte, n'écrit pas
+ * de nouveau et retourne allowed=false. Retourne les mêmes infos que rateLimitCheck.
  */
+function rateLimitConsume(string $key, int $max, int $window): array {
+    $info = rateLimitCheck($key, $max, $window);
+    if (!$info['allowed']) return $info;
+    $data = _rateLimitReadKey($key);
+    $cutoff = time() - $window;
+    $data['attempts'] = array_values(array_filter($data['attempts'] ?? [], fn($t) => $t > $cutoff));
+    $data['attempts'][] = time();
+    _rateLimitWriteKey($key, $data);
+    $info['count'] = count($data['attempts']);
+    $info['remaining'] = max(0, $max - $info['count']);
+    return $info;
+}
+
+// ── API login historique (verrouillage progressif) ────────────
 function rateLimitRemaining(string $ip): int {
     $data = _rateLimitRead($ip);
     if ($data['locked_until'] > time()) {
         return $data['locked_until'] - time();
     }
-    // Si le lockout est passé, on le reset
     if ($data['locked_until'] > 0 && $data['locked_until'] <= time()) {
         $data['locked_until'] = 0;
         $data['attempts'] = [];
@@ -57,50 +155,76 @@ function rateLimitRemaining(string $ip): int {
     return 0;
 }
 
-/**
- * Enregistre une tentative échouée. Retourne true si bloqué après cet essai.
- */
 function rateLimitFail(string $ip): bool {
     $data = _rateLimitRead($ip);
     $data['attempts'][] = time();
-
     if (count($data['attempts']) >= RATE_LIMIT_MAX_ATTEMPTS) {
         $data['locked_until'] = time() + RATE_LIMIT_LOCKOUT;
         $data['attempts'] = [];
         _rateLimitWrite($ip, $data);
         return true;
     }
-
     _rateLimitWrite($ip, $data);
     return false;
 }
 
-/**
- * Réinitialise le compteur après une connexion réussie.
- */
 function rateLimitReset(string $ip): void {
-    $path = _rateLimitPath($ip);
-    if (file_exists($path)) {
-        unlink($path);
-    }
+    $path = _rateLimitPath('login:' . $ip);
+    if (file_exists($path)) unlink($path);
 }
 
-/**
- * Nettoyage périodique des fichiers expirés (> 1h).
- */
 function rateLimitCleanup(): void {
     _rateLimitInit();
     $files = glob(RATE_LIMIT_DIR . '/*.json');
     if (!$files) return;
     $expiry = time() - 3600;
     foreach ($files as $f) {
-        if (filemtime($f) < $expiry) {
-            unlink($f);
-        }
+        if (filemtime($f) < $expiry) unlink($f);
     }
 }
 
-// Nettoyage automatique ~10% des appels
+// Nettoyage ~10% des appels
 if (mt_rand(1, 10) === 1) {
     rateLimitCleanup();
 }
+
+/**
+ * Limiter global : exécuté une seule fois par requête HTTP.
+ * On l'amorce via _rateLimitGlobalGuard() à l'inclusion du fichier.
+ */
+function _rateLimitGlobalGuard(): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    // Pas de rate limiting en ligne de commande (scripts CLI, PHPUnit, vérifs d'install).
+    if (PHP_SAPI === 'cli' || PHP_SAPI === 'cli-server') {
+        return;
+    }
+
+    // On ne throttle pas les assets statiques ni les réponses déjà envoyées
+    $uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (preg_match('#\.(css|js|png|jpe?g|gif|svg|ico|woff2?|ttf|map)$#i', $uri)) {
+        return;
+    }
+
+    $key = 'global:' . clientIp();
+    $info = rateLimitConsume($key, RATE_LIMIT_GLOBAL_MAX, RATE_LIMIT_GLOBAL_WINDOW);
+    if (!$info['allowed']) {
+        $retry = max(1, (int)$info['retry']);
+        header('HTTP/1.1 429 Too Many Requests');
+        header('Retry-After: ' . $retry);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'error'   => 'Trop de requêtes',
+            'message' => 'Limite de ' . RATE_LIMIT_GLOBAL_MAX
+                       . ' requêtes / ' . RATE_LIMIT_GLOBAL_WINDOW . 's atteinte.',
+            'retry_after' => $retry,
+        ]);
+        exit;
+    }
+}
+
+// Amorçage automatique du limiter global dès l'inclusion de ce fichier
+// (lui-même inclus via includes/auth.php sur tous les points d'entrée).
+_rateLimitGlobalGuard();

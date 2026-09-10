@@ -12,5 +12,5 @@ return [
     'DB_NAME'  => 'pharmacare',
     'DB_USER'  => 'pharmacare_user',
     'DB_PASS'  => 'CHANGE_ME',
-    'APP_URL'  => 'https://votre-domaine.com/pharmacare',
+    'APP_URL'  => 'https://192.168.100.250/pharmacare',
 ];

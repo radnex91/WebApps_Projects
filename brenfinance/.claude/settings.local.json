@@ -82,7 +82,9 @@
       "Bash(sed -i 's/Bénéficiaire : <?= sanitize\\($bonData\\\\['\\\\''beneficiaire_nom'\\\\''/<?php echo \\($bonData['\\\\''sens'\\\\'']??'\\\\''debit'\\\\''\\)==='\\\\''credit'\\\\'' ? '\\\\''Remettant'\\\\'' : '\\\\''Bénéficiaire'\\\\'' ?> : <?= sanitize\\($bonData['\\\\''beneficiaire_nom/' modules/operations_caisse/index.php)",
       "Bash(C:/xampp/mysql/bin/mysql.exe *)",
       "Bash(python *)",
-      "PowerShell(Get-Content *)"
+      "PowerShell(Get-Content *)",
+      "Bash(node *)",
+      "Bash(grep *)"
     ]
   },
   "outputStyle": "default"

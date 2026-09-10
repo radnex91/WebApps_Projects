@@ -232,7 +232,7 @@ $statutBadge = ['normal'=>'badge-green','bas'=>'badge-yellow','critique'=>'badge
     </thead>
     <tbody>
       <?php foreach ($meds as $m):
-        $rowBg = $m['statut'] === 'critique' ? 'background:rgba(239,68,68,.05)' : ($m['statut'] === 'bas' ? 'background:rgba(245,158,11,.04)' : '');
+        $rowBg = $m['statut'] === 'critique' ? 'background:rgba(var(--red-rgb),.05)' : ($m['statut'] === 'bas' ? 'background:rgba(var(--yellow-rgb),.04)' : '');
       ?>
       <tr style="<?= $rowBg ?>">
         <td><strong><?= h($m['nom']) ?></strong></td>
@@ -306,7 +306,7 @@ $statutBadge = ['normal'=>'badge-green','bas'=>'badge-yellow','critique'=>'badge
 
         <?php if ($estEncaisséee): ?>
           <!--  TICKET LI  affich directement dans la pharmacie -->
-          <div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:6px">
+          <div style="background:rgba(var(--green-rgb),.1);border:1px solid rgba(var(--green-rgb),.25);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:6px">
              Ticket : <strong><?= h($ord['ticket_numero']) ?></strong><br>
             <span style="font-size:11px;color:var(--text2)"><?= fmt_money((float)$ord['ticket_total']) ?>  <?= fmt_date($ord['ticket_date'], true) ?></span>
           </div>
@@ -355,25 +355,25 @@ $statutBadge = ['normal'=>'badge-green','bas'=>'badge-yellow','critique'=>'badge
 <?php endif; ?>
 
 <!--  MODAL NOUVEAU MDICAMENT  -->
-<div id="modal-med" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center"
+<div id="modal-med" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true"
      onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(560px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface)">
       <h3> Ajouter un médicament</h3>
-      <div onclick="this.closest('[id]').style.display='none'" style="cursor:pointer;color:var(--text2);font-size:18px"></div>
+      <button type="button" class="modal-close" onclick="this.closest('[id]').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_med">
       <?= csrf_field() ?>
       <div class="form-grid">
-        <div class="form-group form-full"><label>Nom *</label><input type="text" name="nom" required maxlength="200" autofocus></div>
-        <div class="form-group"><label>Catégorie</label><input type="text" name="categorie" maxlength="100"></div>
-        <div class="form-group"><label>Dosage</label><input type="text" name="dosage" maxlength="50" placeholder="ex: 500mg"></div>
-        <div class="form-group"><label>Unité</label><input type="text" name="unite" maxlength="20" placeholder="ex: comprim"></div>
-        <div class="form-group"><label>Fournisseur</label><input type="text" name="fournisseur" maxlength="100"></div>
-        <div class="form-group"><label>Stock actuel *</label><input type="number" name="stock_actuel" value="0" min="0" required></div>
-        <div class="form-group"><label>Seuil minimum *</label><input type="number" name="stock_minimum" value="100" min="0" required></div>
-        <div class="form-group"><label>Prix unitaire</label><input type="number" name="prix_unitaire" step="0.01" min="0" value="0.00"></div>
+        <div class="form-group form-full"><label for="inp-nom">Nom *</label><input type="text" name="nom" id="inp-nom" required maxlength="200" ></div>
+        <div class="form-group"><label for="inp-categorie">Catégorie</label><input type="text" name="categorie" id="inp-categorie" maxlength="100"></div>
+        <div class="form-group"><label for="inp-dosage">Dosage</label><input type="text" name="dosage" id="inp-dosage" maxlength="50" placeholder="ex: 500mg"></div>
+        <div class="form-group"><label for="inp-unite">Unité</label><input type="text" name="unite" id="inp-unite" maxlength="20" placeholder="ex: comprim"></div>
+        <div class="form-group"><label for="inp-fournisseur">Fournisseur</label><input type="text" name="fournisseur" id="inp-fournisseur" maxlength="100"></div>
+        <div class="form-group"><label for="inp-stock_actuel">Stock actuel *</label><input type="number" name="stock_actuel" id="inp-stock_actuel" value="0" min="0" required></div>
+        <div class="form-group"><label for="inp-stock_minimum">Seuil minimum *</label><input type="number" name="stock_minimum" id="inp-stock_minimum" value="100" min="0" required></div>
+        <div class="form-group"><label for="inp-prix_unitaire">Prix unitaire</label><input type="number" name="prix_unitaire" id="inp-prix_unitaire" step="0.01" min="0" value="0.00"></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
         <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-med').style.display='none'">Annuler</button>
@@ -384,20 +384,20 @@ $statutBadge = ['normal'=>'badge-green','bas'=>'badge-yellow','critique'=>'badge
 </div>
 
 <!--  MODAL NOUVELLE ORDONNANCE  -->
-<div id="modal-ordonnance" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto"
+<div id="modal-ordonnance" class="modal-overlay" style="display:none;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" role="dialog" aria-modal="true"
      onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:660px;box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(660px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">
       <h3> Nouvelle ordonnance</h3>
-      <div onclick="document.getElementById('modal-ordonnance').style.display='none'" style="cursor:pointer;color:var(--text2);font-size:18px"></div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-ordonnance').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_ordonnance">
       <?= csrf_field() ?>
       <div class="form-grid" style="margin-bottom:16px">
         <div class="form-group">
-          <label>Patient *</label>
-          <select name="patient_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+          <label for="inp-patient_id">Patient *</label>
+          <select name="patient_id" id="inp-patient_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value=""> Sélectionner </option>
             <?php foreach ($patients as $p): ?>
             <option value="<?= (int)$p['id'] ?>"><?= h($p['nom_complet']) ?> (<?= h($p['numero']) ?>)</option>
@@ -405,8 +405,8 @@ $statutBadge = ['normal'=>'badge-green','bas'=>'badge-yellow','critique'=>'badge
           </select>
         </div>
         <div class="form-group">
-          <label>Médecin prescripteur *</label>
-          <select name="medecin_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+          <label for="inp-medecin_id">Médecin prescripteur *</label>
+          <select name="medecin_id" id="inp-medecin_id" required style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value=""> Sélectionner </option>
             <?php foreach ($medecins as $m): ?>
             <option value="<?= (int)$m['id'] ?>"><?= h($m['nom_complet']) ?><?= $m['specialite'] ? '  ' . h($m['specialite']) : '' ?></option>
@@ -464,7 +464,7 @@ function addOrdLigne() {
       ${inp('dosage[]', '500mg 2x')}
       ${inp('frequence[]', '2x/jour')}
       ${inp('duree[]', '7 jours')}
-      <button type="button" onclick="document.getElementById('ord-ligne-${idx}').remove()" style="background:rgba(239,68,68,.15);border:none;border-radius:6px;color:#f87171;cursor:pointer;font-size:14px"></button>
+      <button type="button" onclick="document.getElementById('ord-ligne-${idx}').remove()" style="min-width:44px;min-height:44px;background:rgba(var(--red-rgb),.15);border:none;border-radius:6px;color:var(--red);cursor:pointer;font-size:14px"></button>
     `;
     c.appendChild(div);
 }
@@ -476,8 +476,8 @@ document.addEventListener('DOMContentLoaded', addOrdLigne);
 
 <!-- MODAL DITION MDICAMENT -->
 <?php if ($editMed && can('medicaments.create')): ?>
-<div id="modal-edit-med" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)location.href='pharmacie.php?tab=stock'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:560px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-edit-med" class="modal-overlay" style="display:flex;z-index:200;align-items:center;justify-content:center;padding:20px" role="dialog" aria-modal="true" onclick="if(event.target===this)location.href='pharmacie.php?tab=stock'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(560px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>✏️ Modifier — <?= h($editMed['nom']) ?></h3>
       <a href="pharmacie.php?tab=stock" style="color:var(--text2);text-decoration:none;font-size:18px"></a>
@@ -487,32 +487,32 @@ document.addEventListener('DOMContentLoaded', addOrdLigne);
       <input type="hidden" name="med_id" value="<?= (int)$editMed['id'] ?>">
       <?= csrf_field() ?>
       <div class="form-grid">
-        <div class="form-group form-full"><label>Nom du médicament *</label>
-          <input type="text" name="nom" value="<?= h($editMed['nom']) ?>" required maxlength="200"></div>
-        <div class="form-group"><label>Catégorie</label>
-          <select name="categorie" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group form-full"><label for="inp-edit-nom">Nom du médicament *</label>
+          <input type="text" name="nom" id="inp-edit-nom" value="<?= h($editMed['nom']) ?>" required maxlength="200"></div>
+        <div class="form-group"><label for="inp-edit-categorie">Catégorie</label>
+          <select name="categorie" id="inp-edit-categorie" style="padding:9px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <?php foreach (['antibiotique'=>'Antibiotique','analgesique'=>'Analgsique','antihypertenseur'=>'Antihypertenseur','antipaludeen'=>'Antipaludéen','antidiabetique'=>'Antidiabétique','vitamines'=>'Vitamines','autre'=>'Autre'] as $v=>$l): ?>
             <option value="<?= $v ?>" <?= $editMed['categorie']===$v?'selected':'' ?>><?= $l ?></option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>Dosage</label>
-          <input type="text" name="dosage" value="<?= h($editMed['dosage']??'') ?>" maxlength="50" placeholder="500mg, 10ml...">
+        <div class="form-group"><label for="inp-edit-dosage">Dosage</label>
+          <input type="text" name="dosage" id="inp-edit-dosage" value="<?= h($editMed['dosage']??'') ?>" maxlength="50" placeholder="500mg, 10ml...">
         </div>
-        <div class="form-group"><label>Unité</label>
-          <input type="text" name="unite" value="<?= h($editMed['unite']??'') ?>" maxlength="20" placeholder="comprim, flacon...">
+        <div class="form-group"><label for="inp-edit-unite">Unité</label>
+          <input type="text" name="unite" id="inp-edit-unite" value="<?= h($editMed['unite']??'') ?>" maxlength="20" placeholder="comprim, flacon...">
         </div>
-        <div class="form-group"><label>Stock actuel *</label>
-          <input type="number" name="stock_actuel" value="<?= (int)$editMed['stock_actuel'] ?>" min="0" required>
+        <div class="form-group"><label for="inp-edit-stock_actuel">Stock actuel *</label>
+          <input type="number" name="stock_actuel" id="inp-edit-stock_actuel" value="<?= (int)$editMed['stock_actuel'] ?>" min="0" required>
         </div>
-        <div class="form-group"><label>Stock minimum (alerte)</label>
-          <input type="number" name="stock_minimum" value="<?= (int)$editMed['stock_minimum'] ?>" min="0">
+        <div class="form-group"><label for="inp-edit-stock_minimum">Stock minimum (alerte)</label>
+          <input type="number" name="stock_minimum" id="inp-edit-stock_minimum" value="<?= (int)$editMed['stock_minimum'] ?>" min="0">
         </div>
-        <div class="form-group"><label>Prix unitaire (<?= h(setting('currency_symbol','FCFA')) ?>)</label>
-          <input type="number" name="prix_unitaire" value="<?= (float)$editMed['prix_unitaire'] ?>" min="0" step="0.01">
+        <div class="form-group"><label for="inp-edit-prix_unitaire">Prix unitaire (<?= h(setting('currency_symbol','FCFA')) ?>)</label>
+          <input type="number" name="prix_unitaire" id="inp-edit-prix_unitaire" value="<?= (float)$editMed['prix_unitaire'] ?>" min="0" step="0.01">
         </div>
-        <div class="form-group"><label>Fournisseur</label>
-          <input type="text" name="fournisseur" value="<?= h($editMed['fournisseur']??'') ?>" maxlength="200">
+        <div class="form-group"><label for="inp-edit-fournisseur">Fournisseur</label>
+          <input type="text" name="fournisseur" id="inp-edit-fournisseur" value="<?= h($editMed['fournisseur']??'') ?>" maxlength="200">
         </div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
@@ -522,5 +522,18 @@ document.addEventListener('DOMContentLoaded', addOrdLigne);
     </form>
   </div>
 </div>
+<?php endif; ?>
+<?php // --- Pré-remplissage ordonnance depuis une consultation (GET ?patient_id=&medecin_id=&new_ord=1) ---
+$pfPatient = get_int('patient_id'); $pfMedecin = get_int('medecin_id'); $pfNew = get_int('new_ord');
+if ($pfNew === 1 && $pfPatient > 0 && can('ordonnances.create')): ?>
+<script>
+(function(){
+  var m = document.getElementById('modal-ordonnance'); if(!m) return;
+  m.style.display = 'flex';
+  function sel(id, val){ var s = document.getElementById(id); if(!s||!val) return; for(var i=0;i<s.options.length;i++){ if(String(s.options[i].value)===String(val)){ s.selectedIndex=i; break; } } }
+  sel('inp-patient_id', <?= (int)$pfPatient ?>);
+  sel('inp-medecin_id', <?= (int)$pfMedecin ?>);
+})();
+</script>
 <?php endif; ?>
 <?php require_once __DIR__ . '/../includes/footer.php';

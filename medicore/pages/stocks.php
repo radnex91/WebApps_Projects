@@ -2,6 +2,7 @@
 $currentPage = 'stocks';
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/comptabilite.php';
 requireLogin();
 
 // ── Créer un article stock ──
@@ -133,6 +134,8 @@ if (can('stocks.entry') && $_SERVER['REQUEST_METHOD'] === 'POST' && post_str('ac
             }
         }
         db_exec("UPDATE stock_entries SET statut='validee' WHERE id=?", [$id]);
+        //  Comptabilité : achat (débit stock / crédit fournisseur)
+        compta_on_achat_stock($entry);
         logActivity("Entrée stock validée: {$entry['reference']}", 'green', 'stock_entry', $id);
         header('Location: '.APP_URL.'/stocks.php?entry_validated=1'); exit;
     }
@@ -167,8 +170,26 @@ $params = [];
 if ($filtre) { $where.=' AND statut=?'; $params[]=$filtre; }
 if ($search) { $like="%$search%"; $where.=' AND (nom LIKE ? OR categorie LIKE ? OR fournisseur LIKE ?)'; $params=array_merge($params,[$like,$like,$like]); }
 
-$stocks = db_select("SELECT * FROM stocks WHERE $where ORDER BY statut DESC,nom", $params);
-$total_val = array_sum(array_map(fn($s)=>$s['quantite']*$s['valeur_unitaire'],$stocks));
+$_stockPager = new Paginator([
+    'sql'        => "SELECT * FROM stocks WHERE $where",
+    'count_sql'  => "SELECT COUNT(*) FROM stocks WHERE $where",
+    'params'     => $params,
+    'sort_cols'  => [
+        'nom'          => 'nom',
+        'categorie'    => 'categorie',
+        'quantite'     => 'quantite',
+        'seuil'        => 'seuil_alerte',
+        'valeur_unit'  => 'valeur_unitaire',
+        'valeur_totale'=> 'quantite * valeur_unitaire',
+        'fournisseur'  => 'fournisseur',
+        'statut'       => 'statut',
+    ],
+    'default_sort' => 'nom',
+    'default_dir'  => 'asc',
+    'per_page'   => 25,
+]);
+$stocks = $_stockPager->load();
+$total_val = (float)db_scalar("SELECT COALESCE(SUM(quantite * valeur_unitaire),0) FROM stocks WHERE $where", $params);
 
 $stats = [
     'total'    => (int)db_scalar("SELECT COUNT(*) FROM stocks"),
@@ -261,12 +282,12 @@ if (can('stocks.entry')) {
 </div>
 
 <div class="card">
-  <div class="card-header"><h3>Inventaire</h3><span style="font-size:12px;color:var(--text2)"><?= count($stocks) ?> articles</span></div>
+  <div class="card-header"><h3>Inventaire</h3><span style="font-size:12px;color:var(--text2)"><?= $_stockPager->total ?> articles</span></div>
   <table>
-    <thead><tr><th>Article</th><th>Catégorie</th><th>Quantité</th><th>Seuil</th><th>Valeur unit.</th><th>Valeur totale</th><th>Fournisseur</th><th>Statut</th><th>Modifier qt</th></tr></thead>
+    <thead><tr><th><?= $_stockPager->th('nom','Article') ?></th><th><?= $_stockPager->th('categorie','Catégorie') ?></th><th><?= $_stockPager->th('quantite','Quantité') ?></th><th><?= $_stockPager->th('seuil','Seuil') ?></th><th><?= $_stockPager->th('valeur_unit','Valeur unit.') ?></th><th><?= $_stockPager->th('valeur_totale','Valeur totale') ?></th><th><?= $_stockPager->th('fournisseur','Fournisseur') ?></th><th><?= $_stockPager->th('statut','Statut') ?></th><th>Modifier qt</th></tr></thead>
     <tbody>
     <?php foreach ($stocks as $s):
-      $rowBg = $s['statut']==='critique'?'background:rgba(239,68,68,.05)':($s['statut']==='bas'?'background:rgba(245,158,11,.04)':'');
+      $rowBg = $s['statut']==='critique'?'background:rgba(var(--red-rgb),.05)':($s['statut']==='bas'?'background:rgba(var(--yellow-rgb),.04)':'');
     ?>
     <tr style="<?= $rowBg ?>">
       <td><strong><?= h($s['nom']) ?></strong></td>
@@ -308,6 +329,7 @@ if (can('stocks.entry')) {
     <?php if (empty($stocks)): ?><tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text3)">Aucun article trouvé</td></tr><?php endif; ?>
     </tbody>
   </table>
+  <?= $_stockPager->renderPagination() ?>
 </div>
 
 <!-- ════════════════ HISTORIQUE DES ENTRÉES ════════════════ -->
@@ -317,8 +339,8 @@ if (can('stocks.entry')) {
     <h3>📥 Historique des entrées</h3>
     <span style="font-size:12px;color:var(--text2)"><?= count($recent_entries) ?> entrée(s)</span>
   </div>
-  <table>
-    <thead><tr><th>Référence</th><th>Type</th><th>Date</th><th>Fournisseur</th><th>Montant</th><th>Statut</th><th>Par</th><th>Actions</th></tr></thead>
+  <table class="tbl-actions">
+    <thead><tr><th>Référence</th><th>Type</th><th>Date</th><th>Fournisseur</th><th>Montant</th><th>Statut</th><th>Par</th><th class="col-actions">Actions</th></tr></thead>
     <tbody>
     <?php foreach ($recent_entries as $e):
       $eBadge = ['en_attente'=>'badge-yellow','validee'=>'badge-green','annulee'=>'badge-red'];
@@ -332,18 +354,21 @@ if (can('stocks.entry')) {
       <td><strong style="color:var(--green)"><?= fmt_money((float)$e['montant_total']) ?></strong></td>
       <td><span class="badge <?= $eBadge[$e['statut']]??'badge-gray' ?>"><?= $eLabel[$e['statut']]??$e['statut'] ?></span></td>
       <td style="font-size:12px;color:var(--text2)"><?= h($e['utilisateur_nom']??'-') ?></td>
-      <td style="display:flex;gap:4px;align-items:center">
-        <button type="button" class="btn btn-sm btn-ghost" onclick="toggleEntryLignes(<?= (int)$e['id'] ?>)">🧾</button>
-        <?php if ($e['statut'] === 'en_attente'): ?>
-        <form method="POST" style="display:inline">
-          <input type="hidden" name="action" value="validate_entry">
-          <input type="hidden" name="entry_id" value="<?= (int)$e['id'] ?>">
-          <?= csrf_field() ?>
-          <button type="submit" class="btn btn-sm btn-green" onclick="return confirm('Valider cette entrée ? Les stocks seront mis à jour.')">✓</button>
-        </form>
-        <a href="stocks.php?action=annuler_entry&id=<?= (int)$e['id'] ?>&tok=<?= url_sign((int)$e['id'], 'stock_entry') ?>"
-           class="btn btn-sm btn-red" data-confirm="Annuler cette entrée ?">✕</a>
-        <?php endif; ?>
+      <td>
+        <div class="row-actions row-actions--icons">
+          <span class="row-hint" aria-hidden="true">⋯</span>
+          <button type="button" class="btn btn-sm btn-ghost" onclick="toggleEntryLignes(<?= (int)$e['id'] ?>)">🧾</button>
+          <?php if ($e['statut'] === 'en_attente'): ?>
+          <form method="POST" style="display:inline">
+            <input type="hidden" name="action" value="validate_entry">
+            <input type="hidden" name="entry_id" value="<?= (int)$e['id'] ?>">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-sm btn-green" onclick="return confirm('Valider cette entrée ? Les stocks seront mis à jour.')">✓</button>
+          </form>
+          <a href="stocks.php?action=annuler_entry&id=<?= (int)$e['id'] ?>&tok=<?= url_sign((int)$e['id'], 'stock_entry') ?>"
+             class="btn btn-sm btn-red" data-confirm="Annuler cette entrée ?">✕</a>
+          <?php endif; ?>
+        </div>
       </td>
     </tr>
     <tr id="entry-lignes-<?= (int)$e['id'] ?>" style="display:none">
@@ -373,14 +398,14 @@ if (can('stocks.entry')) {
 
 <!-- ════════════════ MODAL ENTRÉE STOCK ════════════════ -->
 <?php if (can('stocks.entry')): ?>
-<div id="modal-entree" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto"
+<div id="modal-entree" class="modal-overlay" style="display:none;z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" role="dialog" aria-modal="true"
      onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:720px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);margin:20px auto">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(720px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);margin:20px auto">
 
     <!-- Header -->
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0;z-index:1">
       <h3>📥 Nouvelle entrée stock</h3>
-      <div onclick="document.getElementById('modal-entree').style.display='none'" style="cursor:pointer;color:var(--text2);font-size:18px">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-entree').style.display='none'" aria-label="Fermer">✕</button>
     </div>
 
     <form method="POST" id="form-entree" style="padding:24px">
@@ -392,7 +417,7 @@ if (can('stocks.entry')) {
         <div class="form-group">
           <label>Type d'entrée *</label>
           <div style="display:flex;gap:6px">
-            <label id="lbl-type-stock" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border-radius:7px;cursor:pointer;border:2px solid var(--accent);background:rgba(59,130,246,.1);color:var(--accent2);font-weight:600;font-size:13px;transition:all .15s">
+            <label id="lbl-type-stock" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border-radius:7px;cursor:pointer;border:2px solid var(--accent);background:rgba(var(--accent-rgb),.1);color:var(--accent2);font-weight:600;font-size:13px;transition:all .15s">
               <input type="radio" name="type" value="stock" checked onchange="switchType('stock')" style="display:none">📦 Matériel
             </label>
             <label id="lbl-type-med" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border-radius:7px;cursor:pointer;border:1px solid var(--border2);color:var(--text2);font-weight:600;font-size:13px;transition:all .15s">
@@ -451,11 +476,11 @@ if (can('stocks.entry')) {
 <?php endif; ?>
 
 <!-- MODAL AJOUT ARTICLE -->
-<div id="modal-stock" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:540px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-stock" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(540px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>➕ Ajouter un article</h3>
-      <div onclick="document.getElementById('modal-stock').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-stock').style.display='none'" aria-label="Fermer">✕</button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_stock"><?= csrf_field() ?>
@@ -482,8 +507,8 @@ if (can('stocks.entry')) {
 
 <!-- MODAL ÉDITION STOCK -->
 <?php if ($editStock && can('stocks.create')): ?>
-<div id="modal-edit-stock" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)location.href='stocks.php'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:520px;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-edit-stock" class="modal-overlay" style="display:flex;z-index:200;align-items:center;justify-content:center;padding:20px" role="dialog" aria-modal="true" onclick="if(event.target===this)location.href='stocks.php'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(520px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h3>✏️ Modifier — <?= h($editStock['nom']) ?></h3>
       <a href="stocks.php" style="color:var(--text2);text-decoration:none;font-size:18px">✕</a>
@@ -555,14 +580,14 @@ function switchType(type) {
     const lm = document.getElementById('lbl-type-med');
     if (type === 'stock') {
         ls.style.border = '2px solid var(--accent)';
-        ls.style.background = 'rgba(59,130,246,.1)';
+        ls.style.background = 'rgba(var(--accent-rgb),.1)';
         ls.style.color = 'var(--accent2)';
         lm.style.border = '1px solid var(--border2)';
         lm.style.background = 'transparent';
         lm.style.color = 'var(--text2)';
     } else {
         lm.style.border = '2px solid var(--accent)';
-        lm.style.background = 'rgba(59,130,246,.1)';
+        lm.style.background = 'rgba(var(--accent-rgb),.1)';
         lm.style.color = 'var(--accent2)';
         ls.style.border = '1px solid var(--border2)';
         ls.style.background = 'transparent';
@@ -595,7 +620,7 @@ function addEntryLigne() {
       '<input type="number" name="eqty[]" id="eqty-' + idx + '" value="1" min="1" oninput="calcEntryLigne(' + idx + ')" style="' + fs + ';text-align:center">' +
       '<input type="text" id="epu-' + idx + '" readonly style="' + fs + ';background:var(--surface2);border-color:var(--border);color:var(--text2)">' +
       '<input type="text" id="etl-' + idx + '" readonly style="' + fs + ';background:var(--surface2);border-color:var(--border);color:var(--green);font-weight:700">' +
-      '<button type="button" onclick="removeEntryLigne(' + idx + ')" style="width:28px;height:28px;background:rgba(239,68,68,.15);border:none;border-radius:6px;color:#f87171;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>';
+      '<button type="button" onclick="removeEntryLigne(' + idx + ')" style="width:44px;height:44px;background:rgba(var(--red-rgb),.15);border:none;border-radius:6px;color:var(--red);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>';
 
     container.appendChild(div);
     recalcEntryTotal();

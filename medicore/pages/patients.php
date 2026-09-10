@@ -205,7 +205,7 @@ if (can('patients.edit') && get_int('edit_id') > 0) {
           <a href="patients.php?edit_id=<?= (int)$p['id'] ?>" class="btn btn-sm btn-ghost" title="Modifier">✏️</a>
           <?php endif; ?>
           <?php if (can('hospitalisations.create') && !$p['dept_nom']): ?>
-          <a href="urgences.php" class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer;text-decoration:none" title="Admettre en urgences">🚨</a>
+          <a href="urgences.php" class="btn btn-sm" style="background:rgba(var(--red-rgb),.15);color:var(--red);border:none;padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer;text-decoration:none" title="Admettre en urgences">🚨</a>
           <?php endif; ?>
           <?php if (hasRole(['admin'])): ?>
           <a href="<?= h($deleteUrl) ?>" class="btn btn-sm btn-red" onclick="return confirm('Supprimer définitivement ?')">🗑</a>
@@ -219,31 +219,31 @@ if (can('patients.edit') && get_int('edit_id') > 0) {
 </div>
 
 <!-- MODAL NOUVEAU PATIENT  CSRF protégé -->
-<div id="modal-patient" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:600px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.6)">
+<div id="modal-patient" class="modal-overlay" role="dialog" aria-modal="true" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(600px,95vw);max-height:85vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.6)">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface)">
       <h3>+ Nouveau patient</h3>
-      <div onclick="document.getElementById('modal-patient').style.display='none'" style="cursor:pointer;color:var(--text2);font-size:18px;width:28px;height:28px;background:var(--surface2);border-radius:6px;display:flex;align-items:center;justify-content:center"></div>
+      <button type="button" class="modal-close" onclick="document.getElementById('modal-patient').style.display='none'" aria-label="Fermer"></button>
     </div>
     <form method="POST" style="padding:24px">
       <input type="hidden" name="action" value="create_patient">
       <?= csrf_field() ?>
       <div class="form-grid">
-        <div class="form-group"><label>Prénom *</label><input type="text" name="prenom" required maxlength="100"></div>
-        <div class="form-group"><label>Nom *</label><input type="text" name="nom" required maxlength="100"></div>
-        <div class="form-group"><label>Date de naissance *</label><input type="date" name="date_naissance" required max="<?= date('Y-m-d') ?>"></div>
-        <div class="form-group"><label>Sexe *</label><select name="sexe" required><option value="F">Féminin</option><option value="M">Masculin</option><option value="Autre">Autre</option></select></div>
-        <div class="form-group form-full"><label>Adresse</label><input type="text" name="adresse" maxlength="255"></div>
-        <div class="form-group"><label>Téléphone</label><input type="tel" name="telephone" maxlength="20"></div>
-        <div class="form-group"><label>Email</label><input type="email" name="email" maxlength="150"></div>
-        <div class="form-group"><label>N° Sécurité sociale</label><input type="text" name="num_secu" maxlength="20"></div>
-        <div class="form-group"><label>Groupe sanguin</label>
-          <select name="groupe_sanguin"><option value=""> Inconnu </option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select></div>
-        <div class="form-group"><label>Assurance</label><select name="assurance"><option>CPAM</option><option>Mutuelle</option><option>Non assuré</option><option>Étranger</option></select></div>
-        <div class="form-group form-full"><label>Allergies</label><input type="text" name="allergies" maxlength="500" placeholder="ex: Pénicilline, Aspirine"></div>
-        <div class="form-group form-full"><label>Antécédents médicaux</label><textarea name="antecedents" rows="3" maxlength="2000"></textarea></div>
-        <div class="form-group"><label>Contact urgence (nom)</label><input type="text" name="contact_urgence_nom" maxlength="200"></div>
-        <div class="form-group"><label>Contact urgence (tél)</label><input type="tel" name="contact_urgence_tel" maxlength="20"></div>
+        <div class="form-group"><label for="inp-prenom">Prénom *</label><input type="text" name="prenom" id="inp-prenom" required maxlength="100"></div>
+        <div class="form-group"><label for="inp-nom">Nom *</label><input type="text" name="nom" id="inp-nom" required maxlength="100"></div>
+        <div class="form-group"><label for="inp-date_naissance">Date de naissance *</label><input type="date" name="date_naissance" id="inp-date_naissance" required max="<?= date('Y-m-d') ?>"></div>
+        <div class="form-group"><label for="inp-sexe">Sexe *</label><select name="sexe" id="inp-sexe" required><option value="F">Féminin</option><option value="M">Masculin</option><option value="Autre">Autre</option></select></div>
+        <div class="form-group form-full"><label for="inp-adresse">Adresse</label><input type="text" name="adresse" id="inp-adresse" maxlength="255"></div>
+        <div class="form-group"><label for="inp-telephone">Téléphone</label><input type="tel" name="telephone" id="inp-telephone" maxlength="20"></div>
+        <div class="form-group"><label for="inp-email">Email</label><input type="email" name="email" id="inp-email" maxlength="150"></div>
+        <div class="form-group"><label for="inp-num_secu">N° Sécurité sociale</label><input type="text" name="num_secu" id="inp-num_secu" maxlength="20"></div>
+        <div class="form-group"><label for="inp-groupe_sanguin">Groupe sanguin</label>
+          <select name="groupe_sanguin" id="inp-groupe_sanguin"><option value=""> Inconnu </option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select></div>
+        <div class="form-group"><label for="inp-assurance">Assurance</label><select name="assurance" id="inp-assurance"><option>CPAM</option><option>Mutuelle</option><option>Non assuré</option><option>Étranger</option></select></div>
+        <div class="form-group form-full"><label for="inp-allergies">Allergies</label><input type="text" name="allergies" id="inp-allergies" maxlength="500" placeholder="ex: Pénicilline, Aspirine"></div>
+        <div class="form-group form-full"><label for="inp-antecedents">Antécédents médicaux</label><textarea name="antecedents" id="inp-antecedents" rows="3" maxlength="2000"></textarea></div>
+        <div class="form-group"><label for="inp-contact_urgence_nom">Contact urgence (nom)</label><input type="text" name="contact_urgence_nom" id="inp-contact_urgence_nom" maxlength="200"></div>
+        <div class="form-group"><label for="inp-contact_urgence_tel">Contact urgence (tél)</label><input type="tel" name="contact_urgence_tel" id="inp-contact_urgence_tel" maxlength="20"></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
         <button type="button" class="btn btn-ghost" onclick="document.getElementById('modal-patient').style.display='none'">Annuler</button>
@@ -258,8 +258,8 @@ if (can('patients.edit') && get_int('edit_id') > 0) {
 <?php if ($editPatient && can('patients.edit')): ?>
 <script>document.addEventListener('DOMContentLoaded',()=>{ document.getElementById('modal-edit-patient').style.display='flex'; });</script>
 <?php endif; ?>
-<div id="modal-edit-patient" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:680px;box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
+<div id="modal-edit-patient" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;align-items:flex-start;padding:20px;overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(680px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);margin:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">
       <h3>✏️ Modifier le dossier patient</h3>
       <a href="patients.php" style="cursor:pointer;font-size:18px;color:var(--text2);text-decoration:none"></a>
@@ -274,38 +274,38 @@ if (can('patients.edit') && get_int('edit_id') > 0) {
          Créé le <?= isset($ep['date_creation']) ? fmt_date($ep['date_creation']) : '' ?>
       </div>
       <div class="form-grid">
-        <div class="form-group"><label>Prénom *</label><input type="text" name="prenom" value="<?= h($ep['prenom'] ?? '') ?>" required maxlength="100"></div>
-        <div class="form-group"><label>Nom *</label><input type="text" name="nom" value="<?= h($ep['nom'] ?? '') ?>" required maxlength="100"></div>
-        <div class="form-group"><label>Date de naissance *</label><input type="date" name="date_naissance" value="<?= h($ep['date_naissance'] ?? '') ?>" required></div>
-        <div class="form-group"><label>Sexe *</label>
-          <select name="sexe" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group"><label for="inp-edit-prenom">Prénom *</label><input type="text" name="prenom" id="inp-edit-prenom" value="<?= h($ep['prenom'] ?? '') ?>" required maxlength="100"></div>
+        <div class="form-group"><label for="inp-edit-nom">Nom *</label><input type="text" name="nom" id="inp-edit-nom" value="<?= h($ep['nom'] ?? '') ?>" required maxlength="100"></div>
+        <div class="form-group"><label for="inp-edit-date_naissance">Date de naissance *</label><input type="date" name="date_naissance" id="inp-edit-date_naissance" value="<?= h($ep['date_naissance'] ?? '') ?>" required></div>
+        <div class="form-group"><label for="inp-edit-sexe">Sexe *</label>
+          <select name="sexe" id="inp-edit-sexe" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <option value="M" <?= ($ep['sexe']??'')==='M'?'selected':'' ?>>Masculin</option>
             <option value="F" <?= ($ep['sexe']??'')==='F'?'selected':'' ?>>Féminin</option>
             <option value="Autre" <?= ($ep['sexe']??'')==='Autre'?'selected':'' ?>>Autre</option>
           </select>
         </div>
-        <div class="form-group"><label>Téléphone</label><input type="tel" name="telephone" value="<?= h($ep['telephone'] ?? '') ?>" maxlength="20"></div>
-        <div class="form-group"><label>Email</label><input type="email" name="email" value="<?= h($ep['email'] ?? '') ?>" maxlength="150"></div>
-        <div class="form-group form-full"><label>Adresse</label><input type="text" name="adresse" value="<?= h($ep['adresse'] ?? '') ?>" maxlength="300"></div>
-        <div class="form-group"><label>N° Sécurité sociale</label><input type="text" name="num_secu" value="<?= h($ep['num_secu'] ?? '') ?>" maxlength="20"></div>
-        <div class="form-group"><label>Groupe sanguin</label>
-          <select name="groupe_sanguin" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group"><label for="inp-edit-telephone">Téléphone</label><input type="tel" name="telephone" id="inp-edit-telephone" value="<?= h($ep['telephone'] ?? '') ?>" maxlength="20"></div>
+        <div class="form-group"><label for="inp-edit-email">Email</label><input type="email" name="email" id="inp-edit-email" value="<?= h($ep['email'] ?? '') ?>" maxlength="150"></div>
+        <div class="form-group form-full"><label for="inp-edit-adresse">Adresse</label><input type="text" name="adresse" id="inp-edit-adresse" value="<?= h($ep['adresse'] ?? '') ?>" maxlength="300"></div>
+        <div class="form-group"><label for="inp-edit-num_secu">N° Sécurité sociale</label><input type="text" name="num_secu" id="inp-edit-num_secu" value="<?= h($ep['num_secu'] ?? '') ?>" maxlength="20"></div>
+        <div class="form-group"><label for="inp-edit-groupe_sanguin">Groupe sanguin</label>
+          <select name="groupe_sanguin" id="inp-edit-groupe_sanguin" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <?php foreach ([''=>'','A+','A-','B+','B-','AB+','AB-','O+','O-'] as $g): ?>
             <option value="<?= $g ?>" <?= ($ep['groupe_sanguin']??'')===$g?'selected':'' ?>><?= $g?:'  ' ?></option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>Assurance</label>
-          <select name="assurance" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
+        <div class="form-group"><label for="inp-edit-assurance">Assurance</label>
+          <select name="assurance" id="inp-edit-assurance" style="padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%">
             <?php foreach (['CPAM','Mutuelle','Non assuré','Étranger'] as $a): ?>
             <option value="<?= h($a) ?>" <?= ($ep['assurance']??'')===$a?'selected':'' ?>><?= h($a) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group form-full"><label>Allergies</label><input type="text" name="allergies" value="<?= h($ep['allergies'] ?? '') ?>" maxlength="500"></div>
-        <div class="form-group form-full"><label>Antécédents médicaux</label><textarea name="antecedents" rows="3" maxlength="2000" style="width:100%;padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical"><?= h($ep['antecedents'] ?? '') ?></textarea></div>
-        <div class="form-group"><label>Contact urgence (nom)</label><input type="text" name="contact_urgence_nom" value="<?= h($ep['contact_urgence_nom'] ?? '') ?>" maxlength="200"></div>
-        <div class="form-group"><label>Contact urgence (tél)</label><input type="tel" name="contact_urgence_tel" value="<?= h($ep['contact_urgence_tel'] ?? '') ?>" maxlength="20"></div>
+        <div class="form-group form-full"><label for="inp-edit-allergies">Allergies</label><input type="text" name="allergies" id="inp-edit-allergies" value="<?= h($ep['allergies'] ?? '') ?>" maxlength="500"></div>
+        <div class="form-group form-full"><label for="inp-edit-antecedents">Antécédents médicaux</label><textarea name="antecedents" id="inp-edit-antecedents" rows="3" maxlength="2000" style="width:100%;padding:9px;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical"><?= h($ep['antecedents'] ?? '') ?></textarea></div>
+        <div class="form-group"><label for="inp-edit-contact_urgence_nom">Contact urgence (nom)</label><input type="text" name="contact_urgence_nom" id="inp-edit-contact_urgence_nom" value="<?= h($ep['contact_urgence_nom'] ?? '') ?>" maxlength="200"></div>
+        <div class="form-group"><label for="inp-edit-contact_urgence_tel">Contact urgence (tél)</label><input type="tel" name="contact_urgence_tel" id="inp-edit-contact_urgence_tel" value="<?= h($ep['contact_urgence_tel'] ?? '') ?>" maxlength="20"></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
         <a href="patients.php" class="btn btn-ghost">Annuler</a>

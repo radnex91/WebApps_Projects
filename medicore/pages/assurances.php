@@ -133,20 +133,20 @@ $pecStatLabel = ['demande'=>'Demandee','en_attente'=>'En attente','accorde_parti
 
 <!-- Modal compagnie -->
 <?php if (can('assurances.create')): ?>
-<div id="modal-compagnie" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:500px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
+<div id="modal-compagnie" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(500px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <h3 id="comp-title">Ajouter une compagnie</h3><div onclick="closeCompagnie()" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div></div>
+      <h3 id="comp-title">Ajouter une compagnie</h3><button type="button" class="modal-close" onclick="closeCompagnie()" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button></div>
     <form method="POST" style="padding:24px"><input type="hidden" name="action" value="save_compagnie">
     <input type="hidden" name="compagnie_id" id="comp-id"><?= csrf_field() ?>
     <div class="form-grid">
-      <div class="form-group"><label>Code *</label><input name="code" id="comp-code" required></div>
-      <div class="form-group"><label>Nom *</label><input name="nom" id="comp-nom" required></div>
-      <div class="form-group"><label>Telephone</label><input name="telephone" id="comp-tel"></div>
-      <div class="form-group"><label>Email</label><input name="email" type="email" id="comp-email"></div>
-      <div class="form-group form-full"><label>Adresse</label><input name="adresse" id="comp-adr"></div>
-      <div class="form-group"><label>Taux PEC (%)</label><input type="number" name="taux" id="comp-taux" value="80" step="0.1" min="0" max="100"></div>
-      <div class="form-group form-full"><label>Notes</label><textarea name="notes" id="comp-notes" rows="2"></textarea></div>
+      <div class="form-group"><label for="comp-code">Code *</label><input name="code" id="comp-code" required></div>
+      <div class="form-group"><label for="comp-nom">Nom *</label><input name="nom" id="comp-nom" required></div>
+      <div class="form-group"><label for="comp-tel">Telephone</label><input name="telephone" id="comp-tel"></div>
+      <div class="form-group"><label for="comp-email">Email</label><input name="email" type="email" id="comp-email"></div>
+      <div class="form-group form-full"><label for="comp-adr">Adresse</label><input name="adresse" id="comp-adr"></div>
+      <div class="form-group"><label for="comp-taux">Taux PEC (%)</label><input type="number" name="taux" id="comp-taux" value="80" step="0.1" min="0" max="100"></div>
+      <div class="form-group form-full"><label for="comp-notes">Notes</label><textarea name="notes" id="comp-notes" rows="2"></textarea></div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
       <button type="button" class="btn btn-ghost" onclick="closeCompagnie()">Annuler</button>
@@ -190,10 +190,10 @@ function editCompagnie(c){
 
 <!-- Modal demande PEC -->
 <?php if (can('assurances.create')): ?>
-<div id="modal-pec" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:500px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
+<div id="modal-pec" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(500px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <h3>Demande de prise en charge</h3><div onclick="document.getElementById('modal-pec').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div></div>
+      <h3>Demande de prise en charge</h3><button type="button" class="modal-close" onclick="document.getElementById('modal-pec').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button></div>
     <form method="POST" style="padding:24px"><input type="hidden" name="action" value="demander_pec"><?= csrf_field() ?>
     <div class="form-group"><label>Patient *</label><select name="patient_id" required><option value="">-- --</option>
     <?php $plist = db_select("SELECT id, CONCAT(prenom,' ',nom) AS n, numero FROM patients WHERE assurance!='Non assure' ORDER BY nom LIMIT 100");
@@ -212,10 +212,10 @@ function editCompagnie(c){
 
 <!-- Modal traiter PEC -->
 <?php if (can('assurances.update')): ?>
-<div id="modal-traiter-pec" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:480px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7)">
+<div id="modal-traiter-pec" class="modal-overlay" style="display:none;z-index:200;align-items:center;justify-content:center" role="dialog" aria-modal="true" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(480px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7)">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <h3>Traiter la prise en charge</h3><div onclick="document.getElementById('modal-traiter-pec').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div></div>
+      <h3>Traiter la prise en charge</h3><button type="button" class="modal-close" onclick="document.getElementById('modal-traiter-pec').style.display='none'" aria-label="Fermer" style="font-size:18px;color:var(--text2)">✕</button></div>
     <form method="POST" style="padding:24px"><input type="hidden" name="action" value="update_pec">
     <input type="hidden" name="pec_id" id="pec-id"><?= csrf_field() ?>
     <div class="form-group"><label>Statut *</label><select name="statut" required>

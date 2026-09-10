@@ -2,7 +2,7 @@
    BrenFinance Suite — JavaScript Responsive
    ═══════════════════════════════════════════════════════════════ */
 
-/* ─── THEME ENGINE v2 — ULTRA MODERN INTERACTIVE ─────────────── */
+/* ─── THEME ENGINE v2 ──────────────────────────────────────────── */
 const THEME_KEY = 'brenfinance_theme';
 
 // Live theme preview
@@ -48,6 +48,7 @@ const isMobile = () => window.innerWidth <= 768;
 function getSidebar()   { return document.getElementById('sidebar'); }
 function getOverlay()   { return document.getElementById('sidebar-overlay'); }
 function getToggleIcon(){ return document.getElementById('toggle-icon'); }
+function getToggleBtn() { return document.getElementById('sidebar-toggle'); }
 
 // Desktop: toggle collapsed
 function toggleDesktopSidebar() {
@@ -125,34 +126,102 @@ function updateClock() {
     + ' ' + now.toLocaleTimeString('fr-CM', { hour: '2-digit', minute: '2-digit' });
 }
 
-/* ─── MODAL MANAGEMENT ───────────────────────────────────────── */
+/* ─── MODAL MANAGEMENT WITH FOCUS TRAP ─────────────────────────── */
+const modalStack = [];
+
+function getFocusableElements(container) {
+  return Array.from(container.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null); // only visible
+}
+
+function trapFocus(container, event) {
+  const focusable = getFocusableElements(container);
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+
+  if (event.key === 'Tab') {
+    if (event.shiftKey) {
+      if (document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  }
+}
+
 function openModal(id) {
   const m = document.getElementById(id);
   if (!m) return;
   m.classList.add('open');
   document.body.style.overflow = 'hidden';
-  // Focus first input
+  // Store the previously focused element
+  modalStack.push({ id, trigger: document.activeElement });
+  // Set ARIA
+  const modal = m.querySelector('.modal');
+  if (modal) {
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+  }
+  // Focus first input after transition
   setTimeout(() => {
     const input = m.querySelector('input:not([type=hidden]), select, textarea');
     if (input) input.focus();
   }, 220);
 }
+
 function closeModal(id) {
   const m = document.getElementById(id);
   if (!m) return;
   m.classList.remove('open');
   document.body.style.overflow = '';
+  // Remove from stack and restore focus
+  const idx = modalStack.findIndex(s => s.id === id);
+  if (idx !== -1) {
+    const { trigger } = modalStack.splice(idx, 1)[0];
+    if (trigger && typeof trigger.focus === 'function') {
+      setTimeout(() => trigger.focus(), 100);
+    }
+  }
+  // If other modals are still open, keep body overflow hidden
+  if (document.querySelectorAll('.modal-overlay.open').length > 0) {
+    document.body.style.overflow = 'hidden';
+  }
 }
 
-// Modals close only via X, Annuler, or submit buttons — not by clicking the overlay
-// Close modal on Escape
+// Global keyboard handlers
 document.addEventListener('keydown', e => {
+  // Escape: close topmost modal or notification dropdown
   if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.open').forEach(m => {
-      m.classList.remove('open');
-      document.body.style.overflow = '';
-    });
+    const openModals = document.querySelectorAll('.modal-overlay.open');
+    if (openModals.length > 0) {
+      const topModal = openModals[openModals.length - 1];
+      closeModal(topModal.id || '');
+      return;
+    }
+    // Close notification dropdown
+    const dd = document.getElementById('notif-dropdown');
+    if (dd && dd.classList.contains('open')) {
+      dd.classList.remove('open');
+      const btn = document.querySelector('.notif-bell');
+      if (btn) { btn.setAttribute('aria-expanded', 'false'); btn.focus(); }
+    }
   }
+});
+
+// Focus trap for open modals
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  const openModals = document.querySelectorAll('.modal-overlay.open');
+  if (openModals.length === 0) return;
+  const topModal = openModals[openModals.length - 1];
+  trapFocus(topModal, e);
 });
 
 /* ─── TABS ───────────────────────────────────────────────────── */
@@ -161,12 +230,17 @@ document.addEventListener('click', e => {
   if (!tab || !tab.dataset.tab) return;
   const tabsEl = tab.closest('.tabs');
   if (!tabsEl) return;
-  tabsEl.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tabsEl.querySelectorAll('.tab').forEach(t => {
+    t.classList.remove('active');
+    t.setAttribute('aria-selected', 'false');
+  });
   tab.classList.add('active');
+  tab.setAttribute('aria-selected', 'true');
   const targetId = tab.dataset.tab;
   const wrapper  = tabsEl.closest('.tab-wrapper') || tabsEl.parentElement;
   wrapper.querySelectorAll('.tab-content').forEach(tc => {
     tc.classList.toggle('active', tc.id === targetId);
+    tc.setAttribute('aria-hidden', tc.id !== targetId ? 'true' : 'false');
   });
 });
 
@@ -188,14 +262,52 @@ function formatMontant(amount, devise = 'FCFA') {
   return new Intl.NumberFormat('fr-CM').format(Math.round(amount)) + ' ' + devise;
 }
 
-/* ─── AUTO-DISMISS ALERTS ────────────────────────────────────── */
+/* ─── TOAST SYSTEM ─────────────────────────────────────────────── */
+function dismissToast(el) {
+  if (!el || el.classList.contains('removing')) return;
+  el.classList.add('removing');
+  setTimeout(() => el.remove(), 300);
+}
+
 function initAlerts() {
   document.querySelectorAll('.toast').forEach(t => {
-    setTimeout(() => {
-      t.classList.add('removing');
-      setTimeout(() => t.remove(), 300);
-    }, 5000);
+    // Auto-dismiss after progress bar completes (5s)
+    setTimeout(() => dismissToast(t), 5200);
   });
+}
+
+// Push a toast dynamically (for AJAX responses)
+function pushToast(type, message) {
+  const icons = { success: '✓', danger: '✕', warning: '!', info: 'i' };
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.setAttribute('role', 'alert');
+
+  const icon = document.createElement('span');
+  icon.className = 'toast-icon';
+  icon.textContent = icons[type] || 'i';
+
+  const msg = document.createElement('span');
+  msg.className = 'toast-msg';
+  msg.textContent = message;
+
+  const btn = document.createElement('button');
+  btn.className = 'toast-close';
+  btn.setAttribute('aria-label', 'Fermer');
+  btn.innerHTML = '&times;';
+  btn.addEventListener('click', function() { dismissToast(toast); });
+
+  const progress = document.createElement('div');
+  progress.className = 'toast-progress';
+
+  toast.appendChild(icon);
+  toast.appendChild(msg);
+  toast.appendChild(btn);
+  toast.appendChild(progress);
+  container.appendChild(toast);
+  setTimeout(() => dismissToast(toast), 5200);
 }
 
 /* ─── AMOUNT INPUT FORMATTER ─────────────────────────────────── */
@@ -246,11 +358,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const first = tabs.querySelector('.tab');
       if (first) {
         first.classList.add('active');
+        first.setAttribute('aria-selected', 'true');
         const target = first.dataset.tab;
         const wrapper = tabs.closest('.tab-wrapper') || tabs.parentElement;
         if (target) {
           const firstContent = wrapper.querySelector('#' + target);
-          if (firstContent) firstContent.classList.add('active');
+          if (firstContent) {
+            firstContent.classList.add('active');
+            firstContent.setAttribute('aria-hidden', 'false');
+          }
         }
       }
     }
@@ -263,9 +379,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Touch feedback on buttons
-  document.querySelectorAll('.btn').forEach(btn => {
-    btn.addEventListener('touchstart', () => btn.style.opacity = '.8', { passive: true });
-    btn.addEventListener('touchend',   () => btn.style.opacity = '',   { passive: true });
-  });
+  // Update sidebar toggle aria-expanded
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', () => {
+      const expanded = !getSidebar().classList.contains('collapsed');
+      sidebarToggle.setAttribute('aria-expanded', isMobile() ? getSidebar().classList.contains('mobile-open') : expanded);
+    });
+  }
 });

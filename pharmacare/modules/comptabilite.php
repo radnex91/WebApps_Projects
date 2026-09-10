@@ -1,10 +1,21 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/pagination.php';
 require_once __DIR__ . '/../config/settings.php';
 require_once __DIR__ . '/../config/comptabilite.php';
 requirePermission('comptabilite.voir');
 $db = getDB();
+
+// Valide une date GET au format Y-m-d strict ; sinon retombe sur la valeur par
+// défaut. Sans ce garde : ?debut=garbage fait rejeter la requête par MySQL
+// (« Incorrect datetime value ») → exception PDO non attrapée → page 500.
+function dateGetValide($v, string $default): string {
+    if (!is_string($v) || $v === '') return $default;
+    $d = DateTime::createFromFormat('Y-m-d', $v);
+    return ($d instanceof DateTime && $d->format('Y-m-d') === $v) ? $v : $default;
+}
+
 $action = $_GET['action'] ?? 'dashboard';
 
 $moisLabels = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -12,14 +23,15 @@ $moisLabels = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août
 // ── Navigation links (réutilisée partout) ──────────────────
 ob_start(); ?>
 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
-  <a href="?action=saisie" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">✍️</span> Saisie manuelle</a>
-  <a href="?action=journal" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">📖</span> Journal</a>
-  <a href="?action=balance" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">⚖️</span> Balance</a>
-  <a href="?action=resultat" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">📊</span> Compte de résultat</a>
-  <a href="?action=bilan" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🏦</span> Bilan</a>
-  <a href="?action=grand-livre" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🔍</span> Grand livre</a>
+  <a href="<?= url('comptabilite', ['action'=>'saisie']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">✍️</span> Saisie manuelle</a>
+  <a href="<?= url('comptabilite', ['action'=>'journal']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">📖</span> Journal</a>
+  <a href="<?= url('comptabilite', ['action'=>'balance']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">⚖️</span> Balance</a>
+  <a href="<?= url('comptabilite', ['action'=>'resultat']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">📊</span> Compte de résultat</a>
+  <a href="<?= url('comptabilite', ['action'=>'bilan']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🏦</span> Bilan</a>
+  <a href="<?= url('comptabilite', ['action'=>'grand-livre']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🔍</span> Grand livre</a>
   <?php if (hasPermission('comptabilite.plan')): ?>
-  <a href="?action=plan" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">⚙️</span> Plan comptable</a>
+  <a href="<?= url('comptabilite', ['action'=>'cloture']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">🔒</span> Clôture</a>
+  <a href="<?= url('comptabilite', ['action'=>'plan']) ?>" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border2);color:var(--text);text-decoration:none;font-size:13px;font-weight:500;transition:.15s;"><span style="font-size:20px;">⚙️</span> Plan comptable</a>
   <?php endif; ?>
 </div>
 <?php $navLinks = ob_get_clean();
@@ -36,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'saisie_save') {
 
     if (!$libelle || !count($comptes)) {
         flash('Libellé obligatoire et au moins une ligne.', 'error');
-        header('Location: ?action=saisie'); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'saisie'])); exit;
     }
 
     $lignes = [];
@@ -51,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'saisie_save') {
 
     if (count($lignes) < 2) {
         flash('Minimum 2 lignes (débit et crédit).', 'error');
-        header('Location: ?action=saisie'); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'saisie'])); exit;
     }
 
     try {
@@ -61,9 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'saisie_save') {
         flash('Écriture enregistrée avec succès.', 'success');
     } catch (Exception $e) {
         $db->rollBack();
-        flash('Erreur : ' . $e->getMessage(), 'error');
+        flashError($e, 'écriture comptable');
     }
-    header('Location: ?action=saisie'); exit;
+    header('Location: ' . url('comptabilite', ['action'=>'saisie'])); exit;
 }
 
 // ── POST : Nouveau compte comptable ─────────────────────────
@@ -78,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_new') {
 
     if (!$compte || !$intitule || !$classe) {
         flash('Compte, intitulé et classe requis.', 'error');
-        header('Location: ?action=plan_edit'); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'plan_edit'])); exit;
     }
 
     // Vérifier unicité
@@ -86,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_new') {
     $stmt->execute([$compte]);
     if ($stmt->fetch()) {
         flash('Ce code compte existe déjà.', 'error');
-        header('Location: ?action=plan_edit'); exit;
+        header('Location: ' . url('comptabilite', ['action'=>'plan_edit'])); exit;
     }
 
     $parentId = null;
@@ -100,7 +112,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_new') {
     $db->prepare("INSERT INTO plan_comptable (compte, intitule, classe, nature, compte_parent) VALUES (?, ?, ?, ?, ?)")
        ->execute([$compte, $intitule, $classe, $nature, $parentId]);
     flash('Compte créé avec succès.', 'success');
-    header('Location: ?action=plan'); exit;
+    header('Location: ' . url('comptabilite', ['action'=>'plan'])); exit;
+}
+
+// ── POST : Modifier intitulé d'un compte ─────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'plan_update' && isset($_GET['id'])) {
+    verifyCsrf();
+    requirePermission('comptabilite.plan');
+    $editId   = (int)$_GET['id'];
+    $intitule = trim($_POST['intitule'] ?? '');
+    if (!$intitule) {
+        flash('L\'intitulé est requis.', 'error');
+        header('Location: ' . url('comptabilite', ['action'=>'plan_edit','id'=>$editId])); exit;
+    }
+    $db->prepare("UPDATE plan_comptable SET intitule = ? WHERE id = ?")
+       ->execute([$intitule, $editId]);
+    flash('Intitulé mis à jour.', 'success');
+    header('Location: ' . url('comptabilite', ['action'=>'plan'])); exit;
+}
+
+// ── POST : Clôture d'exercice (détermination du résultat) ────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'cloture_exec') {
+    verifyCsrf();
+    requirePermission('comptabilite.plan');
+    $exId = (int)($_POST['exercice_id'] ?? 0);
+    if (!$exId) {
+        flash('Exercice invalide.', 'error');
+        header('Location: ' . url('comptabilite', ['action'=>'cloture'])); exit;
+    }
+    try {
+        $db->beginTransaction();
+        $r = clotureExercice($db, $exId, currentUser()['id']);
+        $db->commit();
+        auditLog('comptabilite.cloture',
+            sprintf('Clôture exercice #%d : produits %s, charges %s, résultat %s (%d lignes ; next=%s)',
+                $exId, fmtMoney($r['produits']), fmtMoney($r['charges']), fmtMoney($r['resultat']),
+                $r['nb_lignes'], $r['next_code'] ?? '—'),
+            $exId, 'CLO-' . $exId);
+        flash(sprintf('Exercice clôturé. Résultat : %s (%s). %s',
+            fmtMoney($r['resultat']),
+            $r['resultat'] >= 0 ? 'bénéfice' : 'perte',
+            $r['next_code'] ? 'Exercice ' . $r['next_code'] . ' créé.' : 'Exercice suivant déjà existant.'),
+            'success');
+    } catch (Exception $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        flashError($e, 'clôture comptable');
+    }
+    header('Location: ' . url('comptabilite', ['action'=>'cloture'])); exit;
 }
 
 // ── Exercice courant ───────────────────────────────────────
@@ -120,6 +178,21 @@ $finEx   = $exCourant ? $exCourant['date_fin']   : date('Y-12-31');
 if ($action === 'plan'):
     requirePermission('comptabilite.plan');
     $plan = planComptableAll($db);
+
+    // ── Export Excel du plan comptable ──
+    if (($_GET['export'] ?? '') === '1') {
+        require_once __DIR__ . '/../includes/export_xlsx.php';
+        $natureLabels = ['debit'=>'Débit', 'credit'=>'Crédit'];
+        $classes = [1=>'Capitaux', 2=>'Immobilisations', 3=>'Stocks', 4=>'Tiers', 5=>'Trésorerie', 6=>'Charges', 7=>'Produits'];
+        $rowsX = [];
+        foreach ($plan as $pc) {
+            $rowsX[] = [$pc['compte'], $pc['intitule'], $classes[(int)$pc['classe']] ?? $pc['classe'],
+                        $natureLabels[$pc['nature']] ?? $pc['nature']];
+        }
+        export_xlsx_send('plan_comptable_' . date('Y-m-d'), 'Plan comptable',
+            ['Compte', 'Intitulé', 'Classe', 'Nature'], $rowsX);
+    }
+
     $classes = [1=>'Capitaux', 2=>'Immobilisations', 3=>'Stocks', 4=>'Tiers', 5=>'Trésorerie', 6=>'Charges', 7=>'Produits'];
     $natureLabels = ['debit'=>'Débit', 'credit'=>'Crédit'];
     layout_head('Plan comptable', 'comptabilite'); showFlash();
@@ -128,11 +201,12 @@ if ($action === 'plan'):
 <div class="card">
   <div class="card-header">
     <div class="card-title">Plan comptable OHADA</div>
-    <a href="?action=plan_edit" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Nouveau compte</a>
+    <a href="<?= url('comptabilite', ['action'=>'plan', 'export'=>'1']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
+    <a href="<?= url('comptabilite', ['action'=>'plan_edit']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Nouveau compte</a>
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Compte</th><th>Intitulé</th><th>Classe</th><th>Nature</th></tr></thead>
+      <thead><tr><th>Compte</th><th>Intitulé</th><th>Classe</th><th>Nature</th><th style="width:40px;"></th></tr></thead>
       <tbody>
         <?php foreach ($plan as $c):
           $cl = (int)$c['classe'];
@@ -145,6 +219,9 @@ if ($action === 'plan'):
           <td><?= e($c['intitule']) ?></td>
           <td><span class="badge badge-gray"><?= $classes[$cl] ?? $cl ?></span></td>
           <td><?= $natureLabels[$c['nature']] ?? $c['nature'] ?></td>
+          <td>
+            <a href="<?= url('comptabilite', ['action'=>'plan_edit','id'=>$c['id']]) ?>" class="btn btn-ghost btn-xs" title="Modifier l'intitulé"><?= icon('edit',13) ?></a>
+          </td>
         </tr>
         <?php endforeach; ?>
       </tbody>
@@ -153,54 +230,76 @@ if ($action === 'plan'):
 </div>
 <?php layout_foot(); exit; endif;
 
-// ── Nouveau compte (formulaire) ────────────────────────────
+// ── Nouveau compte / Modifier intitulé ────────────────────
 if ($action === 'plan_edit'):
     requirePermission('comptabilite.plan');
+    $editId  = isset($_GET['id']) ? (int)$_GET['id'] : null;
+    $editCpt = null;
+    if ($editId) {
+        $stmtE = $db->prepare("SELECT * FROM plan_comptable WHERE id = ?");
+        $stmtE->execute([$editId]);
+        $editCpt = $stmtE->fetch();
+        if (!$editCpt) { flash('Compte introuvable.', 'error'); header('Location: ' . url('comptabilite', ['action'=>'plan'])); exit; }
+    }
+    $title  = $editCpt ? 'Modifier le compte' : 'Nouveau compte comptable';
+    $actionUrl = $editCpt ? '?action=plan_update&id=' . $editId : '?action=plan_new';
     $classes = [''=>'—', 1=>'1 - Capitaux', 2=>'2 - Immobilisations', 3=>'3 - Stocks', 4=>'4 - Tiers', 5=>'5 - Trésorerie', 6=>'6 - Charges', 7=>'7 - Produits'];
     $natures = ['debit'=>'Débit (actif/charge)', 'credit'=>'Crédit (passif/produit)'];
-    layout_head('Nouveau compte', 'comptabilite'); showFlash();
+    layout_head($title, 'comptabilite'); showFlash();
 ?>
 <?= $navLinks ?>
 <div class="card" style="max-width:600px;margin:0 auto;">
   <div class="card-header">
-    <div class="card-title">Nouveau compte comptable</div>
-    <a href="?action=plan" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+    <div class="card-title"><?= e($title) ?></div>
+    <a href="<?= url('comptabilite', ['action'=>'plan']) ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
   </div>
-  <form method="POST" action="?action=plan_new">
+  <form method="POST" action="<?= $actionUrl ?>">
     <input type="hidden" name="csrf" value="<?= csrf() ?>">
     <div class="form-grid">
       <div class="form-group">
         <label>Code compte *</label>
-        <input type="text" name="compte" required placeholder="ex: 6012" style="font-family:'DM Mono',monospace;">
+        <input type="text" name="compte" required placeholder="ex: 6012"
+               value="<?= e($editCpt['compte'] ?? '') ?>"
+               style="font-family:'DM Mono',monospace;"
+               <?= $editCpt ? 'readonly style="font-family:&quot;DM Mono&quot;,monospace;background:#1e293b;color:#94a3b8;cursor:not-allowed;"' : '' ?>>
       </div>
       <div class="form-group">
         <label>Classe *</label>
-        <select name="classe" required>
+        <select name="classe" required <?= $editCpt ? 'disabled' : '' ?>>
           <?php foreach ($classes as $k => $v): ?>
-          <option value="<?= $k ?>"><?= $v ?></option>
+          <option value="<?= $k ?>" <?= $editCpt && (int)$editCpt['classe'] === $k ? 'selected' : '' ?>><?= $v ?></option>
           <?php endforeach; ?>
         </select>
+        <?php if ($editCpt): ?>
+        <input type="hidden" name="classe" value="<?= (int)$editCpt['classe'] ?>">
+        <?php endif; ?>
       </div>
       <div class="form-group full">
         <label>Intitulé *</label>
-        <input type="text" name="intitule" required placeholder="ex: Achats de fournitures">
+        <input type="text" name="intitule" required placeholder="ex: Achats de fournitures"
+               value="<?= e($editCpt['intitule'] ?? '') ?>">
       </div>
       <div class="form-group">
         <label>Nature</label>
-        <select name="nature">
+        <select name="nature" <?= $editCpt ? 'disabled' : '' ?>>
           <?php foreach ($natures as $k => $v): ?>
-          <option value="<?= $k ?>"><?= $v ?></option>
+          <option value="<?= $k ?>" <?= $editCpt && $editCpt['nature'] === $k ? 'selected' : '' ?>><?= $v ?></option>
           <?php endforeach; ?>
         </select>
+        <?php if ($editCpt): ?>
+        <input type="hidden" name="nature" value="<?= e($editCpt['nature']) ?>">
+        <?php endif; ?>
       </div>
       <div class="form-group">
         <label>Compte parent</label>
-        <input type="text" name="compte_parent" placeholder="ex: 601" style="font-family:'DM Mono',monospace;">
+        <input type="text" name="compte_parent" placeholder="ex: 601" style="font-family:'DM Mono',monospace;"
+               <?= $editCpt ? 'readonly style="font-family:&quot;DM Mono&quot;,monospace;background:#1e293b;color:#94a3b8;cursor:not-allowed;"' : '' ?>
+               value="<?= e($editCpt['compte_parent'] ?? '') ?>">
       </div>
     </div>
     <div class="modal-footer">
-      <a href="?action=plan" class="btn btn-ghost">Annuler</a>
-      <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> Créer</button>
+      <a href="<?= url('comptabilite', ['action'=>'plan']) ?>" class="btn btn-ghost">Annuler</a>
+      <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> <?= $editCpt ? 'Enregistrer' : 'Créer' ?></button>
     </div>
   </form>
 </div>
@@ -324,17 +423,69 @@ document.querySelectorAll('input[name="debit[]"], input[name="credit[]"]').forEa
 
 // ── Journal ────────────────────────────────────────────────
 if ($action === 'journal'):
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
-    $src   = $_GET['source'] ?? '';
-    $entries = journalGet($db, $debut, $fin, $src);
-    $sources = [''=>'Toutes','vente'=>'Ventes','commande'=>'Commandes','stock'=>'Stock','caisse'=>'Caisse','manuel'=>'Saisies manuelles'];
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
+    $src   = isset($_GET['source']) && is_string($_GET['source']) ? $_GET['source'] : '';
+
+    // ── Export Excel du journal (période/source filtrées, sans pagination) ──
+    if (($_GET['export'] ?? '') === '1') {
+        require_once __DIR__ . '/../includes/export_xlsx.php';
+        $allEntries = journalGet($db, $debut, $fin, $src, 100000, 0);
+        $allIds = array_column($allEntries, 'id');
+        $allLignes = [];
+        if ($allIds) {
+            $phX = implode(',', array_fill(0, count($allIds), '?'));
+            $stLX = $db->prepare("SELECT el.*, pc.compte, pc.intitule
+                                   FROM ecriture_lignes el
+                                   JOIN plan_comptable pc ON el.compte_id = pc.id
+                                   WHERE el.ecriture_id IN ($phX)
+                                   ORDER BY pc.compte");
+            $stLX->execute($allIds);
+            foreach ($stLX->fetchAll() as $l) $allLignes[(int)$l['ecriture_id']][] = $l;
+        }
+        $rowsX = [];
+        foreach ($allEntries as $e) {
+            $ls = $allLignes[(int)$e['id']] ?? [];
+            if (!$ls) {
+                $rowsX[] = [date('d/m/Y', strtotime($e['date_ecriture'])), $e['reference'], $e['libelle'], $e['source'], '', '', null, null];
+            }
+            foreach ($ls as $l) {
+                $rowsX[] = [date('d/m/Y', strtotime($e['date_ecriture'])), $e['reference'], $e['libelle'], $e['source'],
+                            $l['compte'], $l['intitule'], (float)$l['debit'], (float)$l['credit']];
+            }
+        }
+        export_xlsx_send('journal_comptable_' . $debut . '_' . $fin, 'Journal',
+            ['Date', 'Réf.', 'Libellé', 'Source', 'Compte', 'Intitulé', 'Débit', 'Crédit'], $rowsX);
+    }
+
+    $jPerPage = 50;
+    $jPage    = max(1, (int)($_GET['page'] ?? 1));
+    $jOffset  = paginateOffset($jPage, $jPerPage);
+    $totalEntries = journalCount($db, $debut, $fin, $src);
+    $entries = journalGet($db, $debut, $fin, $src, $jPerPage, $jOffset);
+    $sources = [''=>'Toutes','vente'=>'Ventes','retour'=>'Retours','commande'=>'Commandes','stock'=>'Stock','caisse'=>'Caisse','cloture'=>'Clôtures','manuel'=>'Saisies manuelles'];
+
+    // Batch fetch des lignes : 1 requête IN (...) au lieu de N appels à
+    // ecritureLignes() (évite le N+1 dans la boucle de rendu du journal).
+    $lignesByEcr = [];
+    $entryIds = array_column($entries, 'id');
+    if ($entryIds) {
+        $ph = implode(',', array_fill(0, count($entryIds), '?'));
+        $stL = $db->prepare("SELECT el.*, pc.compte, pc.intitule
+                             FROM ecriture_lignes el
+                             JOIN plan_comptable pc ON el.compte_id = pc.id
+                             WHERE el.ecriture_id IN ($ph)
+                             ORDER BY pc.compte");
+        $stL->execute($entryIds);
+        foreach ($stL->fetchAll() as $l) $lignesByEcr[(int)$l['ecriture_id']][] = $l;
+    }
     layout_head('Journal comptable', 'comptabilite'); showFlash();
 ?>
 <?= $navLinks ?>
 <div class="card">
   <div class="card-header">
     <div class="card-title">Journal général</div>
+    <a href="<?= url('comptabilite', ['action'=>'journal', 'export'=>'1', 'debut'=>$debut, 'fin'=>$fin, 'source'=>$src]) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <div class="flex gap-8">
       <form method="GET" style="display:flex;gap:6px;align-items:end;flex-wrap:wrap;">
         <input type="hidden" name="action" value="journal">
@@ -363,7 +514,7 @@ if ($action === 'journal'):
       <thead><tr><th>Réf.</th><th>Date</th><th>Libellé</th><th>Source</th><th>Par</th><th style="text-align:right;">Débit</th><th style="text-align:right;">Crédit</th><th></th></tr></thead>
       <tbody>
         <?php foreach ($entries as $e):
-          $lignes = ecritureLignes($db, (int)$e['id']);
+          $lignes = $lignesByEcr[(int)$e['id']] ?? [];
           $dTotal = 0; $cTotal = 0;
           foreach ($lignes as $l) { $dTotal += (float)$l['debit']; $cTotal += (float)$l['credit']; }
         ?>
@@ -403,6 +554,7 @@ if ($action === 'journal'):
       </tbody>
     </table>
   </div>
+  <?= renderPagination($jPage, $jPerPage, $totalEntries, ['action'=>'journal','debut'=>$debut,'fin'=>$fin,'source'=>$src]) ?>
 </div>
 <script>
 function toggleDetail(id){
@@ -416,8 +568,8 @@ function toggleDetail(id){
 if ($action === 'grand-livre'):
     $plan = planComptableAll($db);
     $compteId = (int)($_GET['compte_id'] ?? 0);
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
     $compteInfo = null;
     if ($compteId) {
         $st = $db->prepare("SELECT * FROM plan_comptable WHERE id = ?");
@@ -492,16 +644,31 @@ if ($action === 'grand-livre'):
 
 // ── Balance ────────────────────────────────────────────────
 if ($action === 'balance'):
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
     $balance = balanceGet($db, $debut, $fin);
     $classes = [1=>'Capitaux', 2=>'Immobilisations', 3=>'Stocks', 4=>'Tiers', 5=>'Trésorerie', 6=>'Charges', 7=>'Produits'];
+
+    // ── Export Excel de la balance (période filtrée) ──
+    if (($_GET['export'] ?? '') === '1') {
+        require_once __DIR__ . '/../includes/export_xlsx.php';
+        $rowsX = [];
+        foreach ($balance as $c) {
+            $d = (float)$c['total_debit']; $cr = (float)$c['total_credit'];
+            $rowsX[] = [$c['compte'], $c['intitule'], $classes[(int)$c['classe']] ?? $c['classe'],
+                        $d, $cr, $d - $cr];
+        }
+        export_xlsx_send('balance_' . $debut . '_' . $fin, 'Balance',
+            ['Compte', 'Intitulé', 'Classe', 'Total débit', 'Total crédit', 'Solde'], $rowsX);
+    }
+
     layout_head('Balance', 'comptabilite'); showFlash();
 ?>
 <?= $navLinks ?>
 <div class="card">
   <div class="card-header">
     <div class="card-title">Balance générale</div>
+    <a href="<?= url('comptabilite', ['action'=>'balance', 'export'=>'1', 'debut'=>$debut, 'fin'=>$fin]) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
     <form method="GET" style="display:flex;gap:6px;align-items:end;">
       <input type="hidden" name="action" value="balance">
       <div class="form-group" style="margin:0;"><label>Du</label><input type="date" name="debut" value="<?= e($debut) ?>"></div>
@@ -548,8 +715,8 @@ if ($action === 'balance'):
 
 // ── Compte de résultat ────────────────────────────────────
 if ($action === 'resultat'):
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
     $resultat = compteResultat($db, $debut, $fin);
     $charges = []; $produits = [];
     $totalCharges = 0; $totalProduits = 0;
@@ -638,8 +805,8 @@ if ($action === 'resultat'):
 
 // ── Bilan ──────────────────────────────────────────────────
 if ($action === 'bilan'):
-    $debut = $_GET['debut'] ?? $debutEx;
-    $fin   = $_GET['fin']   ?? $finEx;
+    $debut = dateGetValide($_GET['debut'] ?? null, $debutEx);
+    $fin   = dateGetValide($_GET['fin']   ?? null, $finEx);
     $bilan = bilanGet($db, $debut, $fin);
     $diff = $bilan['actif']['total'] - $bilan['passif']['total'];
     layout_head('Bilan comptable', 'comptabilite'); showFlash();
@@ -715,12 +882,104 @@ if ($action === 'bilan'):
 </div>
 <?php layout_foot(); exit; endif;
 
+// ── Clôture d'exercice ─────────────────────────────────────
+if ($action === 'cloture'):
+    requirePermission('comptabilite.plan');
+    $exList = exercicesAll($db);
+    // Exercice ouvert (non clôturé) le plus ancien = candidat à la clôture
+    $exCible = null;
+    foreach ($exList as $ex) {
+        if (!$ex['cloture']) { $exCible = $ex; break; }
+    }
+    // Résultat de l'exercice cible
+    $resCible = null;
+    if ($exCible) {
+        $resCible = compteResultat($db, $exCible['date_debut'], $exCible['date_fin']);
+        $tp = 0; $tc = 0;
+        foreach ($resCible as $c) {
+            if ((int)$c['classe'] === 6) $tc += (float)$c['total_debit'] - (float)$c['total_credit'];
+            else                          $tp += (float)$c['total_credit'] - (float)$c['total_debit'];
+        }
+        $resNet = $tp - $tc;
+    }
+    layout_head('Clôture d\'exercice', 'comptabilite'); showFlash();
+?>
+<?= $navLinks ?>
+<div class="card" style="max-width:720px;margin:0 auto;">
+  <div class="card-header">
+    <div class="card-title">Clôture d'exercice — détermination du résultat</div>
+  </div>
+  <?php if ($exCible): ?>
+    <div style="padding:16px;">
+      <p style="color:var(--text2);margin-bottom:16px;">
+        La clôture solde les comptes de charges (classe 6) et de produits (classe 7)
+        dans le compte <strong>12 — Résultat de l'exercice</strong>, verrouille toutes
+        les écritures de l'exercice et crée l'exercice suivant.
+        <strong style="color:var(--red);">Action irréversible.</strong>
+      </p>
+      <table>
+        <tbody>
+          <tr><td style="color:var(--text3);">Exercice</td><td><strong><?= e($exCible['code']) ?></strong> — <?= e($exCible['libelle']) ?></td></tr>
+          <tr><td style="color:var(--text3);">Période</td><td><?= date('d/m/Y', strtotime($exCible['date_debut'])) ?> → <?= date('d/m/Y', strtotime($exCible['date_fin'])) ?></td></tr>
+          <tr><td style="color:var(--text3);">Total produits (classe 7)</td><td class="fw-mono" style="text-align:right;color:var(--teal2);"><?= fmtMoney($tp ?? 0) ?></td></tr>
+          <tr><td style="color:var(--text3);">Total charges (classe 6)</td><td class="fw-mono" style="text-align:right;color:var(--red);"><?= fmtMoney($tc ?? 0) ?></td></tr>
+          <tr style="background:var(--bg2);font-weight:700;">
+            <td>Résultat net</td>
+            <td class="fw-mono" style="text-align:right;color:<?= ($resNet ?? 0) >= 0 ? 'var(--teal2)' : 'var(--red)' ?>;">
+              <?= fmtMoney($resNet ?? 0) ?> (<?= ($resNet ?? 0) >= 0 ? 'bénéfice' : 'perte' ?>)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <form method="POST" action="?action=cloture_exec" style="margin-top:20px;">
+        <input type="hidden" name="csrf" value="<?= csrf() ?>">
+        <input type="hidden" name="exercice_id" value="<?= (int)$exCible['id'] ?>">
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;"
+                onclick="return confirm('Confirmer la clôture de l\\'exercice <?= e($exCible['code']) ?> ? Cette action est irréversible.');">
+          🔒 Clôturer l'exercice <?= e($exCible['code']) ?>
+        </button>
+      </form>
+    </div>
+  <?php else: ?>
+    <div style="padding:24px;text-align:center;color:var(--text3);">
+      Aucun exercice ouvert à clôturer. Toutes les périodes sont déjà clôturées.
+    </div>
+  <?php endif; ?>
+
+  <div style="padding:12px 16px;border-top:1px solid var(--border);">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">EXERCICES</div>
+    <table>
+      <thead><tr><th>Code</th><th>Libellé</th><th>Période</th><th>État</th></tr></thead>
+      <tbody>
+        <?php foreach ($exList as $ex): ?>
+        <tr>
+          <td class="td-mono"><?= e($ex['code']) ?></td>
+          <td><?= e($ex['libelle']) ?></td>
+          <td class="text-sm"><?= date('d/m/Y', strtotime($ex['date_debut'])) ?> → <?= date('d/m/Y', strtotime($ex['date_fin'])) ?></td>
+          <td>
+            <?php if ($ex['cloture']): ?>
+              <span class="badge badge-red">Clôturé</span>
+            <?php else: ?>
+              <span class="badge badge-green">Ouvert</span>
+            <?php endif; ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+        <?php if (!$exList): ?>
+        <tr><td colspan="4" class="empty">Aucun exercice</td></tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+<?php layout_foot(); exit; endif;
+
 // ══════════════════════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════════════════════
 
 $nbEcritures = $db->query("SELECT COUNT(*) FROM ecritures")->fetchColumn();
-$nbEcrituresMois = $db->prepare("SELECT COUNT(*) FROM ecritures WHERE MONTH(date_ecriture)=MONTH(CURDATE()) AND YEAR(date_ecriture)=YEAR(CURDATE())");
+$nbEcrituresMois = $db->prepare("SELECT COUNT(*) FROM ecritures WHERE date_ecriture >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND date_ecriture < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')");
 $nbEcrituresMois->execute();
 $nbEcrMois = (int)$nbEcrituresMois->fetchColumn();
 

@@ -159,10 +159,10 @@ $statGrossLabel = ['en_cours'=>'En cours','accouchee'=>'Accouchee','complication
 
 <!-- Modal nouveau suivi -->
 <?php if (can('maternite.create')): ?>
-<div id="modal-grossesse" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:500px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
+<div id="modal-grossesse" class="modal-overlay" role="dialog" aria-modal="true" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(500px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <h3>Nouveau suivi de grossesse</h3><div onclick="document.getElementById('modal-grossesse').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div></div>
+      <h3>Nouveau suivi de grossesse</h3><button type="button" class="modal-close" onclick="document.getElementById('modal-grossesse').style.display='none'" aria-label="Fermer">✕</button></div>
     <form method="POST" style="padding:24px"><input type="hidden" name="action" value="creer_suivi"><?= csrf_field() ?>
     <div class="form-group"><label>Patiente *</label><select name="patient_id" required><option value="">-- --</option>
     <?php $patientes = db_select("SELECT id, CONCAT(prenom,' ',nom) AS n, numero FROM patients WHERE sexe='F' ORDER BY nom LIMIT 100");
@@ -181,10 +181,10 @@ $statGrossLabel = ['en_cours'=>'En cours','accouchee'=>'Accouchee','complication
 
 <!-- Modal enregistrer accouchement -->
 <?php if (can('maternite.update')): ?>
-<div id="modal-accouchement" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:680px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
+<div id="modal-accouchement" class="modal-overlay" role="dialog" aria-modal="true" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(680px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <h3>Enregistrer un accouchement</h3><div onclick="document.getElementById('modal-accouchement').style.display='none'" style="cursor:pointer;font-size:18px;color:var(--text2)">✕</div></div>
+      <h3>Enregistrer un accouchement</h3><button type="button" class="modal-close" onclick="document.getElementById('modal-accouchement').style.display='none'" aria-label="Fermer">✕</button></div>
     <form method="POST" style="padding:24px"><input type="hidden" name="action" value="accouchement">
     <input type="hidden" name="suivi_id" id="acc-suivi-id"><input type="hidden" name="patient_id" id="acc-patient-id"><?= csrf_field() ?>
     <div id="acc-patient-name" style="font-weight:600;margin-bottom:12px;color:var(--accent2)"></div>

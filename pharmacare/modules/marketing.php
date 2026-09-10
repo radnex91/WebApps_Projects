@@ -1,11 +1,19 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/pagination.php';
 require_once __DIR__ . '/../config/settings.php';
 requirePermission('marketing.voir');
 $db     = getDB();
 $action = $_GET['action'] ?? 'dashboard';
 $id     = (int)($_GET['id'] ?? 0);
+
+// Module « client fidèle » désactivé partout pour l'instant.
+$fideliteActive = fideliteActive();
+if (!$fideliteActive && in_array($action, ['fidelite', 'add-points'], true)) {
+    flash('Le module fidélité client est désactivé.', 'error');
+    header('Location: ' . url('marketing')); exit;
+}
 
 // ── POST : créer / modifier une campagne promo ────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add-promo','edit-promo'], true)) {
@@ -21,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add-promo','edi
 
     if ($nom === '' || $valeur <= 0 || !$date_debut || !$date_fin) {
         flash('Tous les champs obligatoires sont requis.', 'error');
-        header('Location: ' . APP_URL . '/modules/marketing.php?action=' . ($action === 'edit-promo' ? 'edit-promo&id='.$id : 'add-promo')); exit;
+        header('Location: ' . url('marketing', $action === 'edit-promo' ? ['action'=>'edit-promo','id'=>$id] : ['action'=>'add-promo'])); exit;
     }
 
     try {
@@ -44,11 +52,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['add-promo','edi
         }
         $db->commit();
         flash('Campagne ' . ($action === 'edit-promo' ? 'modifiée' : 'créée') . '.', 'success');
-        header('Location: ' . APP_URL . '/modules/marketing.php'); exit;
+        header('Location: ' . url('marketing')); exit;
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
-        flash('Erreur : ' . $e->getMessage(), 'error');
-        header('Location: ' . APP_URL . '/modules/marketing.php?action=add-promo'); exit;
+        flashError($e, 'promotion');
+        header('Location: ' . url('marketing', ['action'=>'add-promo'])); exit;
     }
 }
 
@@ -62,12 +70,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'add-points') {
 
     if ($clientId <= 0 || $points <= 0) {
         flash('Client et points requis.', 'error');
-        header('Location: ' . APP_URL . '/modules/marketing.php?action=fidelite'); exit;
+        header('Location: ' . url('marketing', ['action'=>'fidelite'])); exit;
     }
     $db->prepare("INSERT INTO fidelite_points (client_id, points, type, note) VALUES (?,?, 'gagné',?)")
        ->execute([$clientId, $points, $note]);
     flash($points . ' points ajoutés au client.', 'success');
-    header('Location: ' . APP_URL . '/modules/marketing.php?action=fidelite'); exit;
+    header('Location: ' . url('marketing', ['action'=>'fidelite'])); exit;
 }
 
 // ── GET : désactiver / activer une campagne ──────────────────
@@ -79,7 +87,7 @@ if ($action === 'toggle' && $id && hasPermission('marketing.promos')) {
     $new = $current ? 0 : 1;
     $db->prepare("UPDATE campagnes_promo SET actif=? WHERE id=?")->execute([$new, $id]);
     flash($new ? 'Campagne activée.' : 'Campagne désactivée.', 'success');
-    header('Location: ' . APP_URL . '/modules/marketing.php'); exit;
+    header('Location: ' . url('marketing')); exit;
 }
 
 // ── Titre ──────────────────────────────────────────────────
@@ -161,7 +169,7 @@ $produitsList = $db->query("SELECT id, nom FROM produits WHERE actif=1 ORDER BY 
       </div>
     </div>
     <div class="modal-footer">
-      <a href="<?= APP_URL ?>/modules/marketing.php" class="btn btn-ghost">Annuler</a>
+      <a href="<?= url('marketing') ?>" class="btn btn-ghost">Annuler</a>
       <button type="submit" class="btn btn-primary"><?= $isEdit ? 'Enregistrer' : 'Créer la campagne' ?></button>
     </div>
   </form>
@@ -218,7 +226,7 @@ $totalPointsUtilises = array_sum(array_column($clients, 'points_utilises'));
     ?>
       <tr>
         <td style="color:var(--text2);"><?= $i++ ?></td>
-        <td><a href="<?= APP_URL ?>/modules/clients.php?action=detail&id=<?= $c['id'] ?>" style="font-weight:500;text-decoration:none;color:var(--text);"><?= e($c['nom']) ?></a></td>
+        <td><a href="<?= url('clients', ['action'=>'detail','id'=>$c['id']], $c['nom'] ?? null) ?>" style="font-weight:500;text-decoration:none;color:var(--text);"><?= e($c['nom']) ?></a></td>
         <td style="color:var(--text2);"><?= e($c['telephone'] ?: '—') ?></td>
         <td class="fw-mono" style="color:var(--teal);">+<?= fmtInt((int)$c['points_gagnes']) ?></td>
         <td class="fw-mono" style="color:var(--red);"><?= (int)$c['points_utilises'] > 0 ? '-'.fmtInt((int)$c['points_utilises']) : '—' ?></td>
@@ -309,8 +317,35 @@ $campagnes = $db->query("
     ORDER BY cp.date_debut DESC
 ")->fetchAll();
 
+// ── Export Excel des campagnes ────────────────────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $typesMap = ['pourcentage' => 'Pourcentage', 'montant' => 'Montant fixe'];
+    $rowsX = [];
+    foreach ($campagnes as $c) {
+        $active = $c['actif'] && $c['date_debut'] <= date('Y-m-d') && $c['date_fin'] >= date('Y-m-d');
+        $rowsX[] = [
+            $c['nom'], $typesMap[$c['type']] ?? $c['type'], $c['valeur'] !== null ? (float)$c['valeur'] : null,
+            date('d/m/Y', strtotime($c['date_debut'])), date('d/m/Y', strtotime($c['date_fin'])),
+            $active ? 'Active' : 'Inactive', (int)$c['nb_produits'],
+            date('d/m/Y', strtotime($c['created_at'])),
+        ];
+    }
+    export_xlsx_send('campagnes_promo_' . date('Y-m-d'), 'Campagnes',
+        ['Nom', 'Type', 'Valeur', 'Début', 'Fin', 'Statut', 'Nb produits', 'Créée le'], $rowsX);
+}
+
 $activeCount = 0;
 $today = date('Y-m-d');
+
+// ── Variables de pagination de l'onglet « Campagnes » ──
+// (le module les consomme mais ne les définissait jamais : warnings + appel
+// renderPagination() sur des variables inconnues)
+$totalCampagnes = count($campagnes);
+$perPage        = 20;
+$pageCamp       = max(1, (int)($_GET['page'] ?? 1));
+$campagnesPage  = array_slice($campagnes, ($pageCamp - 1) * $perPage, $perPage);
+
 foreach ($campagnes as $c) {
     if ($c['actif'] && $c['date_debut'] <= $today && $c['date_fin'] >= $today) $activeCount++;
 }
@@ -330,8 +365,9 @@ $topClients = $db->query("
 
 <div class="page-header">
   <h1>Marketing</h1>
+  <a href="<?= url('marketing', ['export'=>'1']) ?>" class="btn btn-ghost" title="Exporter les campagnes au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
   <?php if (hasPermission('marketing.promos')): ?>
-  <a href="<?= APP_URL ?>/modules/marketing.php?action=add-promo" class="btn btn-primary"><?= icon('plus',14) ?> Nouvelle campagne</a>
+  <a href="<?= url('marketing', ['action'=>'add-promo']) ?>" class="btn btn-primary"><?= icon('plus',14) ?> Nouvelle campagne</a>
   <?php endif; ?>
 </div>
 
@@ -340,9 +376,10 @@ $topClients = $db->query("
     <div class="card-header"><div class="card-title">Campagnes actives</div></div>
     <div class="card-pad">
       <div style="font-size:28px;font-weight:700;color:var(--teal);font-family:var(--font-title);"><?= $activeCount ?></div>
-      <div style="font-size:12px;color:var(--text2);">Sur <?= count($campagnes) ?> campagne(s)</div>
+      <div style="font-size:12px;color:var(--text2);">Sur <?= $totalCampagnes ?> campagne(s)</div>
     </div>
   </div>
+  <?php if ($fideliteActive): ?>
   <div class="card">
     <div class="card-header"><div class="card-title">Fidélité</div></div>
     <div class="card-pad">
@@ -350,24 +387,25 @@ $topClients = $db->query("
       <div style="font-size:12px;color:var(--text2);">Meilleurs clients fidélisés</div>
     </div>
   </div>
+  <?php endif; ?>
   <div class="card">
     <div class="card-header"><div class="card-title">Actions</div></div>
     <div class="card-pad" style="display:flex;flex-direction:column;gap:8px;">
       <?php if (hasPermission('marketing.promos')): ?>
-      <a href="<?= APP_URL ?>/modules/marketing.php?action=add-promo" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('plus',14) ?> Créer une campagne</a>
+      <a href="<?= url('marketing', ['action'=>'add-promo']) ?>" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('plus',14) ?> Créer une campagne</a>
       <?php endif; ?>
-      <?php if (hasPermission('marketing.fidelite')): ?>
-      <a href="<?= APP_URL ?>/modules/marketing.php?action=fidelite" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('users',14) ?> Gérer la fidélité</a>
+      <?php if (hasPermission('marketing.fidelite') && $fideliteActive): ?>
+      <a href="<?= url('marketing', ['action'=>'fidelite']) ?>" class="btn btn-outline btn-sm" style="justify-content:center;"><?= icon('users',14) ?> Gérer la fidélité</a>
       <?php endif; ?>
     </div>
   </div>
 </div>
 
-<?php if (count($topClients) > 0): ?>
+<?php if ($fideliteActive && count($topClients) > 0): ?>
 <div class="card">
   <div class="card-header">
     <div class="card-title">Top 5 clients fidélité</div>
-    <a href="<?= APP_URL ?>/modules/marketing.php?action=fidelite" class="btn btn-ghost btn-sm">Voir tout</a>
+    <a href="<?= url('marketing', ['action'=>'fidelite']) ?>" class="btn btn-ghost btn-sm">Voir tout</a>
   </div>
   <table class="table">
     <thead><tr><th>#</th><th>Client</th><th>Solde points</th></tr></thead>
@@ -388,16 +426,16 @@ $topClients = $db->query("
   <div class="card-header">
     <div class="card-title">Campagnes promotionnelles</div>
     <?php if (hasPermission('marketing.promos')): ?>
-    <a href="<?= APP_URL ?>/modules/marketing.php?action=add-promo" class="btn btn-ghost btn-sm"><?= icon('plus',14) ?> Ajouter</a>
+    <a href="<?= url('marketing', ['action'=>'add-promo']) ?>" class="btn btn-ghost btn-sm"><?= icon('plus',14) ?> Ajouter</a>
     <?php endif; ?>
   </div>
-  <?php if (count($campagnes) === 0): ?>
+  <?php if ($totalCampagnes === 0): ?>
   <div class="card-pad"><p style="color:var(--text3);">Aucune campagne créée.</p></div>
   <?php else: ?>
   <table class="table">
     <thead><tr><th>Nom</th><th>Type</th><th>Valeur</th><th>Période</th><th>Produits</th><th>Statut</th><th style="width:90px;">Actions</th></tr></thead>
     <tbody>
-    <?php foreach ($campagnes as $c):
+    <?php foreach ($campagnesPage as $c):
         $periode = date('d/m/Y', strtotime($c['date_debut'])) . ' — ' . date('d/m/Y', strtotime($c['date_fin']));
         $typeLabel = $c['type'] === 'pourcentage' ? '%' : 'FCFA';
         $valeurFmt = $c['type'] === 'pourcentage' ? fmt($c['valeur']).'%' : fmtMoney($c['valeur']);
@@ -424,8 +462,8 @@ $topClients = $db->query("
         <td>
           <div style="display:flex;gap:4px;">
             <?php if (hasPermission('marketing.promos')): ?>
-            <a href="<?= APP_URL ?>/modules/marketing.php?action=edit-promo&id=<?= $c['id'] ?>" class="btn btn-ghost" style="padding:4px 6px;" title="Modifier"><?= icon('edit',14) ?></a>
-            <a href="<?= APP_URL ?>/modules/marketing.php?action=toggle&id=<?= $c['id'] ?>&csrf=<?= csrf() ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--text2);" title="<?= $c['actif'] ? 'Désactiver' : 'Activer' ?>"><?= icon($c['actif'] ? 'x' : 'check',14) ?></a>
+            <a href="<?= url('marketing', ['action'=>'edit-promo','id'=>$c['id']]) ?>" class="btn btn-ghost" style="padding:4px 6px;" title="Modifier"><?= icon('edit',14) ?></a>
+            <a href="<?= url('marketing', ['action'=>'toggle','id'=>$c['id'],'csrf'=>csrf()]) ?>" class="btn btn-ghost" style="padding:4px 6px;color:var(--text2);" title="<?= $c['actif'] ? 'Désactiver' : 'Activer' ?>"><?= icon($c['actif'] ? 'x' : 'check',14) ?></a>
             <?php endif; ?>
           </div>
         </td>
@@ -433,6 +471,7 @@ $topClients = $db->query("
     <?php endforeach; ?>
     </tbody>
   </table>
+  <?= renderPagination($pageCamp, $perPage, $totalCampagnes, []) ?>
   <?php endif; ?>
 </div>
 

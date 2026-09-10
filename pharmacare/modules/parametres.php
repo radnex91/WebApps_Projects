@@ -19,23 +19,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'devise_pos'         => $devInfo[1],
         'tva'                => number_format((float)str_replace(',','.',$_POST['tva'] ?? '19.25'), 2, '.', ''),
         'theme'              => $_POST['theme'] ?? 'dark-cyan',
-        'police'             => $_POST['police'] ?? 'DM Sans',
-        'police_titre'       => $_POST['police_titre'] ?? 'Cormorant Garamond',
+        'police'             => $_POST['police'] ?? 'Manrope',
+        'police_titre'       => $_POST['police_titre'] ?? 'Manrope',
         'pharmacie_adresse'  => trim($_POST['pharmacie_adresse'] ?? ''),
         'pharmacie_telephone'=> trim($_POST['pharmacie_telephone'] ?? ''),
         'pharmacie_nif'      => trim($_POST['pharmacie_nif'] ?? ''),
         'ticket_sous_titre'  => trim($_POST['ticket_sous_titre'] ?? 'Gestion Pharmacie'),
         'ticket_pied'       => trim($_POST['ticket_pied'] ?? 'Merci pour votre achat !'),
+        'ticket_nb_copies'  => (string)max(1, min(5, (int)($_POST['ticket_nb_copies'] ?? 2))),
         'prefix_vente'       => strtoupper(trim($_POST['prefix_vente'] ?? 'VNT')),
+        'delai_inactivite_min' => (string)max(0, min(240, (int)($_POST['delai_inactivite_min'] ?? '15'))),
         'caisse_fermeture_mode'   => ($_POST['caisse_fermeture_mode'] ?? 'manuel') === 'auto' ? 'auto' : 'manuel',
         'caisse_heure_fermeture'  => preg_match('/^\d{2}:\d{2}$/', $_POST['caisse_heure_fermeture'] ?? '') ? $_POST['caisse_heure_fermeture'] : '22:00',
+        'assistant_active'        => ($_POST['assistant_active'] ?? '0') === '1' ? '1' : '0',
+        'credit_active'           => ($_POST['credit_active'] ?? '0') === '1' ? '1' : '0',
+        'mail_smtp_host'     => trim($_POST['mail_smtp_host'] ?? ''),
+        'mail_smtp_port'     => (string)max(1, min(65535, (int)($_POST['mail_smtp_port'] ?? 25))),
+        'mail_smtp_user'     => trim($_POST['mail_smtp_user'] ?? ''),
+        'mail_smtp_pass'     => (string)($_POST['mail_smtp_pass'] ?? ''),
+        'mail_from'          => trim($_POST['mail_from'] ?? ''),
+        'mail_from_name'     => trim($_POST['mail_from_name'] ?? 'PharmaCare'),
     ];
 
-    $stmt = $db->prepare("INSERT INTO parametres (cle,valeur) VALUES (?,?) ON DUPLICATE KEY UPDATE valeur=VALUES(valeur)");
-    foreach ($toSave as $k => $v) $stmt->execute([$k, $v]);
+    $stmt = $db->prepare("INSERT INTO parametres (cle,valeur) VALUES (?,?) ON DUPLICATE KEY UPDATE valeur=?");
+    foreach ($toSave as $k => $v) $stmt->execute([$k, $v, $v]);
 
-    flash('Paramètres enregistrés avec succès.');
-    header('Location: ' . APP_URL . '/modules/parametres.php'); exit;
+    // ── Logo de la pharmacie (upload, distinct du logo app PharmaCare) ──
+    $logoErr = '';
+    $allowedExt = ['png','jpg','jpeg','webp','svg'];
+    if (!empty($_POST['pharmacie_logo_remove'])) {
+        $old = pharmacieLogoPath();
+        if ($old && is_file($old)) @unlink($old);
+        $db->prepare("DELETE FROM parametres WHERE cle=?")->execute(['pharmacie_logo']);
+        paramCacheClear();
+    } elseif (!empty($_FILES['pharmacie_logo']['name'])) {
+        $f = $_FILES['pharmacie_logo'];
+        $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+        if (($f['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+            $logoErr = 'Logo : transfert échoué (code ' . (int)($f['error'] ?? 0) . ').';
+        } elseif (!in_array($ext, $allowedExt, true)) {
+            $logoErr = 'Logo : format non autorisé (PNG, JPG, WebP, SVG).';
+        } elseif ((int)$f['size'] > 1024 * 1024) {
+            $logoErr = 'Logo : taille max 1 Mo.';
+        } else {
+            $extN = $ext === 'jpeg' ? 'jpg' : $ext;
+            $target = __DIR__ . '/../assets/img/pharmacie_logo.' . $extN;
+            foreach (['png','jpg','webp','svg'] as $oldExt) {  // purge anciens logos d'ext différente
+                $oldFile = __DIR__ . '/../assets/img/pharmacie_logo.' . $oldExt;
+                if ($oldFile !== $target && is_file($oldFile)) @unlink($oldFile);
+            }
+            if (move_uploaded_file($f['tmp_name'], $target)) {
+                $rel = 'assets/img/pharmacie_logo.' . $extN;
+                $db->prepare("INSERT INTO parametres (cle,valeur) VALUES (?,?) ON DUPLICATE KEY UPDATE valeur=?")
+                   ->execute(['pharmacie_logo', $rel, $rel]);
+                paramCacheClear();
+            } else {
+                $logoErr = 'Logo : échec de l\'enregistrement du fichier.';
+            }
+        }
+    }
+
+    if ($logoErr !== '') flash($logoErr, 'error');
+    else flash('Paramètres enregistrés avec succès.');
+    header('Location: ' . url('parametres')); exit;
 }
 
 $p       = getAllParams();
@@ -50,7 +96,7 @@ showFlash();
 
 <div style="max-width:860px;margin:0 auto;">
 
-<form method="POST">
+<form method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf" value="<?= csrf() ?>">
 
 <!-- ── GÉNÉRAL ─────────────────────────────────────────── -->
@@ -65,6 +111,27 @@ showFlash();
     <div class="form-group full">
       <label>Nom de la pharmacie</label>
       <input type="text" name="app_nom" value="<?= e($p['app_nom'] ?? 'PharmaCare') ?>" placeholder="PharmaCare">
+      <div class="form-hint">Affiché sur les tickets et bons (sous le logo de la pharmacie). Le nom <strong>PharmaCare</strong> (logo de l'application) reste fixe et propriétaire.</div>
+    </div>
+    <div class="form-group full">
+      <label>Logo de la pharmacie (tickets &amp; bons imprimés)</label>
+      <?php $logoUrl = pharmacieLogoUrl(); ?>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px;">
+        <?php if ($logoUrl): ?>
+          <img src="<?= e($logoUrl) ?>" alt="Logo pharmacie" style="max-height:64px;max-width:160px;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:4px;background:#fff;">
+        <?php else: ?>
+          <div style="height:64px;width:120px;border:1px dashed var(--border2);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;">Aucun logo</div>
+        <?php endif; ?>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <input type="file" name="pharmacie_logo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+          <?php if ($logoUrl): ?>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3);cursor:pointer;">
+            <input type="checkbox" name="pharmacie_logo_remove" value="1"> Supprimer le logo actuel
+          </label>
+          <?php endif; ?>
+        </div>
+      </div>
+      <div class="form-hint">PNG / JPG / WebP / SVG — 1 Mo max. Apparaît en en-tête des tickets de caisse et des bons de livraison.</div>
     </div>
     <div class="form-group">
       <label>Taux TVA (%)</label>
@@ -87,6 +154,11 @@ showFlash();
         ?>
       </div>
     </div>
+    <div class="form-group">
+      <label>Déconnexion auto après inactivité (minutes)</label>
+      <input type="number" name="delai_inactivite_min" min="0" max="240" step="1" value="<?= e($p['delai_inactivite_min'] ?? '15') ?>">
+      <div class="form-hint">Sans aucune interaction (souris/clavier) pendant ce délai, l'utilisateur est automatiquement déconnecté. Tant qu'il travaille, il reste connecté. Recommandé : 10 à 15 min. 0 = jamais.</div>
+    </div>
   </div>
 </div>
 
@@ -107,6 +179,47 @@ showFlash();
     <div class="form-group">
       <label>Message en pied de ticket</label>
       <input type="text" name="ticket_pied" value="<?= e($p['ticket_pied'] ?? 'Merci pour votre achat !') ?>" placeholder="Merci pour votre achat !">
+    </div>
+    <div class="form-group">
+      <label>Nombre de copies par impression</label>
+      <input type="number" name="ticket_nb_copies" value="<?= e($p['ticket_nb_copies'] ?? '2') ?>" min="1" max="5" step="1" style="max-width:120px;">
+      <div class="form-hint">2 = un exemplaire Client + un exemplaire Caisse (séparés par une coupure).</div>
+    </div>
+    <div class="form-group full">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" name="assistant_active" value="1" <?= (($p['assistant_active'] ?? '1') === '1') ? 'checked' : '' ?> style="width:18px;height:18px;">
+        Activer l'assistant intégré (aide + recherche, sans serveur IA)
+      </label>
+      <div class="form-hint">Affiche le bouton flottant de l'assistant sur toutes les pages. Aucune action sensible, aucune donnée personnelle.</div>
+    </div>
+
+    <div class="form-group full">
+      <label style="font-weight:700;color:var(--teal2);">📧 Email / SMTP — réinitialisation de mot de passe en libre-service</label>
+      <div class="form-hint" style="margin-bottom:10px;">Renseignez le serveur SMTP de l'établissement (ou de la boîte mail utilisée pour l'app). Sans ces champs, l'app tentera la fonction mail() du serveur.</div>
+    </div>
+    <div class="form-group">
+      <label>Serveur SMTP (hôte)</label>
+      <input type="text" name="mail_smtp_host" value="<?= e($p['mail_smtp_host'] ?? '') ?>" placeholder="ex. : smtp.orange.cm ou 192.168.1.10">
+    </div>
+    <div class="form-group">
+      <label>Port SMTP</label>
+      <input type="number" name="mail_smtp_port" value="<?= e($p['mail_smtp_port'] ?? '25') ?>" min="1" max="65535" style="max-width:120px;">
+    </div>
+    <div class="form-group">
+      <label>Utilisateur SMTP (optionnel)</label>
+      <input type="text" name="mail_smtp_user" value="<?= e($p['mail_smtp_user'] ?? '') ?>" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Mot de passe SMTP (optionnel)</label>
+      <input type="password" name="mail_smtp_pass" value="<?= e($p['mail_smtp_pass'] ?? '') ?>" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>Adresse d'expédition (From)</label>
+      <input type="email" name="mail_from" value="<?= e($p['mail_from'] ?? '') ?>" placeholder="noreply@pharmacare.cm">
+    </div>
+    <div class="form-group">
+      <label>Nom d'expéditeur</label>
+      <input type="text" name="mail_from_name" value="<?= e($p['mail_from_name'] ?? 'PharmaCare') ?>">
     </div>
     <div class="form-group">
       <label>Préfixe des références de vente</label>
@@ -149,6 +262,13 @@ showFlash();
       <label>Heure de fermeture automatique</label>
       <input type="time" name="caisse_heure_fermeture" value="<?= e($p['caisse_heure_fermeture'] ?? '22:00') ?>" id="heure-fermeture">
       <div class="form-hint">À cette heure, les sessions ouvertes seront signalées pour clôture.</div>
+    </div>
+    <div class="form-group full">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" name="credit_active" value="1" <?= (($p['credit_active'] ?? '0') === '1') ? 'checked' : '' ?> style="width:18px;height:18px;">
+        Autoriser la vente à crédit (dettes clients)
+      </label>
+      <div class="form-hint">Affiche la case « Vendre à crédit » au Point de Vente (client enregistré obligatoire ; créance suivie en comptabilité 4112, soldée par les règlements). L'existant — dettes déjà enregistrées et règlements — reste visible même désactivé.</div>
     </div>
   </div>
 </div>
@@ -204,7 +324,7 @@ showFlash();
       <label>Police principale (corps de texte)</label>
       <select name="police" onchange="previewFont(this.value,'body')">
         <?php foreach ($polices as $fid => $flabel): ?>
-        <option value="<?= e($fid) ?>" <?= ($p['police']??'DM Sans')===$fid?'selected':'' ?>><?= e($flabel) ?></option>
+        <option value="<?= e($fid) ?>" <?= ($p['police']??'Manrope')===$fid?'selected':'' ?>><?= e($flabel) ?></option>
         <?php endforeach; ?>
       </select>
       <div id="preview-body" style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:6px;font-size:14px;color:var(--text2);">
@@ -215,7 +335,7 @@ showFlash();
       <label>Police des titres</label>
       <select name="police_titre" onchange="previewFont(this.value,'title')">
         <?php foreach ($policesTitres as $fid => $flabel): ?>
-        <option value="<?= e($fid) ?>" <?= ($p['police_titre']??'Cormorant Garamond')===$fid?'selected':'' ?>><?= e($flabel) ?></option>
+        <option value="<?= e($fid) ?>" <?= ($p['police_titre']??'Manrope')===$fid?'selected':'' ?>><?= e($flabel) ?></option>
         <?php endforeach; ?>
       </select>
       <div id="preview-title" style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:6px;font-size:22px;font-weight:600;color:var(--text);">
@@ -261,17 +381,17 @@ function previewTheme(tid) {
   root.style.setProperty('--blue',  t[4]);
   if (isLight) {
     root.style.setProperty('--bg',    t[5]);
-    root.style.setProperty('--bg2',   t[6] || '#faf5f3');
-    root.style.setProperty('--bg3',   t[7] || '#f0e8e4');
-    root.style.setProperty('--card',  t[8] || '#ffffff');
-    root.style.setProperty('--text',  '#1e293b');
-    root.style.setProperty('--text2', '#475569');
-    root.style.setProperty('--text3', '#94a3b8');
-    root.style.setProperty('--border','rgba(0,0,0,.08)');
-    root.style.setProperty('--border2','rgba(0,0,0,.12)');
-    root.style.setProperty('--glass', 'rgba(0,0,0,.04)');
-    root.style.setProperty('--shadow', '0 8px 32px rgba(0,0,0,.10)');
-    root.style.setProperty('--shadow-sm', '0 2px 12px rgba(0,0,0,.06)');
+    root.style.setProperty('--bg2',   t[6] || '#eceee9');
+    root.style.setProperty('--bg3',   t[7] || '#e3e8e0');
+    root.style.setProperty('--card',  t[8] || '#fcfcfa');
+    root.style.setProperty('--text',  '#2a3640');
+    root.style.setProperty('--text2', '#4e5c55');
+    root.style.setProperty('--text3', '#8b968f');
+    root.style.setProperty('--border','rgba(30,50,40,.09)');
+    root.style.setProperty('--border2','rgba(30,50,40,.14)');
+    root.style.setProperty('--glass', 'rgba(30,50,40,.04)');
+    root.style.setProperty('--shadow', '0 10px 34px rgba(40,60,50,.08)');
+    root.style.setProperty('--shadow-sm', '0 2px 12px rgba(40,60,50,.06)');
     root.style.setProperty('--btn-text', '#fff');
   } else {
     root.style.setProperty('--bg',    t[5]);
@@ -314,13 +434,7 @@ function hexToRgba(hex, alpha) {
 }
 
 function previewFont(font, target) {
-  const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;500;600&display=swap`;
-  if (!googleFontsCache[font]) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet'; link.href = url;
-    document.head.appendChild(link);
-    googleFontsCache[font] = true;
-  }
+  // Polices self-hostées (assets/fonts/fonts.css) — déjà chargées dans le head, rien à charger.
   const el = document.getElementById('preview-' + target);
   if (el) el.style.fontFamily = `'${font}', sans-serif`;
 }
@@ -338,7 +452,7 @@ function toggleHeureFermeture(mode) {
 
 // Appliquer le thème actuel au chargement
 previewTheme('<?= e($p['theme'] ?? 'dark-navy') ?>');
-previewFont('<?= e($p['police'] ?? 'DM Sans') ?>', 'body');
-previewFont('<?= e($p['police_titre'] ?? 'Cormorant Garamond') ?>', 'title');
+previewFont('<?= e($p['police'] ?? 'Manrope') ?>', 'body');
+previewFont('<?= e($p['police_titre'] ?? 'Manrope') ?>', 'title');
 </script>
 <?php layout_foot(); ?>

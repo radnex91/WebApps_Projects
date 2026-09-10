@@ -1,0 +1,10 @@
+# Patch cumulatif 1.0.7 -> 1.0.9 — tous les fixes depuis 1.0.7
+# - page blanche edition article (FK vide + UNIQUE vide -> null + try/catch)
+# - page blanche edition utilisateur (login/email UNIQUE -> try/catch)
+# - pagination 20/page (modale commande + recap commande + validation livraison) + CSS pager
+# - import CSV ravitaille le MAGASIN (stock_magasin + mouvements_magasin) au lieu des pharmacies
+config/env.php
+assets/css/style.css
+modules/commandes.php
+modules/produits.php
+modules/utilisateurs.php

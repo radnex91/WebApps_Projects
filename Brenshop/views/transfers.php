@@ -113,13 +113,13 @@ require_once __DIR__ . '/layout_top.php';
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th class="ps-3">Référence</th>
-                        <th>De</th>
-                        <th>Vers</th>
-                        <th>Initiateur</th>
-                        <th>Date</th>
-                        <th class="text-center">Statut</th>
-                        <th class="text-center pe-3">Actions</th>
+                        <th class="ps-3"><i class="bi bi-hash me-1"></i>Référence</th>
+                        <th><i class="bi bi-box-arrow-right me-1"></i>De</th>
+                        <th><i class="bi bi-box-arrow-in-right me-1"></i>Vers</th>
+                        <th><i class="bi bi-person me-1"></i>Initiateur</th>
+                        <th><i class="bi bi-calendar me-1"></i>Date</th>
+                        <th class="text-center"><i class="bi bi-flag me-1"></i>Statut</th>
+                        <th class="text-center pe-3"><i class="bi bi-gear me-1"></i>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -181,7 +181,7 @@ require_once __DIR__ . '/layout_top.php';
                     </tr>
                     <?php endforeach; ?>
                     <?php if (empty($transfers)): ?>
-                    <tr><td colspan="7" class="text-center py-4 text-muted">Aucun transfert enregistré</td></tr>
+                    <tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-arrow-left-right d-block" style="font-size:2rem;opacity:.2"></i>Aucun transfert enregistré</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -205,7 +205,7 @@ require_once __DIR__ . '/layout_top.php';
                 <div class="modal-body">
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Magasin Source <span class="text-danger">*</span></label>
+                            <label class="form-label fw-semibold"><i class="bi bi-box-arrow-right me-1"></i>Magasin Source <span class="text-danger">*</span></label>
                             <select name="from_warehouse_id" id="fromWh" class="form-select" required style="border-radius:8px" onchange="loadSourceStock(this.value)">
                                 <option value="">Sélectionner...</option>
                                 <?php foreach ($allWh as $wh): ?>
@@ -216,7 +216,7 @@ require_once __DIR__ . '/layout_top.php';
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Magasin Destination <span class="text-danger">*</span></label>
+                            <label class="form-label fw-semibold"><i class="bi bi-box-arrow-in-right me-1"></i>Magasin Destination <span class="text-danger">*</span></label>
                             <select name="to_warehouse_id" class="form-select" required style="border-radius:8px">
                                 <option value="">Sélectionner...</option>
                                 <?php foreach ($allWh as $wh): ?>
@@ -227,7 +227,7 @@ require_once __DIR__ . '/layout_top.php';
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Produits à transférer</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-box-seam me-1"></i>Produits à transférer</label>
                         <div id="transferItems">
                             <div class="transfer-item-row row g-2 mb-2 align-items-center">
                                 <div class="col-7">
@@ -256,12 +256,12 @@ require_once __DIR__ . '/layout_top.php';
                     </div>
 
                     <div>
-                        <label class="form-label fw-semibold">Notes</label>
+                        <label class="form-label fw-semibold"><i class="bi bi-chat-left-text me-1"></i>Notes</label>
                         <textarea name="notes" class="form-control" rows="2" style="border-radius:8px;resize:none" placeholder="Motif du transfert, instructions..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Annuler</button>
                     <button type="submit" class="btn btn-primary px-4" style="border-radius:8px">
                         <i class="bi bi-send me-1"></i>Créer le Transfert
                     </button>

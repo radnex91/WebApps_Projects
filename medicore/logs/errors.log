@@ -96,3 +96,33 @@ Trace:
 --------------------------------------------------------------------------------
 [2026-05-15 15:19:04] [SECURITY] Token CSRF invalide | Fichier: C:\xampp\htdocs\medicore\includes\security.php:41
 --------------------------------------------------------------------------------
+[2026-05-26 15:56:17] [WARNING] Undefined array key "REQUEST_METHOD" | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:113
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:24] [WARNING] Undefined array key "REQUEST_METHOD" | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:113
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] Cannot modify header information - headers already sent by (output started at Command line code:5) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:16
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] Cannot modify header information - headers already sent by (output started at Command line code:5) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:17
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] Cannot modify header information - headers already sent by (output started at Command line code:5) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:18
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] Cannot modify header information - headers already sent by (output started at Command line code:5) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:19
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] Cannot modify header information - headers already sent by (output started at Command line code:5) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:20
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] Cannot modify header information - headers already sent by (output started at Command line code:5) | Fichier: C:\xampp\htdocs\medicore\includes\security.php:21
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] session_start(): Session cannot be started after headers have already been sent | Fichier: C:\xampp\htdocs\medicore\includes\security.php:24
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] session_set_cookie_params(): Session cookie parameters cannot be changed after headers have already been sent | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:11
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] session_start(): Session cannot be started after headers have already been sent | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:18
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:32] [WARNING] Undefined array key "REQUEST_METHOD" | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:113
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:42] [WARNING] Undefined array key "REQUEST_METHOD" | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:113
+--------------------------------------------------------------------------------
+[2026-05-26 15:56:52] [WARNING] Undefined array key "REQUEST_METHOD" | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:113
+--------------------------------------------------------------------------------
+[2026-05-26 16:02:45] [WARNING] Undefined array key "REQUEST_METHOD" | Fichier: C:\xampp\htdocs\medicore\includes\auth.php:113
+--------------------------------------------------------------------------------

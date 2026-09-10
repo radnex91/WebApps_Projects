@@ -1,0 +1,9 @@
+# Patch hotfix integrite licence 1.2.0 -> 1.2.1
+# Apporte le manifeste d'integrite regenere (auto-inclus par build_patch.sh)
+# + les 3 fichiers couverts modifies + le bump de version.
+# Aucune dependance BDD : ne touche pas au schema (la colonne unite est
+# geree par _archive/sql/update_unite.sql, a appliquer separement).
+config/settings.php
+modules/vente.php
+includes/auth.php
+config/env.php

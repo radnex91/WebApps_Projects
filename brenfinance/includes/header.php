@@ -16,7 +16,8 @@ if (strpos($currentScript, '/modules/') !== false) {
 
 function navItem(string $href, string $icon, string $label, string $module, string $current): string {
     $active = ($module === $current) ? 'active' : '';
-    return "<a href=\"$href\" class=\"nav-item $active\"><span class=\"nav-icon\"><i class=\"ph-bold $icon\"></i></span><span class=\"nav-label\">$label</span></a>";
+    $ariaCurrent = ($module === $current) ? ' aria-current="page"' : '';
+    return "<a href=\"$href\" class=\"nav-item $active\"$ariaCurrent><span class=\"nav-icon\"><i class=\"ph-bold $icon\"></i></span><span class=\"nav-label\">$label</span></a>";
 }
 
 $initials = strtoupper(substr($user['prenom'] ?? '', 0, 1) . substr($user['nom'] ?? '', 0, 1));
@@ -34,21 +35,15 @@ $notifIcons = ['soumis'=>'<i class="fa-solid fa-clock"></i>','valide'=>'<i class
 // Load entreprise settings for theme/logo
 $entreprise = getEntreprise();
 $entTheme = $entreprise['theme'] ?? 'default';
-$entPolice = $entreprise['police'] ?? 'Segoe UI';
 $entLogo = $entreprise['logo'] ?? '';
-$entNom = $entreprise['nom'] ?? 'BrenFinance';
 $entSigle = $entreprise['sigle'] ?? '';
-
-// Google Fonts that need loading
-$googleFonts = ['Roboto','Open Sans','Lato','Poppins','Inter'];
-$loadFont = in_array($entPolice, $googleFonts) ? $entPolice : '';
 ?>
 <!DOCTYPE html>
 <html lang="fr" data-theme="<?= htmlspecialchars($entTheme) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="<?= 
+<meta name="theme-color" content="<?=
   match($entTheme) {
     'wallstreet' => '#0a0a0a', 'cyberpunk' => '#0d001a', 'aurora' => '#020024',
     'executive' => '#0a0a0f', 'solar' => '#1a0f00', 'ocean' => '#03045e',
@@ -57,31 +52,32 @@ $loadFont = in_array($entPolice, $googleFonts) ? $entPolice : '';
 ?>">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title><?= htmlspecialchars($pageTitle ?? 'Tableau de bord') ?> — BrenFinance Pro</title>
-<?php if ($loadFont): ?>
+<title><?= htmlspecialchars($pageTitle ?? 'Tableau de bord') ?> — <?= APP_NAME ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=<?= str_replace(' ','+',$loadFont) ?>:wght@400;500;600;700&display=swap" rel="stylesheet">
-<?php endif; ?>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/app.css">
 <style>
-  body { font-family: '<?= htmlspecialchars($entPolice) ?>', system-ui, -apple-system, sans-serif; }
+  body { font-family: 'Manrope', system-ui, -apple-system, sans-serif; }
 </style>
 </head>
 <body>
 
+<!-- Skip to content link for keyboard users -->
+<a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
 <!-- Overlay mobile -->
-<div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+<div id="sidebar-overlay" onclick="closeMobileSidebar()" role="presentation"></div>
 
 <!-- ═══ SIDEBAR ═══════════════════════════════════════════════════ -->
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" role="navigation" aria-label="Navigation principale">
   <div class="sidebar-brand">
-    <div class="brand-icon"><i class="ph-bold ph-money"></i></div>
+    <div class="brand-icon" aria-hidden="true"><i class="ph-bold ph-money"></i></div>
     <div>
-      <div class="brand-name">BrenFinance Pro</div>
-      <div class="brand-sub">Suite v1.0</div>
+      <div class="brand-name"><?= APP_NAME ?></div>
+      <div class="brand-sub">Gestion Caisse · Trésorerie · Finance</div>
     </div>
   </div>
 
@@ -173,12 +169,12 @@ $loadFont = in_array($entPolice, $googleFonts) ? $entPolice : '';
   </nav>
 
   <div class="sidebar-footer">
-    <div class="user-avatar"><?= $initials ?></div>
+    <div class="user-avatar" aria-hidden="true"><?= $initials ?></div>
     <div class="user-details">
       <div class="user-name"><?= htmlspecialchars(($user['nom'] ?? '') . ' ' . ($user['prenom'] ?? '')) ?></div>
       <div class="user-role"><?= htmlspecialchars($user['role_nom'] ?? '') ?></div>
     </div>
-    <a href="<?= BASE_URL ?>/logout.php" class="btn-logout" title="Déconnexion"><i class="ph-bold ph-sign-out"></i></a>
+    <a href="<?= BASE_URL ?>/logout.php" class="btn-logout" title="Déconnexion" aria-label="Se déconnecter"><i class="ph-bold ph-sign-out"></i></a>
   </div>
 </aside>
 
@@ -186,57 +182,62 @@ $loadFont = in_array($entPolice, $googleFonts) ? $entPolice : '';
 <div class="main-wrap" id="main-wrap">
 
   <!-- TOPBAR -->
-  <header class="topbar">
-    <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Menu">
-      <span id="toggle-icon">☰</span>
+  <header class="topbar" role="banner">
+    <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Ouvrir le menu de navigation" aria-expanded="false" aria-controls="sidebar">
+      <span id="toggle-icon" aria-hidden="true">☰</span>
     </button>
     <div class="topbar-title"><?= htmlspecialchars($pageTitle ?? 'Tableau de bord') ?></div>
     <div class="topbar-right">
       <div class="notif-wrap" id="notif-wrap">
-        <button class="notif-bell" onclick="toggleNotifDropdown()" title="Notifications">
+        <button class="notif-bell" onclick="toggleNotifDropdown()" aria-label="Notifications<?= $notifCount > 0 ? " ($notifCount non lues)" : '' ?>" aria-haspopup="true" aria-expanded="false">
           <i class="ph-bold ph-bell"></i>
           <?php if ($notifCount > 0): ?>
-          <span class="notif-badge" id="notif-badge"><?= $notifCount > 99 ? '99+' : $notifCount ?></span>
+          <span class="notif-badge" id="notif-badge" aria-hidden="true"><?= $notifCount > 99 ? '99+' : $notifCount ?></span>
           <?php endif; ?>
         </button>
-        <div class="notif-dropdown" id="notif-dropdown">
+        <div class="notif-dropdown" id="notif-dropdown" role="menu" aria-label="Notifications">
           <div class="notif-header">
             <strong>Notifications</strong>
             <?php if ($notifCount > 0): ?>
-            <button class="notif-mark-all" onclick="markAllRead()">Tout marquer comme lu</button>
+            <button class="notif-mark-all" onclick="markAllRead()" role="menuitem">Tout marquer comme lu</button>
             <?php endif; ?>
           </div>
-          <div class="notif-list" id="notif-list">
+          <div class="notif-list" id="notif-list" role="menu">
             <?php if (empty($notifications)): ?>
-            <div class="notif-empty">Aucune notification</div>
+            <div class="notif-empty" role="menuitem">Aucune notification</div>
             <?php else: foreach($notifications as $n): ?>
-            <div class="notif-item <?= $n['lue'] ? '' : 'unread' ?>" data-id="<?= $n['id'] ?>">
-              <span class="notif-icon"><?= $notifIcons[$n['type']] ?? '<i class="fa-solid fa-circle"></i>' ?></span>
+            <div class="notif-item <?= $n['lue'] ? '' : 'unread' ?>" data-id="<?= $n['id'] ?>" role="menuitem" tabindex="-1">
+              <span class="notif-icon" aria-hidden="true"><?= $notifIcons[$n['type']] ?? '<i class="fa-solid fa-circle"></i>' ?></span>
               <div class="notif-content">
                 <div class="notif-title"><?= sanitize($n['titre']) ?></div>
                 <div class="notif-msg"><?= sanitize($n['message']) ?></div>
                 <div class="notif-time"><?= timeAgo($n['created_at']) ?></div>
               </div>
               <?php if ($n['eng_numero']): ?>
-              <a href="<?= BASE_URL ?>/modules/engagements/index.php" class="notif-link" title="Voir l'engagement">↗</a>
+              <a href="<?= BASE_URL ?>/modules/engagements/index.php" class="notif-link" title="Voir l'engagement" aria-label="Voir l'engagement <?= htmlspecialchars($n['eng_numero']) ?>">↗</a>
               <?php endif; ?>
             </div>
             <?php endforeach; endif; ?>
           </div>
         </div>
       </div>
-      <span class="topbar-date" id="live-clock"></span>
+      <span class="topbar-date" id="live-clock" aria-live="polite" aria-atomic="true"></span>
     </div>
   </header>
 
   <!-- FLASH TOAST CONTAINER -->
-  <div id="toast-container">
-    <?php if ($flash): ?>
-    <div class="toast toast-<?= htmlspecialchars($flash['type']) ?>">
+  <div id="toast-container" role="status" aria-live="polite" aria-atomic="true">
+    <?php if ($flash):
+      $toastIcons = ['success' => '&#10003;', 'danger' => '&#10005;', 'warning' => '!', 'info' => 'i'];
+      $toastIcon = $toastIcons[$flash['type']] ?? 'i';
+    ?>
+    <div class="toast toast-<?= htmlspecialchars($flash['type']) ?>" role="alert">
+      <span class="toast-icon"><?= $toastIcon ?></span>
       <span class="toast-msg"><?= htmlspecialchars($flash['message']) ?></span>
-      <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Fermer">&times;</button>
+      <button class="toast-close" onclick="dismissToast(this.parentElement)" aria-label="Fermer la notification">&times;</button>
+      <div class="toast-progress"></div>
     </div>
     <?php endif; ?>
   </div>
 
-  <main class="content">
+  <main class="content" id="main-content">

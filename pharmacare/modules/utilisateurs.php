@@ -9,6 +9,17 @@ $id     = (int)($_GET['id'] ?? 0);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
+
+    // ── Toggle actif/désactivé (POST + CSRF) ──
+    if (($_POST['action'] ?? '') === 'toggle') {
+        $tid = (int)($_POST['id'] ?? 0);
+        if ($tid && $tid !== currentUser()['id']) {
+            $db->prepare("UPDATE utilisateurs SET actif = 1-actif WHERE id=?")->execute([$tid]);
+            flash('Statut mis à jour.');
+        }
+        header('Location: ' . url('utilisateurs')); exit;
+    }
+
     $nom    = trim($_POST['nom']    ?? '');
     $prenom = trim($_POST['prenom'] ?? '');
     $email  = trim($_POST['email']  ?? '');
@@ -22,39 +33,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $roleCheck->execute([$roleId]);
     if (!$roleCheck->fetch()) $roleId = 3; // fallback caissier
 
+    // ── Anti-escalade : un utilisateur ne peut pas modifier son propre rôle ──
+    if ($id === (int)($_SESSION['user_id'] ?? 0)) {
+        $cur = $db->prepare("SELECT role_id FROM utilisateurs WHERE id=?");
+        $cur->execute([$id]);
+        $roleId = (int)$cur->fetchColumn();
+    }
+
     if (!$nom || !$prenom || !$email || !$login) {
         flash('Tous les champs obligatoires doivent être remplis.', 'error');
-        header('Location: ' . APP_URL . '/modules/utilisateurs.php?action=' . ($id?"edit&id=$id":'add')); exit;
+        header('Location: ' . ($id ? url('utilisateurs', ['action'=>'edit','id'=>$id]) : url('utilisateurs', ['action'=>'add']))); exit;
     }
 
-    if ($id) {
-        $db->prepare("UPDATE utilisateurs SET nom=?,prenom=?,email=?,login=?,role_id=?,actif=? WHERE id=?")
-           ->execute([$nom,$prenom,$email,$login,$roleId,$actif,$id]);
-        if ($pass !== '') {
-            $db->prepare("UPDATE utilisateurs SET mot_de_passe=? WHERE id=?")
-               ->execute([password_hash($pass, PASSWORD_BCRYPT), $id]);
+    try {
+        if ($id) {
+            $db->prepare("UPDATE utilisateurs SET nom=?,prenom=?,email=?,login=?,role_id=?,actif=? WHERE id=?")
+               ->execute([$nom,$prenom,$email,$login,$roleId,$actif,$id]);
+            if ($pass !== '') {
+                $db->prepare("UPDATE utilisateurs SET mot_de_passe=? WHERE id=?")
+                   ->execute([password_hash($pass, PASSWORD_BCRYPT), $id]);
+            }
+            // Si l'utilisateur modifié est l'utilisateur courant, rafraîchir la session
+            if ($id === (int)($_SESSION['user_id'] ?? 0)) {
+                refreshUserPermissions();
+            }
+            flash('Utilisateur mis à jour.');
+        } else {
+            if ($pass === '') { flash('Le mot de passe est requis.','error'); header('Location: ' . url('utilisateurs', ['action'=>'add'])); exit; }
+            $db->prepare("INSERT INTO utilisateurs (nom,prenom,email,login,mot_de_passe,role_id,actif) VALUES (?,?,?,?,?,?,?)")
+               ->execute([$nom,$prenom,$email,$login,password_hash($pass,PASSWORD_BCRYPT),$roleId,$actif]);
+            flash("Utilisateur $prenom $nom créé.");
         }
-        // Si l'utilisateur modifié est l'utilisateur courant, rafraîchir la session
-        if ($id === (int)($_SESSION['user_id'] ?? 0)) {
-            refreshUserPermissions();
+    } catch (PDOException $e) {
+        // login/email UNIQUE -> messages conviviaux ; sinon message prod-safe (flashError).
+        if (strpos($e->getMessage(), 'login') !== false) {
+            flash('Cet identifiant (login) est déjà utilisé.', 'error');
+        } elseif (strpos($e->getMessage(), 'email') !== false) {
+            flash('Cet email est déjà utilisé.', 'error');
+        } else {
+            flashError($e, 'enregistrement utilisateur');
         }
-        flash('Utilisateur mis à jour.');
-    } else {
-        if ($pass === '') { flash('Le mot de passe est requis.','error'); header('Location: ?action=add'); exit; }
-        $db->prepare("INSERT INTO utilisateurs (nom,prenom,email,login,mot_de_passe,role_id,actif) VALUES (?,?,?,?,?,?,?)")
-           ->execute([$nom,$prenom,$email,$login,password_hash($pass,PASSWORD_BCRYPT),$roleId,$actif]);
-        flash("Utilisateur $prenom $nom créé.");
+        header('Location: ' . ($id ? url('utilisateurs', ['action'=>'edit','id'=>$id]) : url('utilisateurs', ['action'=>'add']))); exit;
     }
-    header('Location: ' . APP_URL . '/modules/utilisateurs.php'); exit;
+    header('Location: ' . url('utilisateurs')); exit;
 }
 
-if ($action === 'toggle' && $id) {
-    if ($id !== currentUser()['id']) {
-        $db->prepare("UPDATE utilisateurs SET actif = 1-actif WHERE id=?")->execute([$id]);
-        flash('Statut mis à jour.');
-    }
-    header('Location: ' . APP_URL . '/modules/utilisateurs.php'); exit;
-}
 
 $roles = $db->query("SELECT id, code, libelle, est_systeme FROM roles ORDER BY est_systeme DESC, libelle")->fetchAll();
 
@@ -71,7 +94,7 @@ if (in_array($action, ['add','edit'])) {
     <div class="card" style="max-width:680px;margin:0 auto;">
       <div class="card-header">
         <div class="card-title"><?= $id ? 'Modifier utilisateur' : 'Nouvel utilisateur' ?></div>
-        <a href="<?= APP_URL ?>/modules/utilisateurs.php" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
+        <a href="<?= url('utilisateurs') ?>" class="btn btn-ghost btn-sm"><?= icon('chevron-left',14) ?> Retour</a>
       </div>
       <form method="POST">
         <input type="hidden" name="csrf" value="<?= csrf() ?>">
@@ -104,12 +127,35 @@ if (in_array($action, ['add','edit'])) {
           </div>
         </div>
         <div class="modal-footer">
-          <a href="<?= APP_URL ?>/modules/utilisateurs.php" class="btn btn-ghost">Annuler</a>
+          <a href="<?= url('utilisateurs') ?>" class="btn btn-ghost">Annuler</a>
           <button type="submit" class="btn btn-primary"><?= icon('save',14) ?> Enregistrer</button>
         </div>
       </form>
     </div>
     <?php layout_foot(); exit;
+}
+
+// ── Export Excel ─────────────────────────────────────────────
+if (($_GET['export'] ?? '') === '1') {
+    require_once __DIR__ . '/../includes/export_xlsx.php';
+    $rowsX = [];
+    foreach ($db->query("
+        SELECT u.login, u.prenom, u.nom, u.email, r.libelle AS role_libelle,
+               u.actif, u.derniere_connexion, u.created_at,
+               (SELECT COUNT(*) FROM ventes WHERE caissier_id=u.id) AS nb_ventes
+        FROM utilisateurs u
+        JOIN roles r ON u.role_id = r.id
+        ORDER BY r.est_systeme DESC, u.nom
+    ")->fetchAll() as $u) {
+        $rowsX[] = [
+            $u['login'], $u['prenom'], $u['nom'], $u['email'], $u['role_libelle'],
+            (int)$u['actif'] ? 'Actif' : 'Désactivé', (int)$u['nb_ventes'],
+            $u['derniere_connexion'] ? date('d/m/Y H:i', strtotime($u['derniere_connexion'])) : '—',
+            date('d/m/Y', strtotime($u['created_at'])),
+        ];
+    }
+    export_xlsx_send('utilisateurs_' . date('Y-m-d'), 'Utilisateurs',
+        ['Login', 'Prénom', 'Nom', 'Email', 'Rôle', 'Statut', 'Nb ventes', 'Dernière connexion', 'Créé le'], $rowsX);
 }
 
 $users = $db->query("
@@ -129,7 +175,8 @@ showFlash();
 <div class="card">
   <div class="card-header">
     <div class="card-title">Gestion des utilisateurs</div>
-    <a href="?action=add" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter utilisateur</a>
+    <a href="<?= url('utilisateurs', ['export'=>'1']) ?>" class="btn btn-ghost btn-sm" title="Exporter au format Excel (.xlsx)"><?= icon('download',14) ?> Exporter</a>
+    <a href="<?= url('utilisateurs', ['action'=>'add']) ?>" class="btn btn-primary btn-sm"><?= icon('plus',14) ?> Ajouter utilisateur</a>
   </div>
   <div class="table-wrap">
     <table>
@@ -153,12 +200,13 @@ showFlash();
           <td><span class="badge <?= $u['actif']?'badge-green':'badge-red' ?>"><?= $u['actif']?'Actif':'Inactif' ?></span></td>
           <td>
             <div class="flex gap-8">
-              <a href="?action=edit&id=<?= $u['id'] ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?> Modifier</a>
+              <a href="<?= url('utilisateurs', ['action'=>'edit','id'=>$u['id']], trim(($u['prenom'] ?? '').' '.($u['nom'] ?? '')) ?: null) ?>" class="btn btn-ghost btn-xs"><?= icon('edit',13) ?> Modifier</a>
               <?php if ($u['id'] != $currentUid): ?>
-              <a href="?action=toggle&id=<?= $u['id'] ?>"
-                 class="btn <?= $u['actif']?'btn-danger':'btn-gold' ?> btn-xs">
+              <button type="button"
+                 class="btn <?= $u['actif']?'btn-danger':'btn-gold' ?> btn-xs"
+                 onclick="confirmDeletePost('toggle','<?= (int)$u['id'] ?>','<?= $u['actif'] ? 'Désactiver cet utilisateur ?' : 'Activer cet utilisateur ?' ?>')">
                 <?= $u['actif'] ? icon('lock',13).' Désactiver' : icon('unlock',13).' Activer' ?>
-              </a>
+              </button>
               <?php endif; ?>
             </div>
           </td>

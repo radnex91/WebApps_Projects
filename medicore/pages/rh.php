@@ -140,7 +140,8 @@ $sLabel = ['actif'=>'Actif','inactif'=>'Inactif','conge'=>'En cong'];
           <div class="user-avatar" style="width:32px;height:32px;font-size:11px;background:<?= h($rColor) ?>22;color:<?= h($rColor) ?>;border:1px solid <?= h($rColor) ?>44"><?= $initiales ?></div>
           <div>
             <div style="font-size:13px;font-weight:600"><?= h($u['prenom'].' '.$u['nom']) ?></div>
-            <div class="text-xs text3"><?= h($u['email']) ?></div>
+            <div class="text-xs text3">@<?= h($u['username']) ?></div>
+            <?php if ($u['email']): ?><div class="text-xs text3"><?= h($u['email']) ?></div><?php endif; ?>
           </div>
         </div>
       </td>
