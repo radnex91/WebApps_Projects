@@ -45,7 +45,8 @@ namespace PharmaCareLicence
         private static readonly Color Card = Color.White;
         private static readonly Color ErrC = Color.FromArgb(185, 28, 28);
 
-        private FlowLayoutPanel _flow;
+        private TableLayoutPanel _table;
+        private FlowLayoutPanel _left, _right;
         private ComboBox _instance;
         private RadioButton _fmtShort, _fmtLong;
         private RadioButton _modePack, _modeSet;
@@ -55,6 +56,7 @@ namespace PharmaCareLicence
         private NumericUpDown _freeCap;
         private DataGridView _grid;
         private Label _status;
+        private ToolTip _tip;
         private string _php;
         private Timer _refresh;
         private bool _loaded;
@@ -65,8 +67,8 @@ namespace PharmaCareLicence
         {
             Text = "PharmaCare — Gestionnaire de licences";
             StartPosition = FormStartPosition.CenterScreen;
-            Width = 840; Height = 740;                 // tient sur un écran 1366×768
-            MinimumSize = new Size(700, 550);          // fenêtre redimensionnable
+            Width = 980; Height = 870;                 // fenêtre ample, layout aéré
+            MinimumSize = new Size(920, 720);          // redimensionnable sans rien serrer
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = true;
             BackColor = Bg;
@@ -74,39 +76,66 @@ namespace PharmaCareLicence
             AutoScaleMode = AutoScaleMode.Dpi;         // net sur écrans 125/150 %
 
             // ── Bandeau ──
-            var banner = new Panel { Dock = DockStyle.Top, Height = 68, BackColor = Color.White };
-            var logo = new Panel { Location = new Point(22, 13), Size = new Size(42, 42), BackColor = Brand };
+            var banner = new Panel { Dock = DockStyle.Top, Height = 78, BackColor = Color.White };
+            var logo = new Panel { Location = new Point(26, 17), Size = new Size(44, 44), BackColor = Brand };
             logo.Controls.Add(new Label { Dock = DockStyle.Fill, Text = "Rx", ForeColor = Color.White,
                 Font = new Font("Segoe UI", 15F, FontStyle.Bold), TextAlign = ContentAlignment.MiddleCenter });
             var lt = new Label { Text = "Gestionnaire de licences PharmaCare", Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                ForeColor = Ink, Location = new Point(78, 12), AutoSize = true };
+                ForeColor = Ink, Location = new Point(88, 16), AutoSize = true };
             var ls = new Label { Text = "Outil développeur — émission de codes d'activation (RSA / HMAC) — portable, PHP embarqué",
-                Font = new Font("Segoe UI", 9F), ForeColor = Mute, Location = new Point(78, 37), AutoSize = true };
+                Font = new Font("Segoe UI", 9F), ForeColor = Mute, Location = new Point(88, 46), AutoSize = true };
             banner.Controls.AddRange(new Control[] { logo, lt, ls });
             Controls.Add(banner);
 
-            // ── Contenu défilant ──
-            _flow = new FlowLayoutPanel
+            // ── Corps : 2 colonnes (formulaire | résultats) ──
+            // 1) La génération (instance, format, mode, valeurs, bouton) à gauche.
+            // 2) Le code généré + le ledger (clients) à droite, qui respire.
+            _table = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Bg, Padding = new Padding(16, 4, 16, 8)
+            };
+            _table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36));
+            _table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 64));
+            _table.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            Controls.Add(_table);
+
+            _left = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false,
-                AutoScroll = true, BackColor = Bg, Padding = new Padding(16)
+                AutoScroll = true, BackColor = Bg, Padding = new Padding(2, 16, 10, 4)
             };
-            Controls.Add(_flow);
-            _flow.Resize += (s, e) => StretchCards();
-            _flow.ClientSizeChanged += (s, e) => StretchCards();   // scrollbar qui apparaît/disparaît
+            _right = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false,
+                AutoScroll = true, BackColor = Bg, Padding = new Padding(10, 16, 2, 4)
+            };
+            _table.Controls.Add(_left, 0, 0);
+            _table.Controls.Add(_right, 1, 0);
+            _table.Resize += (s, e) => StretchCards();
+            _table.ClientSizeChanged += (s, e) => StretchCards();   // scrollbar qui apparaît/disparaît
 
             // ── Bas de page (statut) ──
-            var foot = new Panel { Dock = DockStyle.Bottom, Height = 34, BackColor = Color.White };
+            var foot = new Panel { Dock = DockStyle.Bottom, Height = 42, BackColor = Color.White };
             _status = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-                AutoEllipsis = true, Padding = new Padding(16, 0, 12, 0),
+                AutoEllipsis = true, Padding = new Padding(20, 0, 12, 0),
                 ForeColor = Ink, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
             foot.Controls.Add(_status);
             Controls.Add(foot);
 
-            BuildEmitCard();
-            BuildCodeCard();
-            BuildFreeCapCard();
-            BuildLedgerCard();
+            // Barre de statut : AutoEllipsis tronque les longs messages
+            // (ex. alerte clé privée). Au survol, révéler le texte complet.
+            _tip = new ToolTip();
+            _status.MouseHover += (s, e) =>
+            {
+                var sz = TextRenderer.MeasureText(_status.Text, _status.Font);
+                _tip.SetToolTip(_status, sz.Width > _status.ClientSize.Width - 4 ? _status.Text : null);
+            };
+
+            BuildEmitCard();      // → colonne de gauche
+            BuildFreeCapCard();   // → colonne de gauche
+            BuildCodeCard();      // → colonne de droite
+            BuildLedgerCard();    // → colonne de droite
 
             _fmtShort.CheckedChanged += (s, e) => _expire.Enabled = !_fmtShort.Checked;
 
@@ -131,106 +160,118 @@ namespace PharmaCareLicence
         {
             var p = new Panel
             {
-                Width = 740, Height = height, BackColor = Card, BorderStyle = BorderStyle.FixedSingle,
-                Margin = new Padding(0, 0, 0, 12)
+                Width = 400, Height = height, BackColor = Card, BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 0, 0, 16)
             };
             p.Controls.Add(new Label
             {
                 Text = title, Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Brand,
-                Location = new Point(16, 10), AutoSize = true
+                Location = new Point(16, 12), AutoSize = true
             });
             return p;
         }
+        private void AddLeft(Panel c) { _left.Controls.Add(c); }
+        private void AddRight(Panel c) { _right.Controls.Add(c); }
 
         private void BuildEmitCard()
         {
-            var c = MakeCard("Émettre un code", 232);
+            var c = MakeCard("Émettre un code", 340);
 
-            c.Controls.Add(new Label { Text = "Identifiant d'instance du client", Location = new Point(16, 40), AutoSize = true, ForeColor = Mute });
+            // ── Identifiant (ocupe toute la largeur) ──
+            c.Controls.Add(new Label { Text = "Identifiant d'instance du client", Location = new Point(20, 52), AutoSize = true, ForeColor = Mute });
             _instance = new ComboBox
             {
-                Location = new Point(16, 60), Width = 410, DropDownStyle = ComboBoxStyle.DropDown,
+                Location = new Point(20, 74), Width = 300, DropDownStyle = ComboBoxStyle.DropDown,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right,
                 AutoCompleteMode = AutoCompleteMode.SuggestAppend, AutoCompleteSource = AutoCompleteSource.ListItems
             };
             // Entrée = générer directement
             _instance.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; OnGenerate(s, e); } };
             c.Controls.Add(_instance);
 
-            c.Controls.Add(new Label { Text = "Format", Location = new Point(16, 92), AutoSize = true, ForeColor = Mute });
-            _fmtShort = new RadioButton { Text = "Court (SMS, LLLL-NNNNNN-CCCCCCCC)", Location = new Point(80, 90), AutoSize = true, Checked = true };
-            _fmtLong  = new RadioButton { Text = "Long (signé RSA)", Location = new Point(360, 90), AutoSize = true };
-            c.Controls.AddRange(new Control[] { _fmtShort, _fmtLong });
+            // ── Format / Mode : deux groupes côte à côte ──
+            c.Controls.Add(new Label { Text = "Format", Location = new Point(20, 116), AutoSize = true, ForeColor = Mute });
+            c.Controls.Add(new Label { Text = "Mode", Location = new Point(175, 116), AutoSize = true, ForeColor = Mute });
+            _fmtShort = new RadioButton { Text = "Court (SMS)", Location = new Point(20, 138), AutoSize = true, Checked = true };
+            _fmtLong = new RadioButton { Text = "Long (RSA)", Location = new Point(20, 166), AutoSize = true };
+            _modePack = new RadioButton { Text = "Pack (+N)", Location = new Point(175, 138), AutoSize = true, Checked = true };
+            _modeSet = new RadioButton { Text = "Cap absolu", Location = new Point(175, 166), AutoSize = true };
+            c.Controls.AddRange(new Control[] { _fmtShort, _fmtLong, _modePack, _modeSet });
 
-            c.Controls.Add(new Label { Text = "Mode", Location = new Point(16, 122), AutoSize = true, ForeColor = Mute });
-            _modePack = new RadioButton { Text = "Pack (+N lignes)", Location = new Point(80, 120), AutoSize = true, Checked = true };
-            _modeSet  = new RadioButton { Text = "Cap absolu (fixe le plafond)", Location = new Point(260, 120), AutoSize = true };
-            c.Controls.AddRange(new Control[] { _modePack, _modeSet });
-
-            c.Controls.Add(new Label { Text = "Lignes / plafond", Location = new Point(16, 152), AutoSize = true, ForeColor = Mute });
-            _value = new NumericUpDown { Location = new Point(160, 150), Width = 120, Minimum = 1, Maximum = 1000000000, Value = 5000 };
+            // ── Lignes / expiration ──
+            c.Controls.Add(new Label { Text = "Lignes / plafond", Location = new Point(20, 208), AutoSize = true, ForeColor = Mute });
+            _value = new NumericUpDown { Location = new Point(20, 230), Width = 140, Minimum = 1, Maximum = 1000000000, Value = 5000 };
             c.Controls.Add(_value);
-
-            c.Controls.Add(new Label { Text = "Expiration (long uniquement)", Location = new Point(300, 152), AutoSize = true, ForeColor = Mute });
-            _expire = new DateTimePicker { Location = new Point(470, 150), Width = 230, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Enabled = false };
+            c.Controls.Add(new Label { Text = "Expiration", Location = new Point(180, 208), AutoSize = true, ForeColor = Mute });
+            _expire = new DateTimePicker { Location = new Point(254, 230), Width = 130, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Enabled = false, Anchor = AnchorStyles.Top | AnchorStyles.Right };
             c.Controls.Add(_expire);
 
+            // ── Action : bouton pleine largeur ──
             var btn = new Button
             {
                 Text = "Générer le code", BackColor = Brand, ForeColor = Color.White, FlatStyle = FlatStyle.Flat,
-                Size = new Size(170, 40), Location = new Point(552, 178), Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+                Size = new Size(180, 46), Location = new Point(20, 276), Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
             };
             btn.FlatAppearance.BorderSize = 0;
             btn.Click += OnGenerate;
             c.Controls.Add(btn);
 
-            _flow.Controls.Add(c);
+            // Descriptions complètes au survol (libellés courts, fenêtre aérée).
+            _tip.SetToolTip(_fmtShort, "Code court signé par HMAC (secret) — format SMS : LLLL-NNNNNN-CCCCCCCC.");
+            _tip.SetToolTip(_fmtLong, "Code long signé RSA, retournable avec une date d'expiration.");
+            _tip.SetToolTip(_modePack, "Ajoute N lignes à la quantité déjà émise pour ce client.");
+            _tip.SetToolTip(_modeSet, "Fixe le plafond (cap) du client à la valeur indiquée.");
+            _tip.SetToolTip(_expire, "Réservé au format long (signé RSA).");
+
+            AddLeft(c);
         }
 
         private void BuildCodeCard()
         {
-            var c = MakeCard("Code d'activation", 132);
+            var c = MakeCard("Code d'activation", 190);
 
             _code = new TextBox
             {
-                Location = new Point(16, 38), Width = 708, Height = 56, ReadOnly = true, Multiline = true,
-                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right,
-                Font = new Font("Consolas", 10F), BackColor = Color.FromArgb(13, 22, 34), ForeColor = Color.FromArgb(245, 158, 11),
+                Location = new Point(20, 52), Width = 700, Height = 84, ReadOnly = true, Multiline = true,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right | AnchorStyles.Bottom,
+                Font = new Font("Consolas", 11F), BackColor = Color.FromArgb(13, 22, 34), ForeColor = Color.FromArgb(245, 158, 11),
                 BorderStyle = BorderStyle.FixedSingle
             };
             c.Controls.Add(_code);
 
-            var copy = new Button { Text = "Copier le code", FlatStyle = FlatStyle.Flat, Size = new Size(150, 30), Location = new Point(16, 98) };
+            var copy = new Button { Text = "💾 Copier le code", FlatStyle = FlatStyle.Flat, Size = new Size(160, 34), Location = new Point(20, 146), Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right };
             copy.FlatAppearance.BorderColor = Mute;
             copy.Click += OnCopy;
             c.Controls.Add(copy);
 
-            _flow.Controls.Add(c);
+            AddRight(c);
         }
 
         private void BuildFreeCapCard()
         {
-            var c = MakeCard("Palier gratuit", 80);
+            var c = MakeCard("Palier gratuit", 112);
 
-            c.Controls.Add(new Label { Text = "Lignes offertes à tout nouveau client (const LICENCE_FREE_CAP)",
-                Location = new Point(16, 40), AutoSize = true, ForeColor = Mute, Font = new Font("Segoe UI", 8.5F) });
-            _freeCap = new NumericUpDown { Location = new Point(480, 38), Width = 140, Minimum = 1, Maximum = 1000000000, Value = 150 };
+            c.Controls.Add(new Label { Text = "Lignes offertes à tout nouveau client (LICENCE_FREE_CAP)",
+                Location = new Point(20, 52), AutoSize = true, ForeColor = Mute, Font = new Font("Segoe UI", 8.5F) });
+            _freeCap = new NumericUpDown { Location = new Point(20, 72), Width = 130, Minimum = 1, Maximum = 1000000000, Value = 150 };
             c.Controls.Add(_freeCap);
-            var b = new Button { Text = "Enregistrer", FlatStyle = FlatStyle.Flat, Size = new Size(110, 30), Location = new Point(628, 37) };
+            var b = new Button { Text = "Enregistrer", FlatStyle = FlatStyle.Flat, Size = new Size(110, 30), Location = new Point(274, 71), Anchor = AnchorStyles.Top | AnchorStyles.Right };
             b.FlatAppearance.BorderColor = Mute;
             b.Click += OnSetFree;
             c.Controls.Add(b);
 
-            _flow.Controls.Add(c);
+            AddLeft(c);
         }
 
         private void BuildLedgerCard()
         {
-            var c = MakeCard("Clients enregistrés", 230);
+            var c = MakeCard("Clients enregistrés", 300);
 
             _grid = new DataGridView
             {
-                Location = new Point(16, 40), Width = 708, Height = 170,
-                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(20, 52), Width = 700, Height = 220,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right | AnchorStyles.Bottom,
                 AllowUserToAddRows = false, AllowUserToDeleteRows = false, AllowUserToResizeRows = false,
                 ReadOnly = true, RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 BackgroundColor = Card, BorderStyle = BorderStyle.FixedSingle, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
@@ -256,7 +297,7 @@ namespace PharmaCareLicence
             };
             c.Controls.Add(_grid);
 
-            _flow.Controls.Add(c);
+            AddRight(c);
         }
 
         // ═══ Résolution PHP ══════════════════════════════════════════════════
@@ -381,14 +422,20 @@ namespace PharmaCareLicence
             _lastRefresh = DateTime.Now;
         }
 
-        // Adapte la largeur des cartes à la largeur disponible (fenêtre redimensionnable).
+        // Adapte la largeur des cartes à la largeur de leur colonne (fenêtre redimensionnable).
         private void StretchCards()
         {
-            if (_flow == null) return;
-            int w = _flow.ClientSize.Width - _flow.Padding.Left - _flow.Padding.Right;
-            if (_flow.VerticalScroll.Visible) w -= SystemInformation.VerticalScrollBarWidth;
-            if (w < 420) w = 420;
-            foreach (Control c in _flow.Controls)
+            if (_table == null) return;
+            StretchPanel(_left, 260);
+            StretchPanel(_right, 380);
+        }
+        private static void StretchPanel(FlowLayoutPanel flow, int minW)
+        {
+            if (flow == null) return;
+            int w = flow.ClientSize.Width - flow.Padding.Left - flow.Padding.Right;
+            if (flow.VerticalScroll.Visible) w -= SystemInformation.VerticalScrollBarWidth;
+            if (w < minW) w = minW;
+            foreach (Control c in flow.Controls)
                 if (Math.Abs(c.Width - w) > 1) c.Width = w;
         }
 

@@ -241,11 +241,16 @@ function Set-PerformanceTuning {
     if (-not (Test-Path $cacheDir)) { New-Item -ItemType Directory -Path $cacheDir | Out-Null }
     $htCache = Join-Path $cacheDir '.htaccess'
     [System.IO.File]::WriteAllText($htCache, "Require all denied`r`nDeny from all`r`nOptions -Indexes`r`n", (New-Object System.Text.UTF8Encoding($false)))
-    $acl = Get-Acl $cacheDir
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule('Todos', 'Modify', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
-    $acl.AddAccessRule($rule)
-    Set-Acl $cacheDir $acl
-    Write-Host '  OK : cache/ cree (inscriptible, non liste en HTTP).' -ForegroundColor Green
+    try {
+        $acl = Get-Acl $cacheDir
+        $sid = New-Object System.Security.Principal.SecurityIdentifier('S-1-1-0')
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'Modify', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
+        $acl.AddAccessRule($rule)
+        Set-Acl $cacheDir $acl
+        Write-Host '  OK : cache/ cree (inscriptible, non liste en HTTP).' -ForegroundColor Green
+    } catch {
+        Write-Host '  OK : cache/ cree (ACL ignoree, .htaccess protege du web).' -ForegroundColor Yellow
+    }
 
     # ── (d) Redemarrage de MySQL pour appliquer my.ini ──
     $ErrorActionPreference = 'Continue'
