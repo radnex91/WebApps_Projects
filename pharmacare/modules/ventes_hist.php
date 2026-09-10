@@ -462,10 +462,10 @@ function buildThermalTicket(v, lignes) {
   const phNom = PHARMACIE_NOMS[parseInt(v.pharmacie_id, 10)] || '';
   const lignesHtml = lignes.length
     ? lignes.map(l => `
-        <div style="display:flex;justify-content:space-between;margin-bottom:1px;">
-          <span>${escHtml(l.produit_nom)}</span><span>${fmtDA(parseFloat(l.total_ligne))}</span>
+        <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+          <span style="font-weight:700;">${escHtml(l.produit_nom)}</span><span style="font-weight:600;">${fmtDA(parseFloat(l.total_ligne))}</span>
         </div>
-        <div style="font-size:10px;color:#64748b;margin-bottom:3px;">
+        <div style="font-size:11px;color:#64748b;margin-bottom:5px;">
           ${fmtDA(parseFloat(l.prix_unitaire))} &times; ${(parseInt(l.quantite, 10))}
         </div>`).join('')
     : '<div style="padding:8px;text-align:center;color:#94a3b8;">Aucune ligne</div>';
@@ -496,7 +496,7 @@ function buildThermalTicket(v, lignes) {
         <span>${escHtml(v.reference)}</span><span>${dt}</span>
       </div>
       ${v.client_nom ? `<div style="font-size:11px;color:var(--text3,#94a3b8);margin-bottom:8px;">Client : ${escHtml(v.client_nom)}</div>` : ''}
-      <div style="border-top:1px dashed var(--border2,#cbd5e1);border-bottom:1px dashed var(--border2,#cbd5e1);padding:6px 0;margin-bottom:8px;">
+      <div style="border-top:1px dashed var(--border2,#cbd5e1);border-bottom:1px dashed var(--border2,#cbd5e1);padding:8px 0;margin-bottom:8px;">
         ${lignesHtml}
       </div>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2,#475569);">

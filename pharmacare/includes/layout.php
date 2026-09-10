@@ -828,10 +828,10 @@ window.PC_OFFLINE = (function(){
     h += '<div style="font-size:10px;color:#555;margin-bottom:8px;">' + escH(reasonTicket(item.reason)) + '</div>';
     var client = f.client_nom_saisie || (f.client_mode === 'existant' ? ('Client #' + (f.client_id || '?')) : '');
     if (client) h += '<div style="font-size:11px;color:#555;margin-bottom:8px;">Client : ' + escH(client) + '</div>';
-    h += '<div style="border-top:1px dashed #999;border-bottom:1px dashed #999;padding:6px 0;margin-bottom:8px;">';
+    h += '<div style="border-top:1px dashed #999;border-bottom:1px dashed #999;padding:8px 0;margin-bottom:8px;">';
     t.lines.forEach(function(l){
-      h += '<div style="display:flex;justify-content:space-between;margin-bottom:1px;"><span>' + escH(l.name) + '</span><span>' + fmtM2(l.total) + '</span></div>';
-      h += '<div style="font-size:10px;color:#777;margin-bottom:3px;">' + fmtM2(l.price) + ' &times; ' + l.qty + '</div>';
+      h += '<div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="font-weight:700;">' + escH(l.name) + '</span><span style="font-weight:600;">' + fmtM2(l.total) + '</span></div>';
+      h += '<div style="font-size:11px;color:#555;margin-bottom:5px;">' + fmtM2(l.price) + ' &times; ' + l.qty + '</div>';
     });
     h += '</div>';
     var dev = meta.dev || '';

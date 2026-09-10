@@ -1371,13 +1371,13 @@ function toggleCreditMode(checkbox) {
         <?php if ($receiptData['client_nom']): ?>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Client : <?= e($receiptData['client_nom']) ?></div>
         <?php endif; ?>
-        <div style="border-top:1px dashed var(--border2);border-bottom:1px dashed var(--border2);padding:6px 0;margin-bottom:8px;">
+        <div style="border-top:1px dashed var(--border2);border-bottom:1px dashed var(--border2);padding:8px 0;margin-bottom:8px;">
           <?php foreach ($receiptData['lignes'] as $l): ?>
-          <div style="display:flex;justify-content:space-between;margin-bottom:1px;">
-            <span><?= e($l['produit_nom']) ?></span>
-            <span><?= fmtMoney((float)$l['total_ligne']) ?></span>
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+            <span style="font-weight:700;"><?= e($l['produit_nom']) ?></span>
+            <span style="font-weight:600;"><?= fmtMoney((float)$l['total_ligne']) ?></span>
           </div>
-          <div style="font-size:10px;color:#64748b;margin-bottom:3px;">
+          <div style="font-size:11px;color:#64748b;margin-bottom:5px;">
             <?= fmtMoney((float)$l['prix_unitaire']) ?> &times; <?= (int)$l['quantite'] ?>
           </div>
           <?php endforeach; ?>
@@ -1489,7 +1489,7 @@ function printReceiptA4() {
   d.lignes.forEach(function(l){
     rows += `
       <tr>
-        <td style="text-align:left;padding:8px 10px;">${escHtml(l.produit_nom)}</td>
+        <td style="text-align:left;padding:8px 10px;font-weight:700;">${escHtml(l.produit_nom)}</td>
         <td style="text-align:right;padding:8px 10px;font-family:'DM Mono',monospace;">${fmt(l.prix_unitaire)}</td>
         <td style="text-align:center;padding:8px 10px;">${l.quantite}</td>
         <td style="text-align:right;padding:8px 10px;font-family:'DM Mono',monospace;font-weight:600;">${fmt(l.total_ligne)}</td>
